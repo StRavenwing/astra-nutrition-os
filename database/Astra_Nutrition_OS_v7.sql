@@ -1,6 +1,3 @@
--- Astra Nutrition OS v7
--- SQLite-compatible schema and data export
-PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
 CREATE TABLE changelog (
   change_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,12 +107,18 @@ CREATE TABLE progress (
   waist_cm REAL,
   chest_cm REAL,
   hips_cm REAL,
+  height_cm REAL,
+  bmi REAL,
+  body_fat_pct REAL,
+  fat_mass_kg REAL,
+  muscle_pct REAL,
+  muscle_mass_kg REAL,
   sleep_score INTEGER CHECK(sleep_score BETWEEN 1 AND 5 OR sleep_score IS NULL),
   wellbeing_score INTEGER CHECK(wellbeing_score BETWEEN 1 AND 5 OR wellbeing_score IS NULL),
   comment TEXT
 );
-INSERT INTO "progress" VALUES(1,'2025-07-14',78.0,88.0,NULL,NULL,NULL,NULL,'Исторический максимум, приблизительно');
-INSERT INTO "progress" VALUES(2,'2026-07-14',73.0,81.0,NULL,NULL,NULL,NULL,'Текущая точка');
+INSERT INTO "progress" (progress_id,measured_at,weight_kg,waist_cm,chest_cm,hips_cm,height_cm,bmi,sleep_score,wellbeing_score,comment) VALUES(1,'2025-07-14',78.0,88.0,NULL,NULL,169.0,27.31,NULL,NULL,'Исторический максимум, приблизительно');
+INSERT INTO "progress" (progress_id,measured_at,weight_kg,waist_cm,chest_cm,hips_cm,height_cm,bmi,sleep_score,wellbeing_score,comment) VALUES(2,'2026-07-14',73.0,81.0,NULL,NULL,169.0,25.56,NULL,NULL,'Текущая точка');
 CREATE TABLE recipe_ingredients (
   recipe_ingredient_id INTEGER PRIMARY KEY AUTOINCREMENT,
   recipe_id TEXT NOT NULL REFERENCES recipes(recipe_id) ON DELETE CASCADE,
@@ -218,24 +221,24 @@ CREATE TABLE recipes (
   status TEXT NOT NULL CHECK(status IN ('Draft','Testing','Approved','Archived')),
   servings REAL NOT NULL CHECK(servings > 0),
   tags TEXT
-);
-INSERT INTO "recipes" VALUES('B-001','Яичница с томатами и хлебом','Breakfast','Яичные блюда','1.0','Approved',2.0,'Quick; High protein');
-INSERT INTO "recipes" VALUES('M-001','Куриная запеканка','Main','Высокобелковые','1.0','Approved',3.0,'Meal prep; Low fat');
-INSERT INTO "recipes" VALUES('M-002','Паста болоньезе','Main','Паста','1.1','Approved',2.0,'High protein');
-INSERT INTO "recipes" VALUES('M-003','Домашняя пицца с индейкой','Main','Пицца','1.0','Approved',4.0,'Домашняя');
-INSERT INTO "recipes" VALUES('M-004','Куриные оладьи','Main','Высокобелковые','1.0','Approved',3.0,'Meal prep; Low fat');
-INSERT INTO "recipes" VALUES('M-005','Паста с баклажаном и моцареллой','Main','Паста','1.0','Approved',2.0,'Vegetarian');
-INSERT INTO "recipes" VALUES('S-001','Салат с тунцом','Salad','Высокобелковые','1.0','Approved',2.0,'Low carb');
-INSERT INTO "recipes" VALUES('S-002','Салат с куриным бедром','Salad','Высокобелковые','1.0','Approved',2.0,'Low carb');
-INSERT INTO "recipes" VALUES('S-003','Салат с желудками','Salad','Высокобелковые','1.0','Testing',2.0,'Budget; Low carb');
-INSERT INTO "recipes" VALUES('W-001','Врап с тунцом','Wrap','Протеиновая тортилья','1.0','Approved',2.0,'Quick; High protein');
-INSERT INTO "recipes" VALUES('W-002','Врап с креветками','Wrap','Протеиновая тортилья','1.0','Approved',2.0,'Premium; High protein');
-INSERT INTO "recipes" VALUES('W-003','Врап с куриным бедром','Wrap','Цельнозерновая тортилья','1.0','Approved',2.0,'High protein');
-INSERT INTO "recipes" VALUES('D-001','Крем с ежевикой','Dessert','Белковый крем','1.1','Approved',2.0,'Dessert; Berries');
-INSERT INTO "recipes" VALUES('D-002','Крем с голубикой','Dessert','Белковый крем','1.1','Approved',2.0,'Dessert; Berries');
-INSERT INTO "recipes" VALUES('G-001','Киноа с томатами','Garnish','Крупы','1.0','Approved',2.0,'Vegetarian');
-INSERT INTO "recipes" VALUES('SN-001','Фруктово-протеиновый снек','Snack','Готовый продукт','1.0','Approved',1.0,'Quick');
-INSERT INTO "recipes" VALUES('DR-001','Протеиновый холодный чай','Drink','Готовый продукт','1.0','Approved',1.0,'Quick');
+, manual_price_per_serving_rsd REAL);
+INSERT INTO "recipes" VALUES('B-001','Яичница с томатами и хлебом','Breakfast','Яичные блюда','1.0','Approved',2.0,'Quick; High protein',NULL);
+INSERT INTO "recipes" VALUES('M-001','Куриная запеканка','Main','Высокобелковые','1.0','Approved',3.0,'Meal prep; Low fat',NULL);
+INSERT INTO "recipes" VALUES('M-002','Паста болоньезе','Main','Паста','1.1','Approved',2.0,'High protein',NULL);
+INSERT INTO "recipes" VALUES('M-003','Домашняя пицца с индейкой','Main','Пицца','1.0','Approved',4.0,'Домашняя',NULL);
+INSERT INTO "recipes" VALUES('M-004','Куриные оладьи','Main','Высокобелковые','1.0','Approved',3.0,'Meal prep; Low fat',NULL);
+INSERT INTO "recipes" VALUES('M-005','Паста с баклажаном и моцареллой','Main','Паста','1.0','Approved',2.0,'Vegetarian',NULL);
+INSERT INTO "recipes" VALUES('S-001','Салат с тунцом','Salad','Высокобелковые','1.0','Approved',2.0,'Low carb',NULL);
+INSERT INTO "recipes" VALUES('S-002','Салат с куриным бедром','Salad','Высокобелковые','1.0','Approved',2.0,'Low carb',NULL);
+INSERT INTO "recipes" VALUES('S-003','Салат с желудками','Salad','Высокобелковые','1.0','Testing',2.0,'Budget; Low carb',NULL);
+INSERT INTO "recipes" VALUES('W-001','Врап с тунцом','Wrap','Протеиновая тортилья','1.0','Approved',2.0,'Quick; High protein',NULL);
+INSERT INTO "recipes" VALUES('W-002','Врап с креветками','Wrap','Протеиновая тортилья','1.0','Approved',2.0,'Premium; High protein',NULL);
+INSERT INTO "recipes" VALUES('W-003','Врап с куриным бедром','Wrap','Цельнозерновая тортилья','1.0','Approved',2.0,'High protein',NULL);
+INSERT INTO "recipes" VALUES('D-001','Крем с ежевикой','Dessert','Белковый крем','1.1','Approved',2.0,'Dessert; Berries',NULL);
+INSERT INTO "recipes" VALUES('D-002','Крем с голубикой','Dessert','Белковый крем','1.1','Approved',2.0,'Dessert; Berries',NULL);
+INSERT INTO "recipes" VALUES('G-001','Киноа с томатами','Garnish','Крупы','1.0','Approved',2.0,'Vegetarian',NULL);
+INSERT INTO "recipes" VALUES('SN-001','Фруктово-протеиновый снек','Snack','Готовый продукт','1.0','Approved',1.0,'Quick',NULL);
+INSERT INTO "recipes" VALUES('DR-001','Протеиновый холодный чай','Drink','Готовый продукт','1.0','Approved',1.0,'Quick',NULL);
 ANALYZE "sqlite_master";
 INSERT INTO "sqlite_stat1" VALUES('workout_logs','idx_workout_logs_date','17 17');
 INSERT INTO "sqlite_stat1" VALUES('exercises','sqlite_autoindex_exercises_1','17 1');
@@ -277,29 +280,6 @@ CREATE INDEX idx_recipe_ingredients_recipe ON recipe_ingredients(recipe_id);
 CREATE INDEX idx_recipe_ingredients_product ON recipe_ingredients(product_id);
 CREATE INDEX idx_food_diary_date ON food_diary(entry_date);
 CREATE INDEX idx_workout_logs_date ON workout_logs(performed_at);
-CREATE VIEW recipe_totals AS
-SELECT r.recipe_id, r.name, r.category, r.subcategory, r.version, r.status, r.servings,
-       ROUND(SUM(CASE WHEN p.unit IN ('шт','бут.') THEN ri.quantity*p.price_per_100_or_unit_rsd
-                      ELSE ri.quantity*p.price_per_100_or_unit_rsd/100.0 END), 2) AS recipe_cost_rsd,
-       ROUND(SUM(CASE WHEN p.unit IN ('шт','бут.') THEN ri.quantity*p.kcal
-                      ELSE ri.quantity*p.kcal/100.0 END), 2) AS kcal,
-       ROUND(SUM(CASE WHEN p.unit IN ('шт','бут.') THEN ri.quantity*p.protein_g
-                      ELSE ri.quantity*p.protein_g/100.0 END), 2) AS protein_g,
-       ROUND(SUM(CASE WHEN p.unit IN ('шт','бут.') THEN ri.quantity*p.fat_g
-                      ELSE ri.quantity*p.fat_g/100.0 END), 2) AS fat_g,
-       ROUND(SUM(CASE WHEN p.unit IN ('шт','бут.') THEN ri.quantity*p.carbs_g
-                      ELSE ri.quantity*p.carbs_g/100.0 END), 2) AS carbs_g
-FROM recipes r
-JOIN recipe_ingredients ri ON ri.recipe_id=r.recipe_id
-JOIN products p ON p.product_id=ri.product_id
-GROUP BY r.recipe_id;
-CREATE VIEW recipe_per_serving AS
-SELECT *, ROUND(recipe_cost_rsd/servings,2) AS cost_per_serving_rsd,
-       ROUND(kcal/servings,2) AS kcal_per_serving,
-       ROUND(protein_g/servings,2) AS protein_per_serving_g,
-       ROUND(fat_g/servings,2) AS fat_per_serving_g,
-       ROUND(carbs_g/servings,2) AS carbs_per_serving_g
-FROM recipe_totals;
 CREATE VIEW food_diary_totals AS
 SELECT fd.entry_date,
        ROUND(SUM(fd.servings*rps.kcal_per_serving),2) AS kcal,
@@ -309,10 +289,42 @@ SELECT fd.entry_date,
        ROUND(SUM(fd.servings*rps.cost_per_serving_rsd),2) AS cost_rsd
 FROM food_diary fd JOIN recipe_per_serving rps ON rps.recipe_id=fd.recipe_id
 GROUP BY fd.entry_date;
+CREATE VIEW recipe_totals AS
+            SELECT r.recipe_id, r.name, r.category, r.subcategory, r.version,
+                   r.status, r.servings, r.tags, r.manual_price_per_serving_rsd,
+                   ROUND(SUM(CASE WHEN p.unit IN ('шт', 'бут.')
+                       THEN ri.quantity * p.price_per_100_or_unit_rsd
+                       ELSE ri.quantity * p.price_per_100_or_unit_rsd / 100.0 END), 2)
+                       AS recipe_cost_rsd,
+                   ROUND(SUM(CASE WHEN p.unit IN ('шт', 'бут.')
+                       THEN ri.quantity * p.kcal
+                       ELSE ri.quantity * p.kcal / 100.0 END), 2) AS kcal,
+                   ROUND(SUM(CASE WHEN p.unit IN ('шт', 'бут.')
+                       THEN ri.quantity * p.protein_g
+                       ELSE ri.quantity * p.protein_g / 100.0 END), 2) AS protein_g,
+                   ROUND(SUM(CASE WHEN p.unit IN ('шт', 'бут.')
+                       THEN ri.quantity * p.fat_g
+                       ELSE ri.quantity * p.fat_g / 100.0 END), 2) AS fat_g,
+                   ROUND(SUM(CASE WHEN p.unit IN ('шт', 'бут.')
+                       THEN ri.quantity * p.carbs_g
+                       ELSE ri.quantity * p.carbs_g / 100.0 END), 2) AS carbs_g
+            FROM recipes r
+            LEFT JOIN recipe_ingredients ri ON ri.recipe_id = r.recipe_id
+            LEFT JOIN products p ON p.product_id = ri.product_id
+            GROUP BY r.recipe_id;
+CREATE VIEW recipe_per_serving AS
+            SELECT *,
+                   ROUND(COALESCE(manual_price_per_serving_rsd,
+                       recipe_cost_rsd / servings), 2) AS cost_per_serving_rsd,
+                   ROUND(kcal / servings, 2) AS kcal_per_serving,
+                   ROUND(protein_g / servings, 2) AS protein_per_serving_g,
+                   ROUND(fat_g / servings, 2) AS fat_per_serving_g,
+                   ROUND(carbs_g / servings, 2) AS carbs_per_serving_g
+            FROM recipe_totals;
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('recipe_ingredients',84);
-INSERT INTO "sqlite_sequence" VALUES('progress',2);
-INSERT INTO "sqlite_sequence" VALUES('workout_logs',17);
+INSERT INTO "sqlite_sequence" VALUES('recipe_ingredients',87);
+INSERT INTO "sqlite_sequence" VALUES('progress',3);
+INSERT INTO "sqlite_sequence" VALUES('workout_logs',18);
 INSERT INTO "sqlite_sequence" VALUES('changelog',5);
+INSERT INTO "sqlite_sequence" VALUES('food_diary',1);
 COMMIT;
-PRAGMA foreign_keys=ON;
