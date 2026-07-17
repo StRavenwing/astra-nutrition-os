@@ -145,6 +145,12 @@ def ensure_schema():
             connection.execute("ALTER TABLE food_diary ADD COLUMN product_id TEXT")
         if "quantity" not in diary_columns:
             connection.execute("ALTER TABLE food_diary ADD COLUMN quantity REAL")
+        progress_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(progress)")
+        }
+        for column in ("protein_target_g", "fat_target_g"):
+            if column not in progress_columns:
+                connection.execute(f"ALTER TABLE progress ADD COLUMN {column} REAL")
 
         connection.execute("DROP VIEW IF EXISTS recipe_per_serving")
         connection.execute("DROP VIEW IF EXISTS recipe_totals")
@@ -421,14 +427,15 @@ class App(SimpleHTTPRequestHandler):
                         "INSERT INTO progress"
                         "(measured_at, weight_kg, waist_cm, chest_cm, hips_cm, "
                         "sleep_score, wellbeing_score, comment, height_cm, bmi, "
-                        "body_fat_pct, fat_mass_kg, muscle_pct, muscle_mass_kg) "
-                        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        "body_fat_pct, fat_mass_kg, muscle_pct, muscle_mass_kg, "
+                        "protein_target_g, fat_target_g) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                         (
                             data["measured_at"], number(data.get("weight_kg")),
                             number(data.get("waist_cm")), number(data.get("chest_cm")),
                             number(data.get("hips_cm")), number(data.get("sleep_score")),
                             number(data.get("wellbeing_score")), data.get("comment"),
                             height, bmi, body_fat, fat_mass, muscle, muscle_mass,
+                            number(data.get("protein_target_g")), number(data.get("fat_target_g")),
                         ),
                     )
                 elif path == "/api/workouts":
@@ -582,7 +589,8 @@ class App(SimpleHTTPRequestHandler):
                         SET measured_at = ?, weight_kg = ?, waist_cm = ?, chest_cm = ?,
                             hips_cm = ?, sleep_score = ?, wellbeing_score = ?, comment = ?,
                             height_cm = ?, bmi = ?, body_fat_pct = ?, fat_mass_kg = ?,
-                            muscle_pct = ?, muscle_mass_kg = ?
+                            muscle_pct = ?, muscle_mass_kg = ?, protein_target_g = ?,
+                            fat_target_g = ?
                         WHERE progress_id = ?
                         """,
                         (
@@ -591,6 +599,7 @@ class App(SimpleHTTPRequestHandler):
                             number(data.get("hips_cm")), number(data.get("sleep_score")),
                             number(data.get("wellbeing_score")), data.get("comment"),
                             height, bmi, body_fat, fat_mass, muscle, muscle_mass,
+                            number(data.get("protein_target_g")), number(data.get("fat_target_g")),
                             progress_id,
                         ),
                     )
