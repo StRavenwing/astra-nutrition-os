@@ -2,19 +2,29 @@ from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import urlparse
 import json
+import os
 import sqlite3
 from datetime import datetime
 
 
 ROOT = Path(__file__).resolve().parent
 SHARED_DB = ROOT.parent / "Astra_Nutrition_OS_v7.sqlite"
-DB = SHARED_DB if SHARED_DB.exists() else ROOT / "Astra_Nutrition_OS_v7.sqlite"
+CONFIGURED_DB = os.environ.get("ASTRA_DB_PATH")
+DB = (
+    Path(CONFIGURED_DB).expanduser().resolve()
+    if CONFIGURED_DB
+    else SHARED_DB if SHARED_DB.exists() else ROOT / "Astra_Nutrition_OS_v7.sqlite"
+)
+BACKUP_DIR = Path(
+    os.environ.get("ASTRA_BACKUP_DIR", str(DB.parent / "data-backups"))
+).expanduser().resolve()
 
 
 def initialize_database():
     """Create a private runtime database from the public, sanitized SQL template."""
     if DB.exists():
         return
+    DB.parent.mkdir(parents=True, exist_ok=True)
     template = ROOT / "database" / "Astra_Nutrition_OS_v7.sql"
     if not template.exists():
         raise FileNotFoundError("Database template is missing")
@@ -35,9 +45,8 @@ def db():
 def backup_database():
     if not DB.exists():
         return
-    backup_dir = ROOT.parent / "data-backups"
-    backup_dir.mkdir(exist_ok=True)
-    backup_path = backup_dir / f"astra-auto-{datetime.now():%Y%m%d-%H%M%S}.sqlite"
+    BACKUP_DIR.mkdir(parents=True, exist_ok=True)
+    backup_path = BACKUP_DIR / f"astra-auto-{datetime.now():%Y%m%d-%H%M%S}.sqlite"
     source = sqlite3.connect(DB)
     target = sqlite3.connect(backup_path)
     with target:
@@ -315,8 +324,22 @@ ensure_schema()
 
 
 class App(SimpleHTTPRequestHandler):
+    extensions_map = {
+        **SimpleHTTPRequestHandler.extensions_map,
+        ".webmanifest": "application/manifest+json",
+        ".js": "text/javascript; charset=utf-8",
+        ".css": "text/css; charset=utf-8",
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(ROOT), **kwargs)
+
+    def end_headers(self):
+        path = urlparse(self.path).path
+        if path == "/service-worker.js":
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Service-Worker-Allowed", "/")
+        super().end_headers()
 
     def send_json(self, data, status=200):
         raw = json.dumps(data, ensure_ascii=False).encode()
@@ -333,6 +356,9 @@ class App(SimpleHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
         try:
+            if path == "/api/health":
+                return self.send_json({"status": "ok"})
+
             if path == "/api/dashboard":
                 return self.send_json(
                     {
@@ -959,5 +985,7 @@ class App(SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     ensure_schema()
     backup_database()
-    print("Astra Nutrition OS: http://127.0.0.1:8787")
-    ThreadingHTTPServer(("127.0.0.1", 8787), App).serve_forever()
+    host = os.environ.get("ASTRA_HOST", "127.0.0.1")
+    port = int(os.environ.get("ASTRA_PORT", "8787"))
+    print(f"Astra Nutrition OS: http://{host}:{port}")
+    ThreadingHTTPServer((host, port), App).serve_forever()

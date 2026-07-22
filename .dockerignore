@@ -1,0 +1,13 @@
+.git
+.github
+__pycache__/
+*.py[cod]
+*.sqlite
+*.sqlite-*
+data-backups/
+docs/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+

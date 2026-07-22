@@ -203,3 +203,31 @@ openDiaryEditor=async function(diaryId,data=null){
  const sync=()=>{const product=products.find(p=>p.product_id===productSelect.value);control.innerHTML=measureOptions(product,measures,existing?.measurement_name||product.unit);$('#diary-edit-unit').textContent=control.value};productSelect.addEventListener('change',()=>{if(existing)existing.measurement_name=null;sync()});sync();if(existing?.measurement_quantity!=null)quantity.value=existing.measurement_quantity;
  $('#form').onsubmit=async event=>{event.preventDefault();const payload=Object.fromEntries(new FormData(event.target));payload.measurement_quantity=payload.quantity;try{await api('diary/'+diaryId,{method:'PUT',body:JSON.stringify(payload)});$('#modal').close();await render()}catch(error){$('#form-error').textContent=error.message}};
 };
+
+// Progressive Web App installation. The browser owns the native install dialog;
+// iOS uses its standard "Add to Home Screen" action instead.
+let deferredInstallPrompt=null;
+const installAppButton=$('#install-app');
+const isStandalone=window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+const isAppleMobile=/iphone|ipad|ipod/i.test(navigator.userAgent);
+
+if('serviceWorker' in navigator){
+ window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(error=>console.warn('Service worker:',error)));
+}
+
+window.addEventListener('beforeinstallprompt',event=>{
+ event.preventDefault();deferredInstallPrompt=event;if(installAppButton)installAppButton.hidden=false;
+});
+
+if(installAppButton){
+ if(isAppleMobile&&!isStandalone)installAppButton.hidden=false;
+ installAppButton.onclick=async()=>{
+  if(deferredInstallPrompt){
+   deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;installAppButton.hidden=true;return;
+  }
+  if(isAppleMobile){alert('Чтобы установить Astra: нажмите «Поделиться» в Safari, затем «На экран Домой».');return}
+  alert('Откройте меню браузера и выберите «Установить Astra Nutrition OS» или «Установить приложение».');
+ };
+}
+
+window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;if(installAppButton)installAppButton.hidden=true});
