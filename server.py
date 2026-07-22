@@ -117,6 +117,73 @@ RECIPE_PREFIXES = {
 }
 
 
+def seed_product_measures(connection):
+    """Fill a small, editable reference of household measures for products.
+
+    ``base_quantity`` is always expressed in the product's own base unit: grams,
+    millilitres, or pieces.  Calculations keep using this base amount, while the
+    selected household measure is kept separately for a human-friendly display.
+    """
+    products = connection.execute("SELECT product_id, unit FROM products").fetchall()
+    measures = []
+    for product in products:
+        if product["unit"] == "г":
+            measures.extend([
+                (product["product_id"], "ч. л.", 5),
+                (product["product_id"], "ст. л.", 15),
+                (product["product_id"], "стакан (200 г)", 200),
+            ])
+        elif product["unit"] == "мл":
+            measures.extend([
+                (product["product_id"], "ч. л.", 5),
+                (product["product_id"], "ст. л.", 15),
+                (product["product_id"], "стакан (200 мл)", 200),
+            ])
+
+    connection.executemany(
+        "INSERT OR IGNORE INTO product_measures (product_id, measure_name, base_quantity) VALUES (?,?,?)",
+        measures,
+    )
+    # More accurate kitchen portions for the products that are used most often.
+    overrides = [
+        ("P-002", "ч. л.", 8), ("P-002", "ст. л.", 25),
+        ("P-003", "ч. л.", 8), ("P-003", "ст. л.", 25),
+        ("P-004", "ч. л.", 7), ("P-004", "ст. л.", 20),
+        ("P-005", "ч. л.", 7), ("P-005", "ст. л.", 20),
+        ("P-006", "ч. л.", 7), ("P-006", "ст. л.", 20),
+        ("P-031", "ч. л.", 3), ("P-031", "ст. л.", 9),
+        ("P-032", "ч. л.", 1), ("P-032", "ст. л.", 3),
+    ]
+    connection.executemany(
+        "INSERT INTO product_measures (product_id, measure_name, base_quantity) VALUES (?,?,?) "
+        "ON CONFLICT(product_id, measure_name) DO UPDATE SET base_quantity=excluded.base_quantity",
+        overrides,
+    )
+
+
+def normalise_measure(connection, product_id, quantity, measure_name=None):
+    """Convert an entered household measure into the product's base amount."""
+    product = connection.execute(
+        "SELECT unit FROM products WHERE product_id = ?", (product_id,)
+    ).fetchone()
+    if not product:
+        raise ValueError("Продукт не найден")
+    entered = number(quantity)
+    if entered is None or entered <= 0:
+        raise ValueError("Количество должно быть больше нуля")
+    base_unit = product["unit"]
+    measure_name = measure_name or base_unit
+    if measure_name == base_unit:
+        return entered, base_unit, entered, measure_name
+    measure = connection.execute(
+        "SELECT base_quantity FROM product_measures WHERE product_id = ? AND measure_name = ?",
+        (product_id, measure_name),
+    ).fetchone()
+    if not measure:
+        raise ValueError("Эта единица измерения недоступна для выбранного продукта")
+    return entered * measure["base_quantity"], base_unit, entered, measure_name
+
+
 def ensure_schema():
     """Apply small backward-compatible migrations for existing databases."""
     with db() as connection:
@@ -145,6 +212,33 @@ def ensure_schema():
             connection.execute("ALTER TABLE food_diary ADD COLUMN product_id TEXT")
         if "quantity" not in diary_columns:
             connection.execute("ALTER TABLE food_diary ADD COLUMN quantity REAL")
+        for column in ("measurement_name", "measurement_quantity"):
+            if column not in diary_columns:
+                connection.execute(
+                    f"ALTER TABLE food_diary ADD COLUMN {column} "
+                    f"{'TEXT' if column == 'measurement_name' else 'REAL'}"
+                )
+        ingredient_columns = {
+            row[1] for row in connection.execute("PRAGMA table_info(recipe_ingredients)")
+        }
+        for column in ("measurement_name", "measurement_quantity"):
+            if column not in ingredient_columns:
+                connection.execute(
+                    f"ALTER TABLE recipe_ingredients ADD COLUMN {column} "
+                    f"{'TEXT' if column == 'measurement_name' else 'REAL'}"
+                )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS product_measures (
+                product_measure_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                product_id TEXT NOT NULL REFERENCES products(product_id) ON DELETE CASCADE,
+                measure_name TEXT NOT NULL,
+                base_quantity REAL NOT NULL CHECK(base_quantity > 0),
+                UNIQUE(product_id, measure_name)
+            )
+            """
+        )
+        seed_product_measures(connection)
         progress_columns = {
             row[1] for row in connection.execute("PRAGMA table_info(progress)")
         }
@@ -248,6 +342,13 @@ class App(SimpleHTTPRequestHandler):
 
             if path == "/api/products":
                 return self.send_json(rows("SELECT * FROM products ORDER BY category, name"))
+            if path == "/api/product-measures":
+                return self.send_json(
+                    rows(
+                        "SELECT product_id, measure_name, base_quantity "
+                        "FROM product_measures ORDER BY product_id, base_quantity, measure_name"
+                    )
+                )
             if path == "/api/recipes":
                 return self.send_json(
                     rows("SELECT * FROM recipe_per_serving ORDER BY category, name")
@@ -256,6 +357,7 @@ class App(SimpleHTTPRequestHandler):
                 recipe_id = path.split("/")[-1]
                 ingredient_sql = """
                     SELECT ri.product_id, p.name, ri.quantity, ri.unit,
+                           ri.measurement_name, ri.measurement_quantity,
                            ri.portion_description,
                            ROUND(CASE WHEN p.unit IN ('шт', 'бут.')
                                 THEN ri.quantity * p.kcal
@@ -397,28 +499,52 @@ class App(SimpleHTTPRequestHandler):
                         ),
                     )
                     for ingredient in data.get("ingredients", []):
+                        base_quantity, base_unit, shown_quantity, shown_measure = normalise_measure(
+                            connection, ingredient["product_id"],
+                            ingredient.get("measurement_quantity", ingredient.get("quantity")),
+                            ingredient.get("measurement_name") or ingredient.get("unit"),
+                        )
+                        ingredient["quantity"] = base_quantity
+                        ingredient["unit"] = base_unit
+                        ingredient["measurement_name"] = shown_measure
+                        ingredient["measurement_quantity"] = shown_quantity
+                        if shown_measure != base_unit:
+                            ingredient["portion_description"] = (
+                                f"{shown_quantity:g} {shown_measure} ≈ {base_quantity:g} {base_unit}"
+                            )
                         connection.execute(
                             "INSERT INTO recipe_ingredients"
-                            "(recipe_id, product_id, quantity, unit, portion_description) "
-                            "VALUES (?,?,?,?,?)",
+                            "(recipe_id, product_id, quantity, unit, portion_description, measurement_name, measurement_quantity) "
+                            "VALUES (?,?,?,?,?,?,?)",
                             (
                                 recipe_id, ingredient["product_id"],
                                 number(ingredient["quantity"]), ingredient.get("unit", "г"),
                                 ingredient.get("portion_description"),
+                                ingredient.get("measurement_name"),
+                                ingredient.get("measurement_quantity"),
                             ),
                         )
                 elif path == "/api/diary":
                     diary_items = data.get("items") or [data]
                     for item in diary_items:
+                        shown_quantity = shown_measure = None
+                        if item.get("product_id"):
+                            base_quantity, _, shown_quantity, shown_measure = normalise_measure(
+                                connection, item["product_id"],
+                                item.get("measurement_quantity", item.get("quantity")),
+                                item.get("measurement_name"),
+                            )
+                            item["quantity"] = base_quantity
                         connection.execute(
                             "INSERT INTO food_diary"
                             "(entry_date, meal_type, recipe_id, servings, comment, "
-                            "product_id, quantity) VALUES (?,?,?,?,?,?,?)",
+                            "product_id, quantity, measurement_name, measurement_quantity) VALUES (?,?,?,?,?,?,?,?,?)",
                             (
                                 data.get("entry_date") or item["entry_date"],
                                 item.get("meal_type"), item.get("recipe_id"),
                                 number(item.get("servings"), 1), item.get("comment"),
                                 item.get("product_id"), number(item.get("quantity")),
+                                shown_measure, shown_quantity,
                             ),
                         )
                 elif path == "/api/progress":
@@ -677,18 +803,27 @@ class App(SimpleHTTPRequestHandler):
                 data = self.body()
                 with db() as connection:
                     connection.execute("BEGIN IMMEDIATE")
+                    quantity = number(data.get("quantity"))
+                    shown_quantity = shown_measure = None
+                    if data.get("product_id"):
+                        quantity, _, shown_quantity, shown_measure = normalise_measure(
+                            connection, data["product_id"],
+                            data.get("measurement_quantity", data.get("quantity")),
+                            data.get("measurement_name"),
+                        )
                     cursor = connection.execute(
                         """
                         UPDATE food_diary
                         SET entry_date = ?, meal_type = ?, recipe_id = ?,
-                            servings = ?, comment = ?, product_id = ?, quantity = ?
+                            servings = ?, comment = ?, product_id = ?, quantity = ?,
+                            measurement_name = ?, measurement_quantity = ?
                         WHERE diary_id = ?
                         """,
                         (
                             data["entry_date"], data.get("meal_type"),
                             data.get("recipe_id"), number(data.get("servings"), 1),
-                            data.get("comment"), data.get("product_id"),
-                            number(data.get("quantity")), diary_id,
+                            data.get("comment"), data.get("product_id"), quantity,
+                            shown_measure, shown_quantity, diary_id,
                         ),
                     )
                     if not cursor.rowcount:
@@ -774,14 +909,29 @@ class App(SimpleHTTPRequestHandler):
                         "DELETE FROM recipe_ingredients WHERE recipe_id = ?", (recipe_id,)
                     )
                 for ingredient in data.get("ingredients", []):
+                    base_quantity, base_unit, shown_quantity, shown_measure = normalise_measure(
+                        connection, ingredient["product_id"],
+                        ingredient.get("measurement_quantity", ingredient.get("quantity")),
+                        ingredient.get("measurement_name") or ingredient.get("unit"),
+                    )
+                    ingredient["quantity"] = base_quantity
+                    ingredient["unit"] = base_unit
+                    ingredient["measurement_name"] = shown_measure
+                    ingredient["measurement_quantity"] = shown_quantity
+                    if shown_measure != base_unit:
+                        ingredient["portion_description"] = (
+                            f"{shown_quantity:g} {shown_measure} ≈ {base_quantity:g} {base_unit}"
+                        )
                     connection.execute(
                         "INSERT INTO recipe_ingredients"
-                        "(recipe_id, product_id, quantity, unit, portion_description) "
-                        "VALUES (?,?,?,?,?)",
+                        "(recipe_id, product_id, quantity, unit, portion_description, measurement_name, measurement_quantity) "
+                        "VALUES (?,?,?,?,?,?,?)",
                         (
                             new_recipe_id, ingredient["product_id"],
                             number(ingredient["quantity"]), ingredient.get("unit", "г"),
                             ingredient.get("portion_description"),
+                            ingredient.get("measurement_name"),
+                            ingredient.get("measurement_quantity"),
                         ),
                     )
             return self.send_json({"ok": True, "recipe_id": new_recipe_id})

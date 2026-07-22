@@ -147,3 +147,59 @@ async function openForm(kind){if(kind==='diary')return openDiaryAdd();const m=$(
  // Compatibility aliases for older cached navigation markup.
  globalThis.diary=diaryPage;globalThis.дневник=diaryPage;
  render();
+
+// Household measures.  The server converts them to a product's base unit before
+// calculating nutrition and cost, so all existing totals remain accurate.
+const originalOpenRecipeEditorForMeasures=openRecipeEditor;
+const originalOpenFormForMeasures=openForm;
+const originalOpenDiaryAddForMeasures=openDiaryAdd;
+const originalOpenDiaryEditorForMeasures=openDiaryEditor;
+const measureOptions=(product, measures, selected)=>{
+ const list=[{measure_name:product.unit,base_quantity:1},...measures.filter(m=>m.product_id===product.product_id)];
+ return list.map(m=>`<option value="${m.measure_name}" ${m.measure_name===(selected||product.unit)?'selected':''}>${m.measure_name}${m.measure_name===product.unit?'':''}</option>`).join('')
+};
+const addMeasureToIngredientRow=(row,products,measures,item={})=>{
+ const product=products.find(p=>p.product_id===row.querySelector('.ip').value)||products[0];
+ let control=row.querySelector('.im');
+ if(!control){control=document.createElement('select');control.className='im';row.querySelector('.iq').insertAdjacentElement('afterend',control)}
+ control.innerHTML=measureOptions(product,measures,item.measurement_name||item.unit);
+ row.querySelector('.ip').onchange=()=>{const p=products.find(x=>x.product_id===row.querySelector('.ip').value);control.innerHTML=measureOptions(p,measures,p.unit)};
+};
+const addMeasureToRecipeForm=(products,measures,ingredients=[])=>{
+ document.querySelectorAll('.ingredient-row').forEach((row,index)=>{const chosen=row.querySelector('.ip').value;row.querySelector('.ip').innerHTML=products.map(p=>`<option value="${p.product_id}" data-unit="${p.unit}" ${p.product_id===chosen?'selected':''}>${p.name}</option>`).join('');addMeasureToIngredientRow(row,products,measures,ingredients[index]||{})});
+ $('#add-ing').onclick=()=>{const first=products[0];$('#ingredients').insertAdjacentHTML('beforeend',`<div class="ingredient-row"><select class="ip">${products.map(p=>`<option value="${p.product_id}">${p.name}</option>`).join('')}</select><input class="iq" type="number" min="0.01" step="0.01" placeholder="Количество" required><button type="button" onclick="this.parentElement.remove()">×</button></div>`);addMeasureToIngredientRow($('#ingredients').lastElementChild,products,measures)};
+};
+const recipePayloadFromForm=()=>{const data=Object.fromEntries(new FormData($('#form')));data.ingredients=data.category==='Ready'?[]:[...document.querySelectorAll('.ingredient-row')].map(row=>({product_id:row.querySelector('.ip').value,quantity:row.querySelector('.iq').value,measurement_quantity:row.querySelector('.iq').value,measurement_name:row.querySelector('.im').value,unit:row.querySelector('.ip').selectedOptions[0].dataset.unit}));return data};
+openRecipeEditor=async function(id){
+ await originalOpenRecipeEditorForMeasures(id);
+ const [products,measures,detail]=await Promise.all([api('products'),api('product-measures'),api('recipes/'+id)]);
+ products.sort((a,b)=>a.name.localeCompare(b.name,'ru',{sensitivity:'base'}));addMeasureToRecipeForm(products,measures,detail.ingredients);
+ $('#form').onsubmit=async event=>{event.preventDefault();try{const result=await api('recipes/'+id,{method:'PUT',body:JSON.stringify(recipePayloadFromForm())});$('#modal').close();await render();await openRecipe(result.recipe_id)}catch(error){$('#form-error').textContent=error.message}};
+};
+openForm=async function(kind){
+ await originalOpenFormForMeasures(kind);if(kind!=='recipes')return;
+ const [products,measures]=await Promise.all([api('products'),api('product-measures')]);
+ products.sort((a,b)=>a.name.localeCompare(b.name,'ru',{sensitivity:'base'}));addMeasureToRecipeForm(products,measures);
+ $('#form').onsubmit=async event=>{event.preventDefault();try{await api('recipes',{method:'POST',body:JSON.stringify(recipePayloadFromForm())});$('#modal').close();await render()}catch(error){$('#form-error').textContent=error.message}};
+};
+const attachDiaryMeasure=(row,products,measures,selected)=>{
+ const productSelect=row.querySelector('.dp');if(!productSelect)return;
+ const quantity=row.querySelector('.dq');let control=row.querySelector('.dmu');
+ if(!control){control=document.createElement('select');control.className='dmu';quantity.parentElement.insertAdjacentElement('afterend',control)}
+ const sync=()=>{const product=products.find(p=>p.product_id===productSelect.value);control.innerHTML=measureOptions(product,measures,selected||product.unit);row.querySelector('.du').textContent=control.value};
+ productSelect.addEventListener('change',()=>{selected=null;sync()});sync();
+};
+const enhanceDiaryMeasureRows=(products,measures)=>document.querySelectorAll('.diary-product-row').forEach(row=>attachDiaryMeasure(row,products,measures));
+openDiaryAdd=async function(){
+ await originalOpenDiaryAddForMeasures();
+ const products=await api('products'),measures=await api('product-measures');products.sort((a,b)=>a.name.localeCompare(b.name,'ru',{sensitivity:'base'}));enhanceDiaryMeasureRows(products,measures);
+ $('#add-diary-product').addEventListener('click',()=>setTimeout(()=>enhanceDiaryMeasureRows(products,measures),0));
+ $('#form').onsubmit=async event=>{event.preventDefault();const entryDate=event.target.elements.entry_date.value,items=[...document.querySelectorAll('.diary-form-row')].map(row=>row.querySelector('.dp')?{meal_type:row.querySelector('.dm').value,product_id:row.querySelector('.dp').value,quantity:row.querySelector('.dq').value,measurement_quantity:row.querySelector('.dq').value,measurement_name:row.querySelector('.dmu').value,servings:1,comment:row.querySelector('.dc').value}:{meal_type:row.querySelector('.dm').value,recipe_id:row.querySelector('.dr').value,servings:row.querySelector('.ds').value,comment:row.querySelector('.dc').value});try{await api('diary',{method:'POST',body:JSON.stringify({entry_date:entryDate,items})});$('#modal').close();await render()}catch(error){$('#form-error').textContent=error.message}};
+};
+openDiaryEditor=async function(diaryId,data=null){
+ await originalOpenDiaryEditorForMeasures(diaryId,data);const productSelect=$('#diary-product-edit');if(!productSelect)return;
+ const existing=(data||cache.diary||[]).find(entry=>entry.diary_id===diaryId);
+ const [products,measures]=await Promise.all([api('products'),api('product-measures')]),quantity=$('[name="quantity"]'),box=quantity.closest('.diary-edit-quantity');let control=document.createElement('select');control.name='measurement_name';control.className='dmu';box.insertAdjacentElement('afterend',control);
+ const sync=()=>{const product=products.find(p=>p.product_id===productSelect.value);control.innerHTML=measureOptions(product,measures,existing?.measurement_name||product.unit);$('#diary-edit-unit').textContent=control.value};productSelect.addEventListener('change',()=>{if(existing)existing.measurement_name=null;sync()});sync();if(existing?.measurement_quantity!=null)quantity.value=existing.measurement_quantity;
+ $('#form').onsubmit=async event=>{event.preventDefault();const payload=Object.fromEntries(new FormData(event.target));payload.measurement_quantity=payload.quantity;try{await api('diary/'+diaryId,{method:'PUT',body:JSON.stringify(payload)});$('#modal').close();await render()}catch(error){$('#form-error').textContent=error.message}};
+};
