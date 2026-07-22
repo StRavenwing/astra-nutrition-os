@@ -287,9 +287,6 @@ CREATE TABLE progress (
   wellbeing_score INTEGER CHECK(wellbeing_score BETWEEN 1 AND 5 OR wellbeing_score IS NULL),
   comment TEXT
 , height_cm REAL, bmi REAL, body_fat_pct REAL, fat_mass_kg REAL, muscle_pct REAL, muscle_mass_kg REAL, protein_target_g REAL, fat_target_g REAL);
-INSERT INTO "progress" VALUES(1,'2025-07-14',78.0,88.0,NULL,NULL,NULL,NULL,'Исторический максимум, приблизительно',169.0,27.31,NULL,NULL,NULL,NULL,NULL,NULL);
-INSERT INTO "progress" VALUES(2,'2026-07-14',73.0,81.0,NULL,NULL,NULL,NULL,'Текущая точка',169.0,25.56,NULL,NULL,NULL,NULL,NULL,NULL);
-INSERT INTO "progress" VALUES(4,'2026-07-15',74.6,81.0,NULL,103.0,NULL,NULL,'',169.0,26.12,35.9,26.78,60.2,44.91,115.0,70.0);
 CREATE TABLE recipe_ingredients (
   recipe_ingredient_id INTEGER PRIMARY KEY AUTOINCREMENT,
   recipe_id TEXT NOT NULL REFERENCES recipes(recipe_id) ON DELETE CASCADE,
@@ -471,7 +468,6 @@ INSERT INTO "sqlite_stat1" VALUES('exercises','sqlite_autoindex_exercises_1','17
 INSERT INTO "sqlite_stat1" VALUES('recipe_ingredients','idx_recipe_ingredients_product','84 3');
 INSERT INTO "sqlite_stat1" VALUES('recipe_ingredients','idx_recipe_ingredients_recipe','84 5');
 INSERT INTO "sqlite_stat1" VALUES('recipe_ingredients','sqlite_autoindex_recipe_ingredients_1','84 5 1 1');
-INSERT INTO "sqlite_stat1" VALUES('progress','sqlite_autoindex_progress_1','2 1');
 INSERT INTO "sqlite_stat1" VALUES('products','sqlite_autoindex_products_1','35 1');
 INSERT INTO "sqlite_stat1" VALUES('recipes','sqlite_autoindex_recipes_1','17 1');
 CREATE TABLE workout_logs (
@@ -556,7 +552,6 @@ CREATE VIEW recipe_per_serving AS
             FROM recipe_totals;
 DELETE FROM "sqlite_sequence";
 INSERT INTO "sqlite_sequence" VALUES('recipe_ingredients',160);
-INSERT INTO "sqlite_sequence" VALUES('progress',4);
 INSERT INTO "sqlite_sequence" VALUES('workout_logs',19);
 INSERT INTO "sqlite_sequence" VALUES('changelog',5);
 INSERT INTO "sqlite_sequence" VALUES('food_diary',36);

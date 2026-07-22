@@ -11,6 +11,20 @@ SHARED_DB = ROOT.parent / "Astra_Nutrition_OS_v7.sqlite"
 DB = SHARED_DB if SHARED_DB.exists() else ROOT / "Astra_Nutrition_OS_v7.sqlite"
 
 
+def initialize_database():
+    """Create a private runtime database from the public, sanitized SQL template."""
+    if DB.exists():
+        return
+    template = ROOT / "database" / "Astra_Nutrition_OS_v7.sql"
+    if not template.exists():
+        raise FileNotFoundError("Database template is missing")
+    connection = sqlite3.connect(DB)
+    try:
+        connection.executescript(template.read_text(encoding="utf-8"))
+    finally:
+        connection.close()
+
+
 def db():
     connection = sqlite3.connect(DB)
     connection.row_factory = sqlite3.Row
@@ -296,6 +310,7 @@ def ensure_schema():
         )
 
 
+initialize_database()
 ensure_schema()
 
 

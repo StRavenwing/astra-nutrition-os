@@ -3,8 +3,11 @@ __pycache__/
 *.sqlite-journal
 *.sqlite-shm
 *.sqlite-wal
+# Personal runtime data. The app recreates a local database from the public SQL template.
+Astra_Nutrition_OS_v7.sqlite
+docs/Astra_Nutrition_OS_v7.xlsx
+data-backups/
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
-
