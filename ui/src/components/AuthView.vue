@@ -2,6 +2,7 @@
 import { reactive, ref } from 'vue';
 import { api, setAccessToken } from '@/api/client';
 import type { AuthUser } from '@/types';
+import PwaInstallButton from '@/components/shared/PwaInstallButton.vue';
 
 const emit = defineEmits<{ authenticated: [user: AuthUser] }>();
 
@@ -66,6 +67,7 @@ async function submit() {
           {{ loading ? 'Проверка…' : mode === 'login' ? 'Войти' : 'Создать аккаунт' }}
         </button>
       </form>
+      <PwaInstallButton wide />
     </section>
   </div>
 </template>
@@ -124,6 +126,7 @@ async function submit() {
 .auth-form {
   display: grid;
   gap: 12px;
+  margin-bottom: 12px;
 }
 
 .auth-submit {

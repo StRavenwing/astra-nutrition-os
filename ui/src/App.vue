@@ -20,6 +20,7 @@ import WorkoutForm from '@/components/forms/WorkoutForm.vue';
 import ExerciseForm from '@/components/forms/ExerciseForm.vue';
 import RecipeDetailModal from '@/components/modals/RecipeDetailModal.vue';
 import ExerciseManagerModal from '@/components/modals/ExerciseManagerModal.vue';
+import PwaUpdateToast from '@/components/shared/PwaUpdateToast.vue';
 
 const pageIds = new Set(pages.map((page) => page.id));
 const hashPage = () => {
@@ -191,6 +192,7 @@ onBeforeUnmount(() => {
     <WorkoutForm v-else-if="modal?.kind === 'workouts'" :workout-log-id="modal.id as number | undefined" @saved="saved" @deleted="saved" @cancel="closeModal" />
     <ExerciseForm v-else-if="modal?.kind === 'exercises'" @saved="saved" @cancel="closeModal" />
   </ModalDialog>
+  <PwaUpdateToast />
 </template>
 
 <style lang="scss">
@@ -1987,26 +1989,6 @@ dialog {
   font-size: 10px;
   font-weight: 800;
   cursor: pointer;
-}
-
-.install-app {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid #9f8fef;
-  border-radius: 9px;
-  background: linear-gradient(135deg, #fff, #f3f0ff);
-  color: #5e4db2;
-  padding: 7px 12px;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 2px 7px #091e4212;
-
-  img {
-    width: 27px;
-    height: 27px;
-    border-radius: 7px;
-  }
 }
 
 @media (max-width: 900px) {
