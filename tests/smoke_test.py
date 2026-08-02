@@ -39,7 +39,7 @@ def main():
         sys.path.insert(0, str(ROOT))
 
         server_module = importlib.import_module("server")
-        assert server_module.DB.parent == Path(temp_dir), server_module.DB
+        assert server_module.DB.parent == Path(temp_dir).resolve(), server_module.DB
 
         server = ThreadingHTTPServer(("127.0.0.1", 0), server_module.App)
         worker = threading.Thread(target=server.serve_forever, daemon=True)
@@ -117,6 +117,11 @@ def main():
             assert response.headers.get_content_type() == "application/manifest+json"
             assert manifest["display"] == "standalone"
             assert {icon["sizes"] for icon in manifest["icons"]} >= {"192x192", "512x512"}
+
+            response, body = get(base_url, "/")
+            assert response.status == 200
+            assert b'id="app"' in body
+            assert b"/assets/app-icon-192.png" in body
 
             response, body = get(base_url, "/service-worker.js")
             assert response.headers.get_content_type() == "text/javascript"

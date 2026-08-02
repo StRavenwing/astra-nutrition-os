@@ -2,7 +2,7 @@
 
 [![Astra CI/CD](https://github.com/StRavenwing/astra-nutrition-os/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/StRavenwing/astra-nutrition-os/actions/workflows/ci-cd.yml)
 
-Локальный трекер питания и тренировок с веб-интерфейсом, SQLite-базой и Excel-книгой.
+Локальный трекер питания и тренировок с Vue-интерфейсом, SQLite-базой и Excel-книгой.
 
 Проект помогает хранить продукты и рецепты, автоматически считать КБЖУ и стоимость порций, вести дневник питания, замеры тела и журнал тренировок.
 
@@ -32,12 +32,32 @@
 
 ## Быстрый запуск на Windows
 
-1. Установите [Python 3](https://www.python.org/downloads/), если он ещё не установлен.
+1. Установите [Python 3](https://www.python.org/downloads/) и [Node.js LTS](https://nodejs.org/), если они ещё не установлены.
 2. Дважды щёлкните `start.bat`.
 3. Откройте <http://127.0.0.1:8787/>. Обычно страница откроется автоматически.
 4. Чтобы остановить приложение, нажмите `Ctrl+C` в окне сервера.
 
-Дополнительные библиотеки не требуются: приложение использует только стандартную библиотеку Python.
+`start.bat` устанавливает зависимости UI через `npm --prefix ui ci`, собирает Vue-приложение в `ui/dist`, затем запускает Python API.
+
+## Разработка UI
+
+Первичная установка зависимостей:
+
+```bash
+npm --prefix ui ci
+```
+
+Запуск Vite dev server с proxy на локальный Python API:
+
+```bash
+npm --prefix ui run dev
+```
+
+Production-сборка, которую отдаёт `server.py`:
+
+```bash
+npm --prefix ui run build
+```
 
 ## Запуск через Docker Compose
 
@@ -77,11 +97,12 @@ docker compose -f ci/docker-compose.yml down
 
 Workflow `.github/workflows/ci-cd.yml` автоматически выполняется при pull request, push в `main`, теге вида `v1.0.0` и ручном запуске:
 
-1. Проверяет синтаксис Python и JavaScript.
+1. Проверяет синтаксис Python.
 2. Создаёт временную чистую SQLite-базу из публичного SQL-шаблона.
-3. Запускает сервер и проверяет API, PWA-манифест, service worker и иконку.
-4. Проверяет сборку Docker-контейнера.
-5. После успешного push в `main` публикует контейнер в GitHub Container Registry с тегами `latest` и `sha-…`.
+3. Устанавливает зависимости UI, запускает typecheck и собирает Vue/Vite frontend.
+4. Запускает сервер и проверяет API, PWA-манифест, service worker, root HTML и иконку.
+5. Проверяет сборку Docker-контейнера.
+6. После успешного push в `main` публикует контейнер в GitHub Container Registry с тегами `latest` и `sha-…`.
 
 Личная SQLite-база в контейнер не попадает. При запуске опубликованного образа данные нужно хранить в отдельном Docker volume:
 
@@ -96,18 +117,19 @@ docker run -d --name astra -p 8787:8787 -v astra-data:/app/.data ghcr.io/straven
 ```text
 .
 ├── server.py                         # локальный HTTP-сервер и REST API
-├── index.html                        # интерфейс
-├── app.js                            # логика интерфейса
-├── styles.css                        # основные стили
-├── styles-extra.css                  # стили таблиц, сортировки и popup
-├── manifest.webmanifest              # параметры установки PWA
-├── service-worker.js                 # кэш интерфейса приложения
+├── ui/                               # Vue 3 + TypeScript + Vite интерфейс
+│   ├── index.html                    # HTML entrypoint Vite
+│   ├── package.json                  # зависимости и scripts UI
+│   ├── public/
+│   │   ├── manifest.webmanifest      # параметры установки PWA
+│   │   ├── service-worker.js         # кэш интерфейса приложения
+│   │   └── assets/                   # иконки и спрайты категорий
+│   └── src/                          # компоненты, views, forms, API-клиент
 ├── Dockerfile                         # production-контейнер
 ├── ci/
 │   └── docker-compose.yml             # локальный запуск через Docker Compose
 ├── tests/smoke_test.py                # проверка API и PWA
 ├── .github/workflows/ci-cd.yml        # CI/CD GitHub Actions
-├── assets/app-icon-*.png             # иконки приложения
 ├── Astra_Nutrition_OS_v7.sqlite      # локальная SQLite-база (не публикуется в Git)
 ├── database/
 │   └── Astra_Nutrition_OS_v7.sql     # SQL-дамп структуры и данных

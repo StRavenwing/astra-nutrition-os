@@ -1,0 +1,71 @@
+<script setup lang="ts">
+import { ref, watch } from 'vue';
+import { api } from '@/api/client';
+import type { Exercise } from '@/types';
+import ModalDialog from '@/components/shared/ModalDialog.vue';
+
+const props = defineProps<{ open: boolean }>();
+const emit = defineEmits<{
+  close: [];
+  add: [];
+  changed: [];
+}>();
+
+const loading = ref(false);
+const error = ref('');
+const exercises = ref<Exercise[]>([]);
+
+async function load() {
+  loading.value = true;
+  error.value = '';
+  try {
+    exercises.value = (await api.exercises()).sort((a, b) => a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' }));
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    loading.value = false;
+  }
+}
+
+watch(() => props.open, (open) => {
+  if (open) void load();
+}, { immediate: true });
+
+async function removeExercise(id: string) {
+  if (!confirm('Удалить упражнение из справочника?')) return;
+  try {
+    await api.delete(`exercises/${id}`);
+    await load();
+    emit('changed');
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+  }
+}
+</script>
+
+<template>
+  <ModalDialog :open="open" title="Упражнения" eyebrow="EXERCISES" wide @close="$emit('close')">
+    <div class="exercise-manager-head">
+      <span>{{ exercises.length }} упражнений</span>
+      <button type="button" class="primary" @click="$emit('add')">＋ Добавить упражнение</button>
+    </div>
+    <div v-if="loading" class="panel">Загрузка…</div>
+    <div v-else-if="error" class="panel empty">{{ error }}</div>
+    <div v-else class="exercise-manager-list">
+      <div v-for="exercise in exercises" :key="exercise.exercise_id" class="exercise-manager-row">
+        <div>
+          <b>{{ exercise.name }}</b>
+          <small>{{ exercise.muscle_group || 'Без группы' }} · {{ exercise.default_sets || '—' }} × {{ exercise.default_reps || '—' }} · {{ exercise.default_unit || 'кг' }}</small>
+        </div>
+        <button type="button" class="delete-exercise" @click="removeExercise(exercise.exercise_id)">Удалить</button>
+      </div>
+      <div v-if="!exercises.length" class="empty">Упражнений пока нет</div>
+    </div>
+  </ModalDialog>
+</template>
+
+<style lang="scss">
+.exercise-manager-list {
+  min-height: 120px;
+}
+</style>

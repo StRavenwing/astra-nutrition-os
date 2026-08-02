@@ -1,3 +1,11 @@
+FROM node:22-bookworm-slim AS ui-build
+
+WORKDIR /app/ui
+COPY ui/package*.json ./
+RUN npm ci
+COPY ui ./
+RUN npm run build
+
 FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -15,6 +23,7 @@ RUN groupadd --system astra \
     && chown astra:astra /app/.data
 
 COPY --chown=astra:astra . .
+COPY --from=ui-build --chown=astra:astra /app/ui/dist /app/ui/dist
 
 USER astra
 VOLUME ["/app/.data"]

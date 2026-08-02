@@ -1,14 +1,12 @@
-const CACHE_NAME = 'astra-nutrition-shell-v2';
+const CACHE_NAME = 'astra-nutrition-vue-shell-v1';
 const APP_SHELL = [
   './',
   './index.html',
-  './styles.css',
-  './styles-extra.css',
-  './app.js',
   './manifest.webmanifest',
   './assets/app-icon-180.png',
   './assets/app-icon-192.png',
   './assets/app-icon-512.png',
+  './assets/app-icon-1024.png',
   './assets/recipe-category-icons.png',
   './assets/product-category-icons.png'
 ];

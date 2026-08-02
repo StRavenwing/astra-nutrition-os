@@ -8,6 +8,7 @@ from datetime import datetime
 
 
 ROOT = Path(__file__).resolve().parent
+STATIC_ROOT = ROOT / "ui" / "dist"
 SHARED_DB = ROOT.parent / "Astra_Nutrition_OS_v7.sqlite"
 CONFIGURED_DB = os.environ.get("ASTRA_DB_PATH")
 DB = (
@@ -359,7 +360,7 @@ class App(SimpleHTTPRequestHandler):
     }
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(ROOT), **kwargs)
+        super().__init__(*args, directory=str(STATIC_ROOT), **kwargs)
 
     def end_headers(self):
         path = urlparse(self.path).path
