@@ -29,6 +29,7 @@
 - Календарь питания по месяцам и дням с группировкой приёмов пищи и итоговыми КБЖУ.
 - Добавление новых продуктов, рецептов, записей дневника, замеров и тренировок.
 - Удаление рецептов, записей дневника и замеров прогресса с подтверждением.
+- MCP Streamable HTTP сервер для AI-клиентов с OAuth и tools модуля рецептов.
 - Автоматическая генерация ID продуктов, рецептов и упражнений; внутренние ID записей создаёт SQLite.
 - Готовые SQLite, SQL и Excel-версии данных.
 
@@ -58,8 +59,35 @@ cp .env.example .env
 - `ASTRA_ADMIN_PASSWORD` — пароль admin-пользователя, минимум 8 символов.
 - `ASTRA_AUTH_SECRET` — длинный случайный секрет для подписи JWT.
 - `ASTRA_ACCESS_TOKEN_MINUTES` — срок действия токена, по умолчанию 10080 минут.
+- `ASTRA_PUBLIC_BASE_URL` — публичный base URL приложения. Для ChatGPT/MCP в production должен быть HTTPS-адресом, например `https://astra.example.com`.
+- `ASTRA_MCP_ACCESS_TOKEN_MINUTES` — срок действия MCP access token, по умолчанию 60 минут.
+- `ASTRA_MCP_REFRESH_TOKEN_DAYS` — срок действия MCP refresh token, по умолчанию 30 дней.
+- `ASTRA_MCP_AUTH_CODE_MINUTES` — срок действия OAuth authorization code, по умолчанию 5 минут.
 
 Admin из `.env` может менять общие справочники продуктов, рецептов и упражнений. Обычные пользователи могут читать справочники и вести только свои дневник, прогресс и тренировки.
+
+## MCP и OAuth
+
+MCP endpoint доступен по `POST/GET /mcp` и использует Streamable HTTP. Для подключения ChatGPT или другого remote MCP-клиента сервер должен быть опубликован по HTTPS, а `ASTRA_PUBLIC_BASE_URL` должен совпадать с внешним адресом без завершающего `/`.
+
+OAuth endpoints:
+
+| Метод | Адрес | Назначение |
+|---|---|---|
+| `GET` | `/.well-known/oauth-authorization-server` | OAuth authorization server metadata |
+| `GET` | `/.well-known/oauth-protected-resource/mcp` | protected resource metadata для MCP |
+| `POST` | `/oauth/register` | Dynamic Client Registration |
+| `GET` | `/oauth/authorize` | authorization-code + PKCE старт |
+| `GET/POST` | `/oauth/login` | вход пользователя и выдача authorization code |
+| `POST` | `/oauth/token` | exchange authorization code или refresh token |
+| `POST` | `/oauth/revoke` | отзыв refresh token |
+
+Scopes:
+
+- `recipes:read` — `recipes.search`, `recipes.get`.
+- `recipes:write` — `recipes.create`, `recipes.update`, `recipes.delete`; дополнительно требуется admin-пользователь.
+
+В первом релизе MCP поддерживает только tools модуля рецептов. Остальные модули остаются доступны через REST API и будут добавляться в MCP отдельно.
 
 ## Разработка Backend
 
@@ -81,6 +109,7 @@ python server.py
 ```bash
 python -m compileall server.py backend tests
 python -m pytest tests/test_migration.py
+python -m pytest tests/test_mcp_oauth.py
 python tests/smoke_test.py
 ```
 
@@ -136,7 +165,7 @@ docker compose -f ci/docker-compose.yml down
 1. Откройте опубликованный HTTPS-адрес Astra в Safari.
 2. Нажмите **«Поделиться»** → **«На экран Домой»**.
 
-Локальный адрес `127.0.0.1` доступен только на том компьютере, где запущен сервер. Для установки на телефон приложение нужно отдельно опубликовать по HTTPS; простой GitHub Pages для текущей версии не подходит, потому что ей необходим Python API и SQLite.
+Локальный адрес `127.0.0.1` доступен только на том компьютере, где запущен сервер. Для установки на телефон и подключения ChatGPT к MCP приложение нужно отдельно опубликовать по HTTPS; простой GitHub Pages для текущей версии не подходит, потому что ей необходим Python API и SQLite.
 
 ## CI/CD через GitHub Actions
 
@@ -157,6 +186,7 @@ docker run -d --name astra -p 8787:8787 -v astra-data:/app/.data ghcr.io/straven
 ```
 
 Для доступа из интернета контейнер необходимо разместить у хостинг-провайдера и закрыть HTTPS.
+Для подключения MCP из ChatGPT укажите внешний HTTPS-адрес в `ASTRA_PUBLIC_BASE_URL`; OAuth metadata и protected resource metadata публикуются на его основе.
 
 ## Структура проекта
 
@@ -207,6 +237,7 @@ docker run -d --name astra -p 8787:8787 -v astra-data:/app/.data ghcr.io/straven
 | `GET/POST` | `/api/v1/progress` | замеры и прогресс |
 | `GET/POST` | `/api/v1/workouts` | журнал тренировок |
 | `GET/POST` | `/api/v1/exercises` | справочник упражнений |
+| `POST/GET` | `/mcp` | MCP Streamable HTTP endpoint для AI-клиентов |
 
 Все `/api/v1/*`, кроме `auth/register` и `auth/login`, требуют заголовок `Authorization: Bearer <token>`. Изменение продуктов, рецептов и упражнений доступно только admin.
 

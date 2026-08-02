@@ -24,10 +24,14 @@ class Settings:
     backup_dir: Path
     host: str
     port: int
+    public_base_url: str
     admin_email: str
     admin_password: str
     auth_secret: str
     access_token_minutes: int
+    mcp_access_token_minutes: int
+    mcp_refresh_token_days: int
+    mcp_auth_code_minutes: int
 
 
 def _required_env(name: str) -> str:
@@ -69,16 +73,24 @@ def get_settings() -> Settings:
     if not backup_dir.is_absolute():
         backup_dir = PROJECT_ROOT / backup_dir
 
+    host = os.environ.get("ASTRA_HOST", "127.0.0.1")
+    port = int(os.environ.get("ASTRA_PORT", "8787"))
+    public_base_url = os.environ.get("ASTRA_PUBLIC_BASE_URL", f"http://{host}:{port}").rstrip("/")
+
     return Settings(
         project_root=PROJECT_ROOT,
         static_root=STATIC_ROOT,
         database_template=DATABASE_TEMPLATE,
         db_path=db_path,
         backup_dir=backup_dir.resolve(),
-        host=os.environ.get("ASTRA_HOST", "127.0.0.1"),
-        port=int(os.environ.get("ASTRA_PORT", "8787")),
+        host=host,
+        port=port,
+        public_base_url=public_base_url,
         admin_email=_required_env("ASTRA_ADMIN_EMAIL"),
         admin_password=_required_env("ASTRA_ADMIN_PASSWORD"),
         auth_secret=_required_env("ASTRA_AUTH_SECRET"),
         access_token_minutes=int(os.environ.get("ASTRA_ACCESS_TOKEN_MINUTES", "10080")),
+        mcp_access_token_minutes=int(os.environ.get("ASTRA_MCP_ACCESS_TOKEN_MINUTES", "60")),
+        mcp_refresh_token_days=int(os.environ.get("ASTRA_MCP_REFRESH_TOKEN_DAYS", "30")),
+        mcp_auth_code_minutes=int(os.environ.get("ASTRA_MCP_AUTH_CODE_MINUTES", "5")),
     )

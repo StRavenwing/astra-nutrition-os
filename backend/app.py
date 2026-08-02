@@ -8,11 +8,13 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from peewee import IntegrityError
+from starlette.routing import Route
 
 from backend.config import Settings, get_settings
+from backend.mcp.server import MCPRootProxy, create_mcp_app
 from backend.migrations import backup_database, ensure_database
 from backend.models import current_database, initialize_database
-from backend.routers import auth, dashboard, diary, health, products, progress, recipes, workouts
+from backend.routers import auth, dashboard, diary, health, oauth, products, progress, recipes, workouts
 from backend.services.auth import ensure_admin_user
 from backend.services.errors import DomainError
 
@@ -72,6 +74,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return _error_response("Некорректные данные запроса", 422, exc.errors())
 
     app.include_router(health.router)
+    app.include_router(oauth.router)
     app.include_router(auth.router)
     app.include_router(dashboard.router)
     app.include_router(products.router)
@@ -79,6 +82,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(diary.router)
     app.include_router(progress.router)
     app.include_router(workouts.router)
+    mcp_app = create_mcp_app(settings)
+
+    async def start_mcp():
+        app.state.mcp_lifespan = mcp_app.router.lifespan_context(mcp_app)
+        await app.state.mcp_lifespan.__aenter__()
+
+    async def stop_mcp():
+        await app.state.mcp_lifespan.__aexit__(None, None, None)
+
+    app.router.add_event_handler("startup", start_mcp)
+    app.router.add_event_handler("shutdown", stop_mcp)
+
+    mcp_proxy = MCPRootProxy(mcp_app)
+    app.router.routes.append(
+        Route("/mcp", mcp_proxy, methods=["GET", "POST", "DELETE"], include_in_schema=False)
+    )
+    app.router.routes.append(
+        Route("/mcp/", mcp_proxy, methods=["GET", "POST", "DELETE"], include_in_schema=False)
+    )
 
     assets = settings.static_root / "assets"
     if assets.exists():
@@ -93,8 +115,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @app.get("/service-worker.js", include_in_schema=False)
     def service_worker():
+        service_worker_path = settings.static_root / "service-worker.js"
+        if not service_worker_path.exists():
+            service_worker_path = settings.static_root / "sw.js"
         return _static_file(
-            settings.static_root / "service-worker.js",
+            service_worker_path,
             "text/javascript",
             {"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
         )

@@ -29,7 +29,7 @@ from backend.services.calculations import RECIPE_PREFIXES, ensure_product_measur
 from backend.services.codes import sequence_rows
 
 
-SCHEMA_VERSION = "3"
+SCHEMA_VERSION = "4"
 
 
 def _connect_raw(path: Path) -> sqlite3.Connection:
@@ -120,6 +120,8 @@ def _legacy_schema_status(path: Path) -> str:
                 return "normalized"
             if row and row[0] == "2":
                 return "normalized_v2"
+            if row and row[0] == "3":
+                return "normalized_v3"
         if "product_id" in _columns(connection, "products"):
             return "legacy"
     return "unknown"
@@ -458,6 +460,86 @@ def _create_users_table(connection: sqlite3.Connection) -> None:
     connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users (email)")
 
 
+def _create_oauth_tables(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS oauth_clients (
+            client_id VARCHAR(255) PRIMARY KEY,
+            client_secret_hash VARCHAR(255),
+            client_secret_expires_at INTEGER,
+            client_id_issued_at INTEGER NOT NULL,
+            redirect_uris TEXT NOT NULL,
+            token_endpoint_auth_method VARCHAR(255) NOT NULL,
+            grant_types TEXT NOT NULL,
+            response_types TEXT NOT NULL,
+            scope TEXT,
+            client_name TEXT,
+            metadata_json TEXT
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS oauth_pending_authorizations (
+            request_id VARCHAR(255) PRIMARY KEY,
+            client_id VARCHAR(255) NOT NULL,
+            redirect_uri TEXT NOT NULL,
+            scopes TEXT NOT NULL,
+            state TEXT,
+            code_challenge TEXT NOT NULL,
+            resource TEXT,
+            expires_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL,
+            FOREIGN KEY(client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
+            code_hash VARCHAR(255) PRIMARY KEY,
+            client_id VARCHAR(255) NOT NULL,
+            user_id INTEGER NOT NULL,
+            scopes TEXT NOT NULL,
+            code_challenge TEXT NOT NULL,
+            redirect_uri TEXT NOT NULL,
+            resource TEXT,
+            expires_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL,
+            used_at INTEGER,
+            FOREIGN KEY(client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS oauth_refresh_tokens (
+            token_hash VARCHAR(255) PRIMARY KEY,
+            client_id VARCHAR(255) NOT NULL,
+            user_id INTEGER NOT NULL,
+            scopes TEXT NOT NULL,
+            expires_at INTEGER NOT NULL,
+            created_at INTEGER NOT NULL,
+            revoked_at INTEGER,
+            replaced_by_hash VARCHAR(255),
+            FOREIGN KEY(client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+        """
+    )
+    for table, column in (
+        ("oauth_pending_authorizations", "expires_at"),
+        ("oauth_authorization_codes", "client_id"),
+        ("oauth_authorization_codes", "user_id"),
+        ("oauth_authorization_codes", "expires_at"),
+        ("oauth_refresh_tokens", "client_id"),
+        ("oauth_refresh_tokens", "user_id"),
+        ("oauth_refresh_tokens", "expires_at"),
+    ):
+        connection.execute(f"CREATE INDEX IF NOT EXISTS {table}_{column} ON {table} ({column})")
+
+
 def _rebuild_diary_entries(connection: sqlite3.Connection, admin_id: int) -> None:
     connection.execute(
         """
@@ -600,16 +682,30 @@ def migrate_v2_database(settings: Settings, backup_existing: bool) -> None:
         _rebuild_diary_entries(connection, admin["id"])
         _rebuild_progress_entries(connection, admin["id"])
         _rebuild_workout_logs(connection, admin["id"])
-        connection.execute(
-            "UPDATE app_meta SET value=? WHERE key='schema_version'",
-            (SCHEMA_VERSION,),
-        )
+        _create_oauth_tables(connection)
+        connection.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
         connection.commit()
     except Exception:
         connection.rollback()
         raise
     finally:
         connection.execute("PRAGMA foreign_keys=ON")
+        connection.close()
+
+
+def migrate_v3_database(settings: Settings, backup_existing: bool) -> None:
+    if backup_existing:
+        backup_database(settings.db_path, settings.backup_dir, prefix="astra-pre-v4")
+
+    connection = _connect_raw(settings.db_path)
+    try:
+        _create_oauth_tables(connection)
+        connection.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
         connection.close()
 
 
@@ -623,6 +719,9 @@ def ensure_database(settings: Settings) -> None:
         return
     if status == "normalized_v2":
         migrate_v2_database(settings, backup_existing=existed)
+        return
+    if status == "normalized_v3":
+        migrate_v3_database(settings, backup_existing=existed)
         return
     if status == "legacy":
         migrate_legacy_database(settings, backup_existing=existed)

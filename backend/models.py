@@ -92,6 +92,79 @@ class User(BaseModel):
         table_name = "users"
 
 
+class OAuthClient(BaseModel):
+    client_id = CharField(primary_key=True)
+    client_secret_hash = CharField(null=True)
+    client_secret_expires_at = IntegerField(null=True)
+    client_id_issued_at = IntegerField()
+    redirect_uris = TextField()
+    token_endpoint_auth_method = CharField()
+    grant_types = TextField()
+    response_types = TextField()
+    scope = TextField(null=True)
+    client_name = TextField(null=True)
+    metadata_json = TextField(null=True)
+
+    class Meta:
+        table_name = "oauth_clients"
+
+
+class OAuthPendingAuthorization(BaseModel):
+    request_id = CharField(primary_key=True)
+    client = ForeignKeyField(OAuthClient, backref="pending_authorizations", on_delete="CASCADE")
+    redirect_uri = TextField()
+    scopes = TextField()
+    state = TextField(null=True)
+    code_challenge = TextField()
+    resource = TextField(null=True)
+    expires_at = IntegerField()
+    created_at = IntegerField()
+
+    class Meta:
+        table_name = "oauth_pending_authorizations"
+        indexes = ((("expires_at",), False),)
+
+
+class OAuthAuthorizationCode(BaseModel):
+    code_hash = CharField(primary_key=True)
+    client = ForeignKeyField(OAuthClient, backref="authorization_codes", on_delete="CASCADE")
+    user = ForeignKeyField(User, backref="oauth_authorization_codes", on_delete="CASCADE")
+    scopes = TextField()
+    code_challenge = TextField()
+    redirect_uri = TextField()
+    resource = TextField(null=True)
+    expires_at = IntegerField()
+    created_at = IntegerField()
+    used_at = IntegerField(null=True)
+
+    class Meta:
+        table_name = "oauth_authorization_codes"
+        indexes = (
+            (("client",), False),
+            (("user",), False),
+            (("expires_at",), False),
+        )
+
+
+class OAuthRefreshToken(BaseModel):
+    token_hash = CharField(primary_key=True)
+    client = ForeignKeyField(OAuthClient, backref="refresh_tokens", on_delete="CASCADE")
+    user = ForeignKeyField(User, backref="oauth_refresh_tokens", on_delete="CASCADE")
+    scopes = TextField()
+    expires_at = IntegerField()
+    created_at = IntegerField()
+    revoked_at = IntegerField(null=True)
+    replaced_by_hash = CharField(null=True)
+
+    class Meta:
+        table_name = "oauth_refresh_tokens"
+        indexes = (
+            (("client",), False),
+            (("user",), False),
+            (("expires_at",), False),
+        )
+
+
 class Product(BaseModel):
     id = AutoField()
     code = CharField(unique=True)
@@ -239,6 +312,10 @@ MODELS = [
     IdSequence,
     Changelog,
     User,
+    OAuthClient,
+    OAuthPendingAuthorization,
+    OAuthAuthorizationCode,
+    OAuthRefreshToken,
     Product,
     Recipe,
     Exercise,

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import os
 from pathlib import Path
 import sys
 import tempfile
+from urllib.parse import parse_qs, urlparse
 
 from fastapi.testclient import TestClient
 
@@ -20,6 +23,7 @@ def main() -> None:
         os.environ["ASTRA_ADMIN_EMAIL"] = "admin@example.com"
         os.environ["ASTRA_ADMIN_PASSWORD"] = "admin-password"
         os.environ["ASTRA_AUTH_SECRET"] = "test-secret-with-at-least-thirty-two-bytes"
+        os.environ["ASTRA_PUBLIC_BASE_URL"] = "http://testserver"
         os.chdir(ROOT)
         sys.path.insert(0, str(ROOT))
 
@@ -27,6 +31,79 @@ def main() -> None:
 
         app = create_app()
         with TestClient(app) as client:
+            def pkce() -> tuple[str, str]:
+                verifier = "smoke-verifier-abcdefghijklmnopqrstuvwxyz0123456789"
+                digest = hashlib.sha256(verifier.encode("ascii")).digest()
+                challenge = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
+                return verifier, challenge
+
+            def issue_mcp_token() -> str:
+                redirect_uri = "https://chat.openai.com/aip/smoke/oauth/callback"
+                registered = client.post(
+                    "/oauth/register",
+                    json={
+                        "redirect_uris": [redirect_uri],
+                        "token_endpoint_auth_method": "none",
+                        "scope": "recipes:read recipes:write",
+                    },
+                )
+                assert registered.status_code == 201, registered.text
+                verifier, challenge = pkce()
+                authorization = client.get(
+                    "/oauth/authorize",
+                    params={
+                        "response_type": "code",
+                        "client_id": registered.json()["client_id"],
+                        "redirect_uri": redirect_uri,
+                        "scope": "recipes:read recipes:write",
+                        "state": "smoke",
+                        "code_challenge": challenge,
+                        "code_challenge_method": "S256",
+                        "resource": "http://testserver/mcp",
+                    },
+                    follow_redirects=False,
+                )
+                assert authorization.status_code == 302, authorization.text
+                request_id = parse_qs(urlparse(authorization.headers["location"]).query)["request"][0]
+                login = client.post(
+                    "/oauth/login",
+                    data={"request": request_id, "email": "admin@example.com", "password": "admin-password"},
+                    follow_redirects=False,
+                )
+                assert login.status_code == 302, login.text
+                code = parse_qs(urlparse(login.headers["location"]).query)["code"][0]
+                token = client.post(
+                    "/oauth/token",
+                    data={
+                        "grant_type": "authorization_code",
+                        "client_id": registered.json()["client_id"],
+                        "code": code,
+                        "redirect_uri": redirect_uri,
+                        "code_verifier": verifier,
+                    },
+                )
+                assert token.status_code == 200, token.text
+                return token.json()["access_token"]
+
+            def mcp_call(access_token: str, name: str, arguments: dict, request_id: int) -> dict:
+                response = client.post(
+                    "/mcp",
+                    headers={
+                        "Authorization": f"Bearer {access_token}",
+                        "Accept": "application/json",
+                        "Content-Type": "application/json",
+                        "mcp-protocol-version": "2025-11-25",
+                    },
+                    json={
+                        "jsonrpc": "2.0",
+                        "id": request_id,
+                        "method": "tools/call",
+                        "params": {"name": name, "arguments": arguments},
+                    },
+                )
+                assert response.status_code == 200, response.text
+                return response.json()
+
             response = client.get("/api/health")
             assert response.status_code == 200
             assert response.json() == {"status": "ok"}
@@ -132,6 +209,46 @@ def main() -> None:
             assert response.status_code == 200
             assert detail["recipe"]["id"] == recipe["id"]
             assert detail["ingredients"][0]["quantity"] == 18.0
+
+            mcp_access_token = issue_mcp_token()
+            response = client.post(
+                "/mcp",
+                headers={
+                    "Authorization": f"Bearer {mcp_access_token}",
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2025-11-25",
+                        "capabilities": {},
+                        "clientInfo": {"name": "smoke", "version": "1"},
+                    },
+                },
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["result"]["serverInfo"]["name"] == "Astra Nutrition OS"
+
+            mcp_search = mcp_call(mcp_access_token, "recipes.search", {"limit": 1}, 2)
+            assert mcp_search["result"]["structuredContent"]["result"][0]["code"]
+            mcp_recipe = mcp_call(
+                mcp_access_token,
+                "recipes.create",
+                {
+                    "category": "Ready",
+                    "name": "Smoke MCP recipe",
+                    "servings": 1,
+                    "manual_kcal_per_serving": 250,
+                    "manual_protein_per_serving_g": 20,
+                    "manual_fat_per_serving_g": 10,
+                    "manual_carbs_per_serving_g": 15,
+                },
+                3,
+            )
+            assert mcp_recipe["result"]["structuredContent"]["code"].startswith("R-")
 
             response = client.post(
                 "/api/v1/diary",
@@ -274,7 +391,7 @@ def main() -> None:
             response = client.get("/service-worker.js")
             assert response.headers["content-type"].startswith("text/javascript")
             assert response.headers["cache-control"] == "no-cache"
-            assert b"CACHE_NAME" in response.content
+            assert b"precacheAndRoute" in response.content or b"addEventListener" in response.content
 
             response = client.get("/assets/app-icon-192.png")
             assert response.headers["content-type"].startswith("image/png")

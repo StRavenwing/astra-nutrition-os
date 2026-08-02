@@ -7,8 +7,13 @@ import pytest
 from backend.config import DATABASE_TEMPLATE, PROJECT_ROOT, STATIC_ROOT, Settings
 from backend.migrations import ensure_database
 from backend.models import (
+    AppMeta,
     DiaryEntry,
     Exercise,
+    OAuthAuthorizationCode,
+    OAuthClient,
+    OAuthPendingAuthorization,
+    OAuthRefreshToken,
     Product,
     ProgressEntry,
     Recipe,
@@ -30,10 +35,14 @@ def _settings(tmp_path) -> Settings:
         backup_dir=tmp_path / "backups",
         host="127.0.0.1",
         port=8787,
+        public_base_url="http://testserver",
         admin_email="admin@example.com",
         admin_password="admin-password",
         auth_secret="test-secret",
         access_token_minutes=10080,
+        mcp_access_token_minutes=60,
+        mcp_refresh_token_days=30,
+        mcp_auth_code_minutes=5,
     )
 
 
@@ -180,6 +189,11 @@ def test_migrates_legacy_template_to_normalized_schema(tmp_path) -> None:
         assert Product.select().count() == expected["products"]
         assert Recipe.select().count() == expected["recipes"]
         assert Exercise.select().count() == expected["exercises"]
+        assert AppMeta.get(AppMeta.key == "schema_version").value == "4"
+        assert OAuthClient.select().count() == 0
+        assert OAuthPendingAuthorization.select().count() == 0
+        assert OAuthAuthorizationCode.select().count() == 0
+        assert OAuthRefreshToken.select().count() == 0
         assert RecipeIngredient.select().count() == expected["recipe_ingredients"]
         assert DiaryEntry.select().count() == expected["food_diary"]
         assert ProgressEntry.select().count() == expected["progress"]
@@ -222,6 +236,11 @@ def test_migrates_v2_database_to_user_scoped_schema(tmp_path) -> None:
     try:
         admin = User.get(User.email == "admin@example.com")
         assert admin.is_admin is True
+        assert AppMeta.get(AppMeta.key == "schema_version").value == "4"
+        assert OAuthClient.select().count() == 0
+        assert OAuthPendingAuthorization.select().count() == 0
+        assert OAuthAuthorizationCode.select().count() == 0
+        assert OAuthRefreshToken.select().count() == 0
         assert DiaryEntry.get_by_id(1).user_id == admin.id
         assert ProgressEntry.get_by_id(1).user_id == admin.id
         assert WorkoutLog.get_by_id(1).user_id == admin.id
