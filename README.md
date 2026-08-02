@@ -39,6 +39,20 @@
 
 Дополнительные библиотеки не требуются: приложение использует только стандартную библиотеку Python.
 
+## Запуск через Docker Compose
+
+```bash
+docker compose -f ci/docker-compose.yml up --build -d
+```
+
+После запуска откройте <http://127.0.0.1:8787/>. Данные SQLite и резервные копии хранятся в локальной папке `.data/`.
+
+Чтобы остановить контейнер без удаления данных:
+
+```bash
+docker compose -f ci/docker-compose.yml down
+```
+
 ## Установка на рабочий стол
 
 ### Windows или macOS
@@ -72,7 +86,7 @@ Workflow `.github/workflows/ci-cd.yml` автоматически выполня
 Личная SQLite-база в контейнер не попадает. При запуске опубликованного образа данные нужно хранить в отдельном Docker volume:
 
 ```bash
-docker run -d --name astra -p 8787:8787 -v astra-data:/data ghcr.io/stravenwing/astra-nutrition-os:latest
+docker run -d --name astra -p 8787:8787 -v astra-data:/app/.data ghcr.io/stravenwing/astra-nutrition-os:latest
 ```
 
 Для доступа из интернета контейнер необходимо разместить у хостинг-провайдера и закрыть HTTPS и авторизацией.
@@ -89,6 +103,8 @@ docker run -d --name astra -p 8787:8787 -v astra-data:/data ghcr.io/stravenwing/
 ├── manifest.webmanifest              # параметры установки PWA
 ├── service-worker.js                 # кэш интерфейса приложения
 ├── Dockerfile                         # production-контейнер
+├── ci/
+│   └── docker-compose.yml             # локальный запуск через Docker Compose
 ├── tests/smoke_test.py                # проверка API и PWA
 ├── .github/workflows/ci-cd.yml        # CI/CD GitHub Actions
 ├── assets/app-icon-*.png             # иконки приложения

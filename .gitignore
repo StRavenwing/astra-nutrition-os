@@ -4,6 +4,7 @@ __pycache__/
 *.sqlite-shm
 *.sqlite-wal
 # Personal runtime data. The app recreates a local database from the public SQL template.
+.data/
 Astra_Nutrition_OS_v7.sqlite
 docs/Astra_Nutrition_OS_v7.xlsx
 data-backups/
