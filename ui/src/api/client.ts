@@ -11,12 +11,15 @@ import type {
 } from '@/types';
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`/api/${path}`, {
+  const response = await fetch(`/api/v1/${path}`, {
     headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
     ...init
   });
-  const payload = await response.json();
-  if (!response.ok) throw new Error(payload.error || 'Ошибка');
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const detail = Array.isArray(payload?.details) ? payload.details[0]?.msg : payload?.details;
+    throw new Error(payload?.error || detail || 'Ошибка');
+  }
   if (path === 'products' && Array.isArray(payload)) {
     payload.sort((a: Product, b: Product) => a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' }));
   }
@@ -35,7 +38,7 @@ export const api = {
   products: () => request<Product[]>('products'),
   productMeasures: () => request<ProductMeasure[]>('product-measures'),
   recipes: () => request<RecipeSummary[]>('recipes'),
-  recipe: (id: string) => request<RecipeDetail>(`recipes/${id}`),
+  recipe: (id: number) => request<RecipeDetail>(`recipes/${id}`),
   diary: () => request<DiaryEntry[]>('diary'),
   progress: () => request<ProgressEntry[]>('progress'),
   workouts: () => request<WorkoutEntry[]>('workouts'),

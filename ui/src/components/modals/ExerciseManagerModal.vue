@@ -31,7 +31,7 @@ watch(() => props.open, (open) => {
   if (open) void load();
 }, { immediate: true });
 
-async function removeExercise(id: string) {
+async function removeExercise(id: number) {
   if (!confirm('Удалить упражнение из справочника?')) return;
   try {
     await api.delete(`exercises/${id}`);
@@ -52,12 +52,12 @@ async function removeExercise(id: string) {
     <div v-if="loading" class="panel">Загрузка…</div>
     <div v-else-if="error" class="panel empty">{{ error }}</div>
     <div v-else class="exercise-manager-list">
-      <div v-for="exercise in exercises" :key="exercise.exercise_id" class="exercise-manager-row">
+      <div v-for="exercise in exercises" :key="exercise.id" class="exercise-manager-row">
         <div>
           <b>{{ exercise.name }}</b>
-          <small>{{ exercise.muscle_group || 'Без группы' }} · {{ exercise.default_sets || '—' }} × {{ exercise.default_reps || '—' }} · {{ exercise.default_unit || 'кг' }}</small>
+          <small>{{ exercise.code }} · {{ exercise.muscle_group || 'Без группы' }} · {{ exercise.default_sets || '—' }} × {{ exercise.default_reps || '—' }} · {{ exercise.default_unit || 'кг' }}</small>
         </div>
-        <button type="button" class="delete-exercise" @click="removeExercise(exercise.exercise_id)">Удалить</button>
+        <button type="button" class="delete-exercise" @click="removeExercise(exercise.id)">Удалить</button>
       </div>
       <div v-if="!exercises.length" class="empty">Упражнений пока нет</div>
     </div>

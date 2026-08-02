@@ -43,7 +43,7 @@ onMounted(async () => {
   loading.value = true;
   try {
     const data = await api.progress();
-    const item = data.find((progress) => progress.progress_id === props.progressId);
+      const item = data.find((progress) => progress.id === props.progressId);
     if (item) {
       for (const [key, value] of Object.entries(item)) {
         if (key in form) form[key] = value == null ? '' : String(value);

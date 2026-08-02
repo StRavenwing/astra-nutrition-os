@@ -227,14 +227,14 @@ function editEntry(id: number) {
     <template v-for="meal in mealOrder" :key="meal">
       <section v-if="selectedDayItems.filter((item) => item.meal_type === meal).length" class="meal-group">
         <h3>{{ meal }} <span class="meal-cost">{{ fmt(mealTotal(meal).cost) }} RSD</span></h3>
-        <template v-for="item in selectedDayItems.filter((entry) => entry.meal_type === meal)" :key="item.diary_id">
-          <button type="button" class="meal-entry" @click="editEntry(item.diary_id)">
+        <template v-for="item in selectedDayItems.filter((entry) => entry.meal_type === meal)" :key="item.id">
+          <button type="button" class="meal-entry" @click="editEntry(item.id)">
             <span><b>{{ item.name }}</b><small>{{ entryCaption(item) }}</small></span>
             <strong>{{ fmt((Number(item.kcal_per_serving) || 0) * (Number(item.servings) || 0)) }} ккал</strong>
           </button>
           <div class="diary-entry-actions">
-            <button type="button" class="edit-diary-entry" @click="editEntry(item.diary_id)">Редактировать</button>
-            <button type="button" class="delete-diary-entry" @click="removeEntry(item.diary_id)">Удалить</button>
+            <button type="button" class="edit-diary-entry" @click="editEntry(item.id)">Редактировать</button>
+            <button type="button" class="delete-diary-entry" @click="removeEntry(item.id)">Удалить</button>
           </div>
         </template>
       </section>

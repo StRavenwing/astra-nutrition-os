@@ -5,17 +5,17 @@ import type { RecipeDetail, RecipeSummary } from '@/types';
 import { fmt } from '@/utils/format';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 
-const props = defineProps<{ recipeId: string | null }>();
+const props = defineProps<{ recipeId: number | null }>();
 const emit = defineEmits<{
   close: [];
-  edit: [id: string];
+  edit: [id: number];
   deleted: [];
 }>();
 
 const loading = ref(false);
 const error = ref('');
 const detail = ref<RecipeDetail | null>(null);
-const recipe = computed<RecipeSummary | null>(() => detail.value?.recipe[0] || null);
+const recipe = computed<RecipeSummary | null>(() => detail.value?.recipe || null);
 
 watch(
   () => props.recipeId,
@@ -63,12 +63,12 @@ function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; car
     wide
     @close="$emit('close')"
   >
-    <p v-if="recipe" class="subtle recipe-meta">{{ recipe.recipe_id }} · {{ recipe.category }}<template v-if="recipe.subcategory"> / {{ recipe.subcategory }}</template> · v{{ recipe.version }} · {{ fmt(recipe.servings) }} порц.</p>
+    <p v-if="recipe" class="subtle recipe-meta">{{ recipe.code }} · {{ recipe.category }}<template v-if="recipe.subcategory"> / {{ recipe.subcategory }}</template> · v{{ recipe.version }} · {{ fmt(recipe.servings) }} порц.</p>
     <div v-if="loading" class="panel">Загрузка…</div>
     <div v-else-if="error" class="panel empty">{{ error }}</div>
     <div v-else-if="recipe && detail" class="recipe-body">
       <div class="recipe-actions">
-        <button type="button" class="edit-recipe" @click="$emit('edit', recipe.recipe_id)">✎ Редактировать</button>
+        <button type="button" class="edit-recipe" @click="$emit('edit', recipe.id)">✎ Редактировать</button>
         <button type="button" class="danger-button" @click="removeRecipe">Удалить</button>
       </div>
 
@@ -110,8 +110,8 @@ function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; car
             </tr>
           </thead>
           <tbody>
-            <tr v-for="ingredient in detail.ingredients" :key="`${ingredient.product_id}-${ingredient.name}`">
-              <td><b>{{ ingredient.name }}</b><small>{{ ingredient.portion_description || ingredient.product_id }}</small></td>
+            <tr v-for="ingredient in detail.ingredients" :key="ingredient.id">
+              <td><b>{{ ingredient.name }}</b><small>{{ ingredient.portion_description || ingredient.product_code }}</small></td>
               <td class="number">{{ fmt(ingredient.quantity) }} {{ ingredient.unit }}</td>
               <td class="number">{{ fmt(ingredient.kcal) }}</td>
               <td class="number">{{ fmt(ingredient.protein_g) }}</td>

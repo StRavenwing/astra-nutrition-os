@@ -12,9 +12,9 @@ type RowKind = 'recipe' | 'product';
 type DiaryRow = {
   kind: RowKind;
   meal_type: string;
-  recipe_id: string;
+  recipe_id: number;
   servings: string;
-  product_id: string;
+  product_id: number;
   quantity: string;
   measurement_name: string;
   comment: string;
@@ -28,8 +28,8 @@ const products = ref<Product[]>([]);
 const measures = ref<ProductMeasure[]>([]);
 const rows = ref<DiaryRow[]>([]);
 
-function productById(productId: string) {
-  return products.value.find((product) => product.product_id === productId) || products.value[0];
+function productById(productId: number) {
+  return products.value.find((product) => product.id === productId) || products.value[0];
 }
 
 function measureOptions(row: DiaryRow) {
@@ -37,7 +37,7 @@ function measureOptions(row: DiaryRow) {
   if (!product) return [];
   return [
     { measure_name: product.unit || 'г', base_quantity: 1 },
-    ...measures.value.filter((measure) => measure.product_id === product.product_id)
+    ...measures.value.filter((measure) => measure.product_id === product.id)
   ];
 }
 
@@ -46,9 +46,9 @@ function defaultRow(kind: RowKind, mealType = 'Завтрак'): DiaryRow {
   return {
     kind,
     meal_type: mealType,
-    recipe_id: recipes.value[0]?.recipe_id || '',
+    recipe_id: recipes.value[0]?.id || 0,
     servings: '1',
-    product_id: product?.product_id || '',
+    product_id: product?.id || 0,
     quantity: kind === 'product' ? '100' : '',
     measurement_name: product?.unit || 'г',
     comment: ''
@@ -72,13 +72,13 @@ function productChanged(row: DiaryRow) {
 }
 
 function rowFromEntry(item: DiaryEntry): DiaryRow {
-  const product = productById(item.product_id || '');
+  const product = productById(item.product_id || 0);
   return {
     kind: item.product_id ? 'product' : 'recipe',
     meal_type: item.meal_type || 'Завтрак',
-    recipe_id: item.recipe_id || recipes.value[0]?.recipe_id || '',
+    recipe_id: item.recipe_id || recipes.value[0]?.id || 0,
     servings: item.servings == null ? '1' : String(item.servings),
-    product_id: item.product_id || products.value[0]?.product_id || '',
+    product_id: item.product_id || products.value[0]?.id || 0,
     quantity: item.measurement_quantity != null ? String(item.measurement_quantity) : item.quantity != null ? String(item.quantity) : '100',
     measurement_name: item.measurement_name || product?.unit || item.unit || 'г',
     comment: item.comment || ''
@@ -95,7 +95,7 @@ onMounted(async () => {
 
     if (props.diaryId) {
       const data = await api.diary();
-      const item = data.find((entry) => entry.diary_id === props.diaryId);
+      const item = data.find((entry) => entry.id === props.diaryId);
       if (item) {
         entryDate.value = item.entry_date;
         rows.value = [rowFromEntry(item)];
@@ -174,8 +174,8 @@ async function remove() {
       <div id="diary-items">
         <div v-for="(row, index) in rows" :key="index" class="diary-form-row" :class="{ 'diary-product-row': row.kind === 'product' }">
           <select v-model="row.meal_type" class="dm"><option v-for="meal in mealOrder" :key="meal">{{ meal }}</option></select>
-          <select v-if="row.kind === 'recipe'" v-model="row.recipe_id" class="dr"><option v-for="recipe in recipes" :key="recipe.recipe_id" :value="recipe.recipe_id">{{ recipe.name }}</option></select>
-          <select v-else v-model="row.product_id" class="dp" @change="productChanged(row)"><option v-for="product in products" :key="product.product_id" :value="product.product_id">{{ product.name }}</option></select>
+          <select v-if="row.kind === 'recipe'" v-model="row.recipe_id" class="dr"><option v-for="recipe in recipes" :key="recipe.id" :value="recipe.id">{{ recipe.name }}</option></select>
+          <select v-else v-model="row.product_id" class="dp" @change="productChanged(row)"><option v-for="product in products" :key="product.id" :value="product.id">{{ product.name }}</option></select>
           <input v-if="row.kind === 'recipe'" v-model="row.servings" class="ds" type="number" min="0.25" step="0.25" aria-label="Порций" required>
           <label v-else class="diary-quantity">
             <input v-model="row.quantity" class="dq" type="number" min="0.01" step="0.01" aria-label="Количество" required>

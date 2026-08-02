@@ -8,7 +8,7 @@ import MetricCard from '@/components/shared/MetricCard.vue';
 const props = defineProps<{ refreshKey: number }>();
 const emit = defineEmits<{
   navigate: [page: PageId];
-  openRecipe: [id: string];
+  openRecipe: [id: number];
 }>();
 
 const data = ref<DashboardResponse | null>(null);
@@ -40,9 +40,9 @@ watch(() => props.refreshKey, load);
       <MetricCard label="Рецепты" :value="data.recipes" icon="◇" note="Открыть рецепты →" button @click="emit('navigate', 'recipes')" />
       <MetricCard
         label="Текущие показатели"
-        :value="`${data.latest[0]?.weight_kg || '—'} кг`"
+        :value="`${data.latest?.weight_kg || '—'} кг`"
         icon="↗"
-        :note="`${data.latest[0]?.waist_cm ? `Талия ${fmt(data.latest[0].waist_cm)} см · ` : ''}Открыть прогресс →`"
+        :note="`${data.latest?.waist_cm ? `Талия ${fmt(data.latest.waist_cm)} см · ` : ''}Открыть прогресс →`"
         button
         @click="emit('navigate', 'progress')"
       />
@@ -53,11 +53,11 @@ watch(() => props.refreshKey, load);
       <div class="bars protein-recipe-links">
         <button
           v-for="recipe in data.top"
-          :key="recipe.recipe_id"
+          :key="recipe.id"
           type="button"
           class="bar protein-recipe-link"
           :title="`Открыть рецепт ${recipe.name}`"
-          @click="emit('openRecipe', recipe.recipe_id)"
+          @click="emit('openRecipe', recipe.id)"
         >
           <span>{{ recipe.name }}</span>
           <span class="track"><i :style="{ width: `${Math.min((Number(recipe.protein_per_serving_g) || 0) / 55 * 100, 100)}%` }"></i></span>

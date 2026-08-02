@@ -7,7 +7,7 @@ import { compareValues, fmt, searchable } from '@/utils/format';
 import Toolbar from '@/components/shared/Toolbar.vue';
 
 const props = defineProps<{ refreshKey: number }>();
-const emit = defineEmits<{ openRecipe: [id: string] }>();
+const emit = defineEmits<{ openRecipe: [id: number] }>();
 
 const data = ref<RecipeSummary[]>([]);
 const loading = ref(false);
@@ -114,9 +114,9 @@ function resetSort() {
     </Toolbar>
 
     <div id="recipe-grid" class="recipe-grid">
-      <article v-for="item in shown" :key="item.recipe_id" class="recipe-tile" tabindex="0" title="Открыть рецепт" @click="emit('openRecipe', item.recipe_id)" @keydown.enter.prevent="emit('openRecipe', item.recipe_id)" @keydown.space.prevent="emit('openRecipe', item.recipe_id)">
+      <article v-for="item in shown" :key="item.id" class="recipe-tile" tabindex="0" title="Открыть рецепт" @click="emit('openRecipe', item.id)" @keydown.enter.prevent="emit('openRecipe', item.id)" @keydown.space.prevent="emit('openRecipe', item.id)">
         <div class="recipe-tile-head">
-          <span class="recipe-id">{{ item.recipe_id }}</span>
+          <span class="recipe-id">{{ item.code }}</span>
           <span class="pill">{{ item.status }}</span>
         </div>
         <div class="recipe-category">{{ recipeCategoryMap[item.category]?.label || item.category }}</div>

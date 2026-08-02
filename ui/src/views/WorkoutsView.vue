@@ -119,7 +119,7 @@ async function remove(id: number) {
     </Toolbar>
 
     <div class="workout-grid">
-      <article v-for="item in shown" :key="item.workout_log_id" class="workout-tile">
+      <article v-for="item in shown" :key="item.id" class="workout-tile">
         <div class="workout-tile-head">
           <span class="workout-date">{{ formatDate(item.performed_at) }}</span>
           <span class="workout-group">{{ item.muscle_group || 'Другое' }}</span>
@@ -133,8 +133,8 @@ async function remove(id: number) {
           <span><b>{{ item.rir || '—' }}</b><small>RIR</small></span>
         </div>
         <div class="workout-tile-actions">
-          <button type="button" class="edit-workout" @click="emit('edit', item.workout_log_id)">✎ Редактировать</button>
-          <button type="button" class="delete-workout" @click="remove(item.workout_log_id)">Удалить</button>
+          <button type="button" class="edit-workout" @click="emit('edit', item.id)">✎ Редактировать</button>
+          <button type="button" class="delete-workout" @click="remove(item.id)">Удалить</button>
         </div>
       </article>
       <div v-if="!shown.length" class="panel empty">Ничего не найдено</div>

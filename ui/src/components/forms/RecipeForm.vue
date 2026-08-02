@@ -4,11 +4,11 @@ import { recipeCategories, recipeCategoryMap, recipeStatusOptions } from '@/cons
 import { api } from '@/api/client';
 import type { Product, ProductMeasure, RecipeIngredient, RecipeSummary } from '@/types';
 
-const props = defineProps<{ recipeId?: string }>();
-const emit = defineEmits<{ saved: [recipeId?: string]; cancel: [] }>();
+const props = defineProps<{ recipeId?: number }>();
+const emit = defineEmits<{ saved: [recipeId?: number]; cancel: [] }>();
 
 type IngredientRow = {
-  product_id: string;
+  product_id: number;
   quantity: string;
   measurement_name: string;
 };
@@ -21,7 +21,7 @@ const original = ref<RecipeSummary | null>(null);
 const ingredients = ref<IngredientRow[]>([]);
 
 const form = reactive<Record<string, string>>({
-  recipe_id: 'Автоматически: M-…',
+  code: 'Автоматически: M-…',
   category: 'Main',
   name: '',
   subcategory: '',
@@ -39,8 +39,8 @@ const form = reactive<Record<string, string>>({
 const isReady = computed(() => form.category === 'Ready');
 const modalTitle = computed(() => (props.recipeId ? 'Редактировать рецепт' : 'Добавить рецепт'));
 
-function productById(productId: string) {
-  return products.value.find((product) => product.product_id === productId) || products.value[0];
+function productById(productId: number) {
+  return products.value.find((product) => product.id === productId) || products.value[0];
 }
 
 function optionsFor(row: IngredientRow) {
@@ -48,19 +48,19 @@ function optionsFor(row: IngredientRow) {
   if (!product) return [];
   const list = [
     { measure_name: product.unit || 'г', base_quantity: 1 },
-    ...measures.value.filter((measure) => measure.product_id === product.product_id)
+    ...measures.value.filter((measure) => measure.product_id === product.id)
   ];
   return list;
 }
 
 function syncRecipeId() {
   const prefix = recipeCategoryMap[form.category]?.prefix || 'M';
-  if (original.value && original.value.category === form.category) form.recipe_id = original.value.recipe_id;
-  else form.recipe_id = `Автоматически: ${prefix}-…`;
+  if (original.value && original.value.category === form.category) form.code = original.value.code;
+  else form.code = `Автоматически: ${prefix}-…`;
 }
 
 function addIngredient(item?: Partial<RecipeIngredient>) {
-  const productId = item?.product_id || products.value[0]?.product_id || '';
+  const productId = item?.product_id || products.value[0]?.id || 0;
   const row: IngredientRow = {
     product_id: productId,
     quantity: item?.measurement_quantity != null ? String(item.measurement_quantity) : item?.quantity != null ? String(item.quantity) : '',
@@ -86,7 +86,7 @@ onMounted(async () => {
 
     if (props.recipeId) {
       const detail = await api.recipe(props.recipeId);
-      const recipe = detail.recipe[0];
+      const recipe = detail.recipe;
       if (recipe) {
         original.value = recipe;
         for (const [key, value] of Object.entries(recipe)) {
@@ -137,10 +137,10 @@ function payload() {
 async function save() {
   error.value = '';
   try {
-    let result: { recipe_id?: string } | undefined;
-    if (props.recipeId) result = await api.put<{ ok: boolean; recipe_id: string }>(`recipes/${props.recipeId}`, payload());
-    else await api.post('recipes', payload());
-    emit('saved', result?.recipe_id || props.recipeId);
+    let result: RecipeSummary | undefined;
+    if (props.recipeId) result = await api.put<RecipeSummary>(`recipes/${props.recipeId}`, payload());
+    else result = await api.post<RecipeSummary>('recipes', payload());
+    emit('saved', result?.id || props.recipeId);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   }
@@ -153,7 +153,7 @@ async function save() {
     <template v-else>
       <div class="grid">
         <div class="field"><label>Категория</label><select v-model="form.category"><option v-for="item in recipeCategories" :key="item.key" :value="item.key">{{ item.label }}</option></select></div>
-        <div class="field"><label>ID рецепта</label><input v-model="form.recipe_id" readonly tabindex="-1"></div>
+        <div class="field"><label>ID рецепта</label><input v-model="form.code" readonly tabindex="-1"></div>
         <div class="field"><label>Название</label><input v-model="form.name" required></div>
         <div class="field"><label>Подкатегория</label><input v-model="form.subcategory"></div>
         <div class="field"><label>Версия</label><input v-model="form.version"></div>
@@ -175,7 +175,7 @@ async function save() {
         <div id="ingredients">
           <div v-for="(row, index) in ingredients" :key="index" class="ingredient-row">
             <select v-model="row.product_id" class="ip" @change="productChanged(row)">
-              <option v-for="product in products" :key="product.product_id" :value="product.product_id">{{ product.name }}</option>
+              <option v-for="product in products" :key="product.id" :value="product.id">{{ product.name }}</option>
             </select>
             <input v-model="row.quantity" class="iq" type="number" min="0.01" step="0.01" placeholder="Количество" required>
             <select v-model="row.measurement_name" class="im">

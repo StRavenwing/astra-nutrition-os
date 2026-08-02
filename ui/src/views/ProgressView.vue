@@ -79,8 +79,8 @@ async function remove(id: number) {
         </div>
         <div>
           <span class="current-badge">Текущий замер</span>
-          <button type="button" class="edit-progress-tile" @click="emit('edit', latest.progress_id)">✎ Редактировать</button>
-          <button type="button" class="delete-progress-tile" @click="remove(latest.progress_id)">Удалить</button>
+          <button type="button" class="edit-progress-tile" @click="emit('edit', latest.id)">✎ Редактировать</button>
+          <button type="button" class="delete-progress-tile" @click="remove(latest.id)">Удалить</button>
         </div>
       </div>
       <div class="current-progress-main">
@@ -145,12 +145,12 @@ async function remove(id: number) {
     </Toolbar>
 
     <div class="progress-grid">
-      <article v-for="item in shown" :key="item.progress_id" class="progress-tile">
+      <article v-for="item in shown" :key="item.id" class="progress-tile">
         <div class="progress-tile-head">
           <span class="progress-date">{{ formatDate(item.measured_at) }}</span>
           <div class="progress-card-actions">
-            <button type="button" class="edit-progress-tile" @click="emit('edit', item.progress_id)">✎ Редактировать</button>
-            <button type="button" class="delete-progress-tile" @click="remove(item.progress_id)">Удалить</button>
+            <button type="button" class="edit-progress-tile" @click="emit('edit', item.id)">✎ Редактировать</button>
+            <button type="button" class="delete-progress-tile" @click="remove(item.id)">Удалить</button>
           </div>
         </div>
         <div class="progress-primary">

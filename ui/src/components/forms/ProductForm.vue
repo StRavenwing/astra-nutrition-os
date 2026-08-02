@@ -4,14 +4,14 @@ import { productCategoryOptions, productStatusOptions, productUnitOptions } from
 import { api } from '@/api/client';
 import type { ProductMeasure } from '@/types';
 
-const props = defineProps<{ productId?: string }>();
+const props = defineProps<{ productId?: number }>();
 const emit = defineEmits<{ saved: []; deleted: []; cancel: [] }>();
 
 const loading = ref(false);
 const error = ref('');
 const measures = ref<ProductMeasure[]>([]);
 const form = reactive<Record<string, string>>({
-  product_id: 'Автоматически: P-…',
+  code: 'Автоматически: P-…',
   name: '',
   category: productCategoryOptions[0],
   unit: 'г',
@@ -75,15 +75,15 @@ onMounted(async () => {
   loading.value = true;
   try {
     if (props.productId) {
-      const [products, allMeasures] = await Promise.all([api.products(), api.productMeasures()]);
-      const product = products.find((item) => item.product_id === props.productId);
+      const products = await api.products();
+      const product = products.find((item) => item.id === props.productId);
       if (product) {
         for (const [key, value] of Object.entries(product)) {
-          if (key in form) form[key] = value == null ? '' : String(value);
+          if (key in form && key !== 'measures') form[key] = value == null ? '' : String(value);
         }
         automaticKcal = form.kcal === '';
+        measures.value = product.measures || [];
       }
-      measures.value = allMeasures.filter((item) => item.product_id === props.productId);
     }
     syncMeasures();
     calculatePrice();
@@ -106,7 +106,7 @@ function payload() {
   } else {
     data.measures = [];
   }
-  delete data.product_id;
+  delete data.code;
   delete data.teaspoon_base_quantity;
   delete data.tablespoon_base_quantity;
   delete data.cup_base_quantity;
@@ -141,7 +141,7 @@ async function remove() {
     <div v-if="loading" class="panel">Загрузка…</div>
     <template v-else>
       <div class="grid">
-        <div class="field"><label>ID продукта</label><input v-model="form.product_id" readonly tabindex="-1"></div>
+        <div class="field"><label>ID продукта</label><input v-model="form.code" readonly tabindex="-1"></div>
         <div class="field"><label>Название</label><input v-model="form.name" required></div>
         <div class="field"><label>Категория</label><select v-model="form.category"><option v-for="item in productCategoryOptions" :key="item">{{ item }}</option></select></div>
         <div class="field"><label>Единица</label><select v-model="form.unit"><option v-for="item in productUnitOptions" :key="item">{{ item }}</option></select></div>

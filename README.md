@@ -2,7 +2,7 @@
 
 [![Astra CI/CD](https://github.com/StRavenwing/astra-nutrition-os/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/StRavenwing/astra-nutrition-os/actions/workflows/ci-cd.yml)
 
-Локальный трекер питания и тренировок с Vue-интерфейсом, SQLite-базой и Excel-книгой.
+Локальный трекер питания и тренировок с Vue-интерфейсом, FastAPI backend, Peewee ORM и SQLite-базой.
 
 Проект помогает хранить продукты и рецепты, автоматически считать КБЖУ и стоимость порций, вести дневник питания, замеры тела и журнал тренировок.
 
@@ -37,7 +37,31 @@
 3. Откройте <http://127.0.0.1:8787/>. Обычно страница откроется автоматически.
 4. Чтобы остановить приложение, нажмите `Ctrl+C` в окне сервера.
 
-`start.bat` устанавливает зависимости UI через `npm --prefix ui ci`, собирает Vue-приложение в `ui/dist`, затем запускает Python API.
+`start.bat` устанавливает Python-зависимости из `requirements.txt`, устанавливает зависимости UI через `npm --prefix ui ci`, собирает Vue-приложение в `ui/dist`, затем запускает FastAPI backend.
+
+При первом запуске новая версия автоматически переносит legacy SQLite-схему в нормализованную схему с внутренними числовыми ID и видимыми кодами `P-001`, `M-001`, `EX-001`. Перед миграцией существующей базы создаётся backup в `ASTRA_BACKUP_DIR`.
+
+## Разработка Backend
+
+Первичная установка зависимостей:
+
+```bash
+python -m pip install -r requirements-dev.txt
+```
+
+Запуск API и собранного UI:
+
+```bash
+python server.py
+```
+
+Проверки backend:
+
+```bash
+python -m compileall server.py backend tests
+python -m pytest tests/test_migration.py
+python tests/smoke_test.py
+```
 
 ## Разработка UI
 
@@ -47,7 +71,7 @@
 npm --prefix ui ci
 ```
 
-Запуск Vite dev server с proxy на локальный Python API:
+Запуск Vite dev server с proxy на локальный FastAPI backend:
 
 ```bash
 npm --prefix ui run dev
@@ -97,12 +121,13 @@ docker compose -f ci/docker-compose.yml down
 
 Workflow `.github/workflows/ci-cd.yml` автоматически выполняется при pull request, push в `main`, теге вида `v1.0.0` и ручном запуске:
 
-1. Проверяет синтаксис Python.
-2. Создаёт временную чистую SQLite-базу из публичного SQL-шаблона.
-3. Устанавливает зависимости UI, запускает typecheck и собирает Vue/Vite frontend.
-4. Запускает сервер и проверяет API, PWA-манифест, service worker, root HTML и иконку.
-5. Проверяет сборку Docker-контейнера.
-6. После успешного push в `main` публикует контейнер в GitHub Container Registry с тегами `latest` и `sha-…`.
+1. Устанавливает Python-зависимости.
+2. Проверяет синтаксис Python.
+3. Проверяет миграцию legacy SQLite в нормализованную схему.
+4. Устанавливает зависимости UI, запускает typecheck и собирает Vue/Vite frontend.
+5. Проверяет API, PWA-манифест, service worker, root HTML и иконку через FastAPI smoke test.
+6. Проверяет сборку Docker-контейнера.
+7. После успешного push в `main` публикует контейнер в GitHub Container Registry с тегами `latest` и `sha-…`.
 
 Личная SQLite-база в контейнер не попадает. При запуске опубликованного образа данные нужно хранить в отдельном Docker volume:
 
@@ -116,7 +141,10 @@ docker run -d --name astra -p 8787:8787 -v astra-data:/app/.data ghcr.io/straven
 
 ```text
 .
-├── server.py                         # локальный HTTP-сервер и REST API
+├── server.py                         # совместимый entrypoint, запускает FastAPI/Uvicorn
+├── backend/                          # FastAPI routers, Peewee models, services, migrations
+├── requirements.txt                  # runtime Python dependencies
+├── requirements-dev.txt              # test/development Python dependencies
 ├── ui/                               # Vue 3 + TypeScript + Vite интерфейс
 │   ├── index.html                    # HTML entrypoint Vite
 │   ├── package.json                  # зависимости и scripts UI
@@ -129,6 +157,7 @@ docker run -d --name astra -p 8787:8787 -v astra-data:/app/.data ghcr.io/straven
 ├── ci/
 │   └── docker-compose.yml             # локальный запуск через Docker Compose
 ├── tests/smoke_test.py                # проверка API и PWA
+├── tests/test_migration.py            # проверка миграции SQLite
 ├── .github/workflows/ci-cd.yml        # CI/CD GitHub Actions
 ├── Astra_Nutrition_OS_v7.sqlite      # локальная SQLite-база (не публикуется в Git)
 ├── database/
@@ -143,14 +172,16 @@ docker run -d --name astra -p 8787:8787 -v astra-data:/app/.data ghcr.io/straven
 
 | Метод | Адрес | Назначение |
 |---|---|---|
-| `GET` | `/api/dashboard` | KPI для главной страницы |
-| `GET/POST` | `/api/products` | продукты |
-| `GET/POST` | `/api/recipes` | рецепты |
-| `GET` | `/api/recipes/{id}` | карточка рецепта и ингредиенты |
-| `GET/POST` | `/api/diary` | дневник питания |
-| `GET/POST` | `/api/progress` | замеры и прогресс |
-| `GET/POST` | `/api/workouts` | журнал тренировок |
-| `GET` | `/api/exercises` | справочник упражнений |
+| `GET` | `/api/health` | health check |
+| `GET` | `/api/v1/dashboard` | KPI для главной страницы |
+| `GET/POST` | `/api/v1/products` | продукты с вложенными `measures` |
+| `GET` | `/api/v1/product-measures` | плоский справочник мер продуктов |
+| `GET/POST` | `/api/v1/recipes` | рецепты |
+| `GET` | `/api/v1/recipes/{id}` | карточка рецепта и ингредиенты |
+| `GET/POST` | `/api/v1/diary` | дневник питания |
+| `GET/POST` | `/api/v1/progress` | замеры и прогресс |
+| `GET/POST` | `/api/v1/workouts` | журнал тренировок |
+| `GET/POST` | `/api/v1/exercises` | справочник упражнений |
 
 ## ID рецептов
 

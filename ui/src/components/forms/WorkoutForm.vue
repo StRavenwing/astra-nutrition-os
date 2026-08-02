@@ -9,9 +9,9 @@ const emit = defineEmits<{ saved: []; deleted: []; cancel: [] }>();
 const loading = ref(false);
 const error = ref('');
 const exercises = ref<Exercise[]>([]);
-const form = reactive<Record<string, string>>({
+const form = reactive<Record<string, string | number>>({
   performed_at: '',
-  exercise_id: '',
+  exercise_id: 0,
   working_weight: '',
   sets: '3',
   reps: '12',
@@ -24,13 +24,13 @@ onMounted(async () => {
   loading.value = true;
   try {
     exercises.value = (await api.exercises()).sort((a, b) => a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' }));
-    form.exercise_id = exercises.value[0]?.exercise_id || '';
+    form.exercise_id = exercises.value[0]?.id || 0;
     if (props.workoutLogId) {
       const data = await api.workouts();
-      const item = data.find((workout) => workout.workout_log_id === props.workoutLogId);
+      const item = data.find((workout) => workout.id === props.workoutLogId);
       if (item) {
         for (const [key, value] of Object.entries(item)) {
-          if (key in form) form[key] = value == null ? '' : String(value);
+          if (key in form) form[key] = key === 'exercise_id' ? Number(value) : value == null ? '' : String(value);
         }
       }
     }
@@ -70,7 +70,7 @@ async function remove() {
     <template v-else>
       <div class="grid">
         <div class="field"><label>Дата</label><input v-model="form.performed_at" type="date" required></div>
-        <div class="field"><label>Упражнение</label><select v-model="form.exercise_id" required><option v-for="exercise in exercises" :key="exercise.exercise_id" :value="exercise.exercise_id">{{ exercise.name }}</option></select></div>
+        <div class="field"><label>Упражнение</label><select v-model="form.exercise_id" required><option v-for="exercise in exercises" :key="exercise.id" :value="exercise.id">{{ exercise.name }}</option></select></div>
         <div class="field"><label>Рабочий вес</label><input v-model="form.working_weight" type="number" min="0" step="0.5"></div>
         <div class="field"><label>Подходы</label><input v-model="form.sets" type="number" min="1"></div>
         <div class="field"><label>Повторы</label><input v-model="form.reps" type="number" min="1"></div>

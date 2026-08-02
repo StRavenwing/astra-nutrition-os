@@ -1,0 +1,425 @@
+from __future__ import annotations
+
+import os
+import sqlite3
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from backend.config import Settings
+from backend.models import (
+    AppMeta,
+    Changelog,
+    DiaryEntry,
+    Exercise,
+    IdSequence,
+    MODELS,
+    Product,
+    ProductMeasure,
+    ProgressEntry,
+    Recipe,
+    RecipeIngredient,
+    WorkoutLog,
+    database_proxy,
+    make_database,
+)
+from backend.services.calculations import RECIPE_PREFIXES, ensure_product_measures, int_number
+from backend.services.codes import sequence_rows
+
+
+SCHEMA_VERSION = "2"
+
+
+def _connect_raw(path: Path) -> sqlite3.Connection:
+    connection = sqlite3.connect(path)
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA foreign_keys=ON")
+    return connection
+
+
+def _table_exists(connection: sqlite3.Connection, table: str) -> bool:
+    return connection.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
+        (table,),
+    ).fetchone() is not None
+
+
+def _columns(connection: sqlite3.Connection, table: str) -> set[str]:
+    if not _table_exists(connection, table):
+        return set()
+    return {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
+
+
+def _row_value(row: sqlite3.Row, key: str, default: Any = None) -> Any:
+    return row[key] if key in row.keys() else default
+
+
+def _count(connection: sqlite3.Connection, table: str) -> int:
+    if not _table_exists(connection, table):
+        return 0
+    return int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+
+
+def backup_database(db_path: Path, backup_dir: Path, prefix: str = "astra-auto") -> Path | None:
+    if not db_path.exists():
+        return None
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup_path = backup_dir / f"{prefix}-{datetime.now():%Y%m%d-%H%M%S}.sqlite"
+    source = sqlite3.connect(db_path)
+    target = sqlite3.connect(backup_path)
+    try:
+        with target:
+            source.backup(target)
+    finally:
+        target.close()
+        source.close()
+    backups = sorted(backup_dir.glob(f"{prefix}-*.sqlite"))
+    for old_backup in backups[:-20]:
+        old_backup.unlink(missing_ok=True)
+    return backup_path
+
+
+def _create_legacy_database_from_template(settings: Settings) -> None:
+    if not settings.database_template.exists():
+        raise FileNotFoundError("Database template is missing")
+    settings.db_path.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(settings.db_path)
+    try:
+        connection.executescript(settings.database_template.read_text(encoding="utf-8"))
+    finally:
+        connection.close()
+
+
+def _legacy_schema_status(path: Path) -> str:
+    with _connect_raw(path) as connection:
+        if _table_exists(connection, "app_meta"):
+            row = connection.execute(
+                "SELECT value FROM app_meta WHERE key='schema_version'"
+            ).fetchone()
+            if row and row[0] == SCHEMA_VERSION:
+                return "normalized"
+        if "product_id" in _columns(connection, "products"):
+            return "legacy"
+    return "unknown"
+
+
+def _upgrade_legacy_schema(connection: sqlite3.Connection) -> None:
+    recipe_columns = _columns(connection, "recipes")
+    recipe_additions = {
+        "manual_price_per_serving_rsd": "REAL",
+        "manual_kcal_per_serving": "REAL",
+        "manual_protein_per_serving_g": "REAL",
+        "manual_fat_per_serving_g": "REAL",
+        "manual_carbs_per_serving_g": "REAL",
+    }
+    for column, column_type in recipe_additions.items():
+        if column not in recipe_columns:
+            connection.execute(f"ALTER TABLE recipes ADD COLUMN {column} {column_type}")
+
+    diary_columns = _columns(connection, "food_diary")
+    diary_additions = {
+        "product_id": "TEXT",
+        "quantity": "REAL",
+        "measurement_name": "TEXT",
+        "measurement_quantity": "REAL",
+    }
+    for column, column_type in diary_additions.items():
+        if column not in diary_columns:
+            connection.execute(f"ALTER TABLE food_diary ADD COLUMN {column} {column_type}")
+
+    ingredient_columns = _columns(connection, "recipe_ingredients")
+    ingredient_additions = {
+        "measurement_name": "TEXT",
+        "measurement_quantity": "REAL",
+    }
+    for column, column_type in ingredient_additions.items():
+        if column not in ingredient_columns:
+            connection.execute(f"ALTER TABLE recipe_ingredients ADD COLUMN {column} {column_type}")
+
+    progress_columns = _columns(connection, "progress")
+    progress_additions = {
+        "height_cm": "REAL",
+        "bmi": "REAL",
+        "body_fat_pct": "REAL",
+        "fat_mass_kg": "REAL",
+        "muscle_pct": "REAL",
+        "muscle_mass_kg": "REAL",
+        "protein_target_g": "REAL",
+        "fat_target_g": "REAL",
+    }
+    for column, column_type in progress_additions.items():
+        if column not in progress_columns:
+            connection.execute(f"ALTER TABLE progress ADD COLUMN {column} {column_type}")
+
+
+def _create_normalized_schema(path: Path):
+    if path.exists():
+        path.unlink()
+    try:
+        existing = database_proxy.obj
+        if existing is not None and not existing.is_closed():
+            existing.close()
+    except Exception:
+        pass
+    database = make_database(path)
+    database_proxy.initialize(database)
+    database.connect()
+    database.create_tables(MODELS)
+    AppMeta.create(key="schema_version", value=SCHEMA_VERSION)
+    return database
+
+
+def _seed_default_measures() -> None:
+    for product in Product.select():
+        ensure_product_measures(product)
+
+    overrides = [
+        ("P-002", "ч. л.", 8), ("P-002", "ст. л.", 25),
+        ("P-003", "ч. л.", 8), ("P-003", "ст. л.", 25),
+        ("P-004", "ч. л.", 7), ("P-004", "ст. л.", 20),
+        ("P-005", "ч. л.", 7), ("P-005", "ст. л.", 20),
+        ("P-006", "ч. л.", 7), ("P-006", "ст. л.", 20),
+        ("P-031", "ч. л.", 3), ("P-031", "ст. л.", 9),
+        ("P-032", "ч. л.", 1), ("P-032", "ст. л.", 3),
+    ]
+    for code, measure_name, base_quantity in overrides:
+        product = Product.get_or_none(Product.code == code)
+        if product is None:
+            continue
+        measure, _ = ProductMeasure.get_or_create(
+            product=product,
+            measure_name=measure_name,
+            defaults={"base_quantity": base_quantity},
+        )
+        measure.base_quantity = base_quantity
+        measure.save()
+
+
+def _migrate_legacy_rows(source: sqlite3.Connection, destination) -> None:
+    product_map: dict[str, int] = {}
+    recipe_map: dict[str, int] = {}
+    exercise_map: dict[str, int] = {}
+
+    with destination.atomic():
+        for row in source.execute("SELECT * FROM products ORDER BY product_id"):
+            product = Product.create(
+                code=row["product_id"],
+                name=row["name"],
+                category=_row_value(row, "category"),
+                unit=_row_value(row, "unit", "г") or "г",
+                package_price_rsd=_row_value(row, "package_price_rsd"),
+                package_size=_row_value(row, "package_size"),
+                price_per_100_or_unit_rsd=_row_value(row, "price_per_100_or_unit_rsd"),
+                kcal=_row_value(row, "kcal", 0) or 0,
+                protein_g=_row_value(row, "protein_g", 0) or 0,
+                fat_g=_row_value(row, "fat_g", 0) or 0,
+                carbs_g=_row_value(row, "carbs_g", 0) or 0,
+                data_status=_row_value(row, "data_status", "Подтверждено") or "Подтверждено",
+                note=_row_value(row, "note"),
+            )
+            product_map[product.code] = product.id
+
+        for row in source.execute("SELECT * FROM recipes ORDER BY recipe_id"):
+            recipe = Recipe.create(
+                code=row["recipe_id"],
+                name=row["name"],
+                category=row["category"],
+                subcategory=_row_value(row, "subcategory"),
+                version=str(_row_value(row, "version", "1.0") or "1.0"),
+                status=_row_value(row, "status", "Draft") or "Draft",
+                servings=_row_value(row, "servings", 1) or 1,
+                tags=_row_value(row, "tags"),
+                manual_price_per_serving_rsd=_row_value(row, "manual_price_per_serving_rsd"),
+                manual_kcal_per_serving=_row_value(row, "manual_kcal_per_serving"),
+                manual_protein_per_serving_g=_row_value(row, "manual_protein_per_serving_g"),
+                manual_fat_per_serving_g=_row_value(row, "manual_fat_per_serving_g"),
+                manual_carbs_per_serving_g=_row_value(row, "manual_carbs_per_serving_g"),
+            )
+            recipe_map[recipe.code] = recipe.id
+
+        for row in source.execute("SELECT * FROM exercises ORDER BY exercise_id"):
+            exercise = Exercise.create(
+                code=row["exercise_id"],
+                muscle_group=_row_value(row, "muscle_group"),
+                name=row["name"],
+                default_unit=_row_value(row, "default_unit", "кг"),
+                default_sets=int_number(_row_value(row, "default_sets")),
+                default_reps=int_number(_row_value(row, "default_reps")),
+                target_rir=_row_value(row, "target_rir"),
+                note=_row_value(row, "note"),
+            )
+            exercise_map[exercise.code] = exercise.id
+
+        if _table_exists(source, "product_measures"):
+            for row in source.execute("SELECT * FROM product_measures ORDER BY product_measure_id"):
+                product_id = product_map.get(row["product_id"])
+                if product_id is None:
+                    continue
+                ProductMeasure.get_or_create(
+                    product=product_id,
+                    measure_name=row["measure_name"],
+                    defaults={"base_quantity": row["base_quantity"]},
+                )
+        _seed_default_measures()
+
+        for row in source.execute("SELECT * FROM recipe_ingredients ORDER BY recipe_ingredient_id"):
+            recipe_id = recipe_map.get(row["recipe_id"])
+            product_id = product_map.get(row["product_id"])
+            if recipe_id is None or product_id is None:
+                continue
+            RecipeIngredient.create(
+                recipe=recipe_id,
+                product=product_id,
+                quantity=row["quantity"],
+                unit=row["unit"],
+                portion_description=_row_value(row, "portion_description"),
+                measurement_name=_row_value(row, "measurement_name"),
+                measurement_quantity=_row_value(row, "measurement_quantity"),
+            )
+
+        for row in source.execute("SELECT * FROM food_diary ORDER BY diary_id"):
+            recipe_id = recipe_map.get(_row_value(row, "recipe_id"))
+            product_id = product_map.get(_row_value(row, "product_id"))
+            DiaryEntry.create(
+                entry_date=row["entry_date"],
+                meal_type=_row_value(row, "meal_type"),
+                recipe=recipe_id,
+                product=product_id,
+                servings=_row_value(row, "servings", 1) or 1,
+                quantity=_row_value(row, "quantity"),
+                measurement_name=_row_value(row, "measurement_name"),
+                measurement_quantity=_row_value(row, "measurement_quantity"),
+                comment=_row_value(row, "comment"),
+            )
+
+        for row in source.execute("SELECT * FROM progress ORDER BY progress_id"):
+            ProgressEntry.create(
+                measured_at=row["measured_at"],
+                weight_kg=_row_value(row, "weight_kg"),
+                height_cm=_row_value(row, "height_cm"),
+                bmi=_row_value(row, "bmi"),
+                body_fat_pct=_row_value(row, "body_fat_pct"),
+                fat_mass_kg=_row_value(row, "fat_mass_kg"),
+                muscle_pct=_row_value(row, "muscle_pct"),
+                muscle_mass_kg=_row_value(row, "muscle_mass_kg"),
+                protein_target_g=_row_value(row, "protein_target_g"),
+                fat_target_g=_row_value(row, "fat_target_g"),
+                waist_cm=_row_value(row, "waist_cm"),
+                chest_cm=_row_value(row, "chest_cm"),
+                hips_cm=_row_value(row, "hips_cm"),
+                sleep_score=int_number(_row_value(row, "sleep_score")),
+                wellbeing_score=int_number(_row_value(row, "wellbeing_score")),
+                comment=_row_value(row, "comment"),
+            )
+
+        for row in source.execute("SELECT * FROM workout_logs ORDER BY workout_log_id"):
+            exercise_id = exercise_map.get(row["exercise_id"])
+            if exercise_id is None:
+                continue
+            WorkoutLog.create(
+                performed_at=row["performed_at"],
+                exercise=exercise_id,
+                working_weight=_row_value(row, "working_weight"),
+                sets=int_number(_row_value(row, "sets")),
+                reps=int_number(_row_value(row, "reps")),
+                rir=_row_value(row, "rir"),
+                machine_location=_row_value(row, "machine_location"),
+                comment=_row_value(row, "comment"),
+            )
+
+        if _table_exists(source, "changelog"):
+            for row in source.execute("SELECT * FROM changelog ORDER BY change_id"):
+                Changelog.create(
+                    changed_at=row["changed_at"],
+                    object_code=_row_value(row, "object_id"),
+                    version=_row_value(row, "version"),
+                    status=_row_value(row, "status"),
+                    change_type=_row_value(row, "change_type"),
+                    description=_row_value(row, "description"),
+                    author=_row_value(row, "author"),
+                    next_action=_row_value(row, "next_action"),
+                )
+
+        codes = [
+            *[product.code for product in Product.select(Product.code)],
+            *[recipe.code for recipe in Recipe.select(Recipe.code)],
+            *[exercise.code for exercise in Exercise.select(Exercise.code)],
+        ]
+        required_prefixes = ["P", "EX", *RECIPE_PREFIXES.values()]
+        IdSequence.insert_many(sequence_rows(codes, required_prefixes)).execute()
+
+
+def _validate_migration(source: sqlite3.Connection) -> None:
+    expected_counts = {
+        "products": _count(source, "products"),
+        "recipes": _count(source, "recipes"),
+        "exercises": _count(source, "exercises"),
+        "recipe_ingredients": _count(source, "recipe_ingredients"),
+        "food_diary": _count(source, "food_diary"),
+        "progress": _count(source, "progress"),
+        "workout_logs": _count(source, "workout_logs"),
+    }
+    actual_counts = {
+        "products": Product.select().count(),
+        "recipes": Recipe.select().count(),
+        "exercises": Exercise.select().count(),
+        "recipe_ingredients": RecipeIngredient.select().count(),
+        "food_diary": DiaryEntry.select().count(),
+        "progress": ProgressEntry.select().count(),
+        "workout_logs": WorkoutLog.select().count(),
+    }
+    if actual_counts != expected_counts:
+        raise RuntimeError(f"Migration count mismatch: expected {expected_counts}, got {actual_counts}")
+
+    if Product.select().where(Product.code.is_null()).exists():
+        raise RuntimeError("Migration produced product without code")
+    if Recipe.select().where(Recipe.code.is_null()).exists():
+        raise RuntimeError("Migration produced recipe without code")
+    if Exercise.select().where(Exercise.code.is_null()).exists():
+        raise RuntimeError("Migration produced exercise without code")
+
+
+def migrate_legacy_database(settings: Settings, backup_existing: bool) -> None:
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    temp_path = settings.db_path.with_name(f"{settings.db_path.name}.v2-{timestamp}.tmp")
+
+    if backup_existing:
+        backup_database(settings.db_path, settings.backup_dir, prefix="astra-pre-migrate")
+
+    source = _connect_raw(settings.db_path)
+    destination = None
+    try:
+        _upgrade_legacy_schema(source)
+        source.commit()
+        destination = _create_normalized_schema(temp_path)
+        _migrate_legacy_rows(source, destination)
+        _validate_migration(source)
+    except Exception:
+        if destination is not None and not destination.is_closed():
+            destination.close()
+        temp_path.unlink(missing_ok=True)
+        raise
+    finally:
+        source.close()
+
+    if destination is not None and not destination.is_closed():
+        destination.close()
+
+    for suffix in ("-wal", "-shm"):
+        settings.db_path.with_name(settings.db_path.name + suffix).unlink(missing_ok=True)
+        temp_path.with_name(temp_path.name + suffix).unlink(missing_ok=True)
+    os.replace(temp_path, settings.db_path)
+
+
+def ensure_database(settings: Settings) -> None:
+    existed = settings.db_path.exists()
+    if not existed:
+        _create_legacy_database_from_template(settings)
+
+    status = _legacy_schema_status(settings.db_path)
+    if status == "normalized":
+        return
+    if status == "legacy":
+        migrate_legacy_database(settings, backup_existing=existed)
+        return
+    raise RuntimeError(f"Unsupported database schema at {settings.db_path}")

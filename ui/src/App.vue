@@ -28,7 +28,7 @@ const hashPage = () => {
 const currentPage = ref<PageId>(hashPage());
 const reloadKey = ref(0);
 const modal = ref<ModalState | null>(null);
-const recipeDetailId = ref<string | null>(null);
+const recipeDetailId = ref<number | null>(null);
 const exerciseManagerOpen = ref(false);
 
 const title = computed(() => pages.find((page) => page.id === currentPage.value)?.title || 'Обзор');
@@ -71,18 +71,18 @@ function refresh() {
   reloadKey.value += 1;
 }
 
-function saved(recipeId?: string) {
+function saved(recipeId?: number) {
   const wasRecipe = modal.value?.kind === 'recipes';
   closeModal();
   refresh();
   if (wasRecipe && recipeId) recipeDetailId.value = recipeId;
 }
 
-function openRecipe(id: string) {
+function openRecipe(id: number) {
   recipeDetailId.value = id;
 }
 
-function editRecipe(id: string) {
+function editRecipe(id: number) {
   recipeDetailId.value = null;
   modal.value = { kind: 'recipes', id };
 }
@@ -120,8 +120,8 @@ onBeforeUnmount(() => window.removeEventListener('hashchange', onHashChange));
   <ExerciseManagerModal :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @changed="refresh" />
 
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">
-    <ProductForm v-if="modal?.kind === 'products'" :product-id="modal.id as string | undefined" @saved="saved" @deleted="saved" @cancel="closeModal" />
-    <RecipeForm v-else-if="modal?.kind === 'recipes'" :recipe-id="modal.id as string | undefined" @saved="saved" @cancel="closeModal" />
+    <ProductForm v-if="modal?.kind === 'products'" :product-id="modal.id" @saved="saved" @deleted="saved" @cancel="closeModal" />
+    <RecipeForm v-else-if="modal?.kind === 'recipes'" :recipe-id="modal.id" @saved="saved" @cancel="closeModal" />
     <DiaryEntryForm v-else-if="modal?.kind === 'diary'" :diary-id="modal.id as number | undefined" @saved="saved" @deleted="saved" @cancel="closeModal" />
     <ProgressForm v-else-if="modal?.kind === 'progress'" :progress-id="modal.id as number | undefined" @saved="saved" @cancel="closeModal" />
     <WorkoutForm v-else-if="modal?.kind === 'workouts'" :workout-log-id="modal.id as number | undefined" @saved="saved" @deleted="saved" @cancel="closeModal" />

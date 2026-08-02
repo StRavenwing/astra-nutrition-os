@@ -1,5 +1,12 @@
 @echo off
 cd /d "%~dp0"
+echo Installing Astra backend dependencies...
+python -m pip install -r requirements.txt
+if errorlevel 1 (
+  echo Failed to install backend dependencies.
+  pause
+  exit /b 1
+)
 if not exist "ui\node_modules" (
   echo Installing Astra UI dependencies...
   npm --prefix ui ci

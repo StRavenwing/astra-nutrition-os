@@ -12,7 +12,8 @@ export type SortState = {
 };
 
 export interface DashboardTopRecipe {
-  recipe_id: string;
+  id: number;
+  code: string;
   name: string;
   kcal_per_serving: number | null;
   protein_per_serving_g: number | null;
@@ -23,12 +24,13 @@ export interface DashboardResponse {
   products: number;
   recipes: number;
   approved: number;
-  latest: ProgressEntry[];
+  latest: ProgressEntry | null;
   top: DashboardTopRecipe[];
 }
 
 export interface Product {
-  product_id: string;
+  id: number;
+  code: string;
   name: string;
   category: string | null;
   unit: string | null;
@@ -41,17 +43,20 @@ export interface Product {
   carbs_g: number | null;
   data_status: string | null;
   note: string | null;
+  measures: ProductMeasure[];
   [key: string]: unknown;
 }
 
 export interface ProductMeasure {
-  product_id: string;
+  id: number;
+  product_id: number;
   measure_name: string;
   base_quantity: number;
 }
 
 export interface RecipeSummary {
-  recipe_id: string;
+  id: number;
+  code: string;
   name: string;
   category: string;
   subcategory: string | null;
@@ -77,7 +82,9 @@ export interface RecipeSummary {
 }
 
 export interface RecipeIngredient {
-  product_id: string;
+  id: number;
+  product_id: number;
+  product_code: string;
   name: string;
   quantity: number | null;
   unit: string | null;
@@ -92,16 +99,18 @@ export interface RecipeIngredient {
 }
 
 export interface RecipeDetail {
-  recipe: RecipeSummary[];
+  recipe: RecipeSummary;
   ingredients: RecipeIngredient[];
 }
 
 export interface DiaryEntry {
-  diary_id: number;
+  id: number;
   entry_date: string;
   meal_type: string | null;
-  recipe_id: string | null;
-  product_id: string | null;
+  recipe_id: number | null;
+  recipe_code: string | null;
+  product_id: number | null;
+  product_code: string | null;
   servings: number | null;
   quantity: number | null;
   unit: string | null;
@@ -127,7 +136,7 @@ export interface DiaryTotals {
 }
 
 export interface ProgressEntry {
-  progress_id: number;
+  id: number;
   measured_at: string;
   weight_kg: number | null;
   height_cm: number | null;
@@ -148,7 +157,8 @@ export interface ProgressEntry {
 }
 
 export interface Exercise {
-  exercise_id: string;
+  id: number;
+  code: string;
   muscle_group: string | null;
   name: string;
   default_unit: string | null;
@@ -159,9 +169,10 @@ export interface Exercise {
 }
 
 export interface WorkoutEntry {
-  workout_log_id: number;
+  id: number;
   performed_at: string;
-  exercise_id: string;
+  exercise_id: number;
+  exercise_code: string;
   working_weight: number | null;
   sets: number | null;
   reps: number | null;
@@ -178,5 +189,5 @@ export type ModalKind = 'products' | 'recipes' | 'diary' | 'progress' | 'workout
 
 export interface ModalState {
   kind: ModalKind;
-  id?: string | number;
+  id?: number;
 }

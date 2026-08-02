@@ -7,7 +7,7 @@ import { compareValues, fmt, searchable } from '@/utils/format';
 import Toolbar from '@/components/shared/Toolbar.vue';
 
 const props = defineProps<{ refreshKey: number }>();
-const emit = defineEmits<{ edit: [id: string] }>();
+const emit = defineEmits<{ edit: [id: number] }>();
 
 const data = ref<Product[]>([]);
 const loading = ref(false);
@@ -68,7 +68,7 @@ function resetSort() {
   orderValue.value = '';
 }
 
-async function remove(id: string) {
+async function remove(id: number) {
   if (!confirm('Удалить продукт? Это действие нельзя отменить.')) return;
   try {
     await api.delete(`products/${id}`);
@@ -129,9 +129,9 @@ function productSpriteStyle(item: string) {
     </Toolbar>
 
     <div id="product-grid" class="product-grid">
-      <article v-for="item in shown" :key="item.product_id" class="product-tile">
+      <article v-for="item in shown" :key="item.id" class="product-tile">
         <div class="product-tile-head">
-          <span class="recipe-id">{{ item.product_id }}</span>
+          <span class="recipe-id">{{ item.code }}</span>
           <span class="pill">{{ item.data_status || '—' }}</span>
         </div>
         <div class="product-tile-category">{{ item.category || 'Без категории' }}</div>
@@ -148,8 +148,8 @@ function productSpriteStyle(item: string) {
           <b>{{ fmt(item.price_per_100_or_unit_rsd) }} RSD</b>
         </div>
         <div class="product-tile-actions">
-          <button type="button" class="edit-product" @click="emit('edit', item.product_id)">✎ Редактировать</button>
-          <button type="button" class="delete-product" @click="remove(item.product_id)">Удалить</button>
+          <button type="button" class="edit-product" @click="emit('edit', item.id)">✎ Редактировать</button>
+          <button type="button" class="delete-product" @click="remove(item.id)">Удалить</button>
         </div>
       </article>
       <div v-if="!shown.length" class="panel empty">Ничего не найдено</div>
