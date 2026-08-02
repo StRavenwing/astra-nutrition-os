@@ -1,5 +1,17 @@
 export type PageId = 'dashboard' | 'products' | 'recipes' | 'diary' | 'progress' | 'workouts';
 
+export interface AuthUser {
+  id: number;
+  email: string;
+  is_admin: boolean;
+}
+
+export interface AuthResponse {
+  access_token: string;
+  token_type: 'bearer';
+  user: AuthUser;
+}
+
 export interface PageInfo {
   id: PageId;
   icon: string;

@@ -6,7 +6,10 @@ import type { SortState, WorkoutEntry } from '@/types';
 import { compareValues, formatDate, fmt, searchable } from '@/utils/format';
 import Toolbar from '@/components/shared/Toolbar.vue';
 
-const props = defineProps<{ refreshKey: number }>();
+const props = defineProps<{
+  refreshKey: number;
+  isAdmin: boolean;
+}>();
 const emit = defineEmits<{
   edit: [id: number];
   addExercise: [];
@@ -78,7 +81,7 @@ async function remove(id: number) {
   <div v-if="loading" class="panel">Загрузка…</div>
   <div v-else-if="error" class="panel empty">{{ error }}</div>
   <template v-else>
-    <div class="exercise-toolbar">
+    <div v-if="props.isAdmin" class="exercise-toolbar">
       <div>
         <span class="eyebrow">СПРАВОЧНИК</span>
         <b>Управление упражнениями</b>

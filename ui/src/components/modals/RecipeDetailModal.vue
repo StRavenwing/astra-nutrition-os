@@ -5,7 +5,10 @@ import type { RecipeDetail, RecipeSummary } from '@/types';
 import { fmt } from '@/utils/format';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 
-const props = defineProps<{ recipeId: number | null }>();
+const props = defineProps<{
+  recipeId: number | null;
+  isAdmin: boolean;
+}>();
 const emit = defineEmits<{
   close: [];
   edit: [id: number];
@@ -36,7 +39,7 @@ watch(
 );
 
 async function removeRecipe() {
-  if (!props.recipeId || !confirm('Удалить рецепт? Вместе с ним будут удалены связанные записи дневника. Это действие нельзя отменить.')) return;
+  if (!props.recipeId || !confirm('Удалить рецепт? Это действие нельзя отменить.')) return;
   try {
     await api.delete(`recipes/${props.recipeId}`);
     emit('deleted');
@@ -67,7 +70,7 @@ function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; car
     <div v-if="loading" class="panel">Загрузка…</div>
     <div v-else-if="error" class="panel empty">{{ error }}</div>
     <div v-else-if="recipe && detail" class="recipe-body">
-      <div class="recipe-actions">
+      <div v-if="props.isAdmin" class="recipe-actions">
         <button type="button" class="edit-recipe" @click="$emit('edit', recipe.id)">✎ Редактировать</button>
         <button type="button" class="danger-button" @click="removeRecipe">Удалить</button>
       </div>

@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { api, clearAccessToken, getAccessToken, setUnauthorizedHandler } from '@/api/client';
 import { pages } from '@/constants';
-import type { ModalState, PageId } from '@/types';
+import type { AuthUser, ModalState, PageId } from '@/types';
+import AuthView from '@/components/AuthView.vue';
 import AppShell from '@/components/layout/AppShell.vue';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 import DashboardView from '@/views/DashboardView.vue';
@@ -26,13 +28,21 @@ const hashPage = () => {
 };
 
 const currentPage = ref<PageId>(hashPage());
+const authLoading = ref(true);
+const currentUser = ref<AuthUser | null>(null);
 const reloadKey = ref(0);
 const modal = ref<ModalState | null>(null);
 const recipeDetailId = ref<number | null>(null);
 const exerciseManagerOpen = ref(false);
 
 const title = computed(() => pages.find((page) => page.id === currentPage.value)?.title || 'Обзор');
-const canAdd = computed(() => currentPage.value !== 'dashboard');
+const isAdmin = computed(() => Boolean(currentUser.value?.is_admin));
+const activeUser = computed(() => currentUser.value as AuthUser);
+const canAdd = computed(() => {
+  if (currentPage.value === 'dashboard') return false;
+  if (currentPage.value === 'products' || currentPage.value === 'recipes') return isAdmin.value;
+  return true;
+});
 const modalTitle = computed(() => {
   if (!modal.value) return '';
   const editing = modal.value.id != null;
@@ -59,8 +69,8 @@ function onHashChange() {
 }
 
 function openAdd() {
-  if (currentPage.value === 'dashboard') return;
-  modal.value = { kind: currentPage.value };
+  if (!canAdd.value || currentPage.value === 'dashboard') return;
+  modal.value = { kind: currentPage.value as ModalState['kind'] };
 }
 
 function closeModal() {
@@ -83,41 +93,95 @@ function openRecipe(id: number) {
 }
 
 function editRecipe(id: number) {
+  if (!isAdmin.value) return;
   recipeDetailId.value = null;
   modal.value = { kind: 'recipes', id };
 }
 
 function openExerciseAdd() {
+  if (!isAdmin.value) return;
   exerciseManagerOpen.value = false;
   modal.value = { kind: 'exercises' };
 }
 
-onMounted(() => {
+function authenticated(user: AuthUser) {
+  currentUser.value = user;
+  refresh();
+}
+
+function clearSession() {
+  clearAccessToken();
+  currentUser.value = null;
+  modal.value = null;
+  recipeDetailId.value = null;
+  exerciseManagerOpen.value = false;
+}
+
+async function logout() {
+  try {
+    await api.logout();
+  } catch {
+    // JWT logout is client-side; expired sessions are cleared locally as well.
+  } finally {
+    clearSession();
+  }
+}
+
+onMounted(async () => {
+  setUnauthorizedHandler(clearSession);
   navigate(currentPage.value);
   window.addEventListener('hashchange', onHashChange);
+  if (!getAccessToken()) {
+    authLoading.value = false;
+    return;
+  }
+  try {
+    currentUser.value = await api.me();
+  } catch {
+    clearSession();
+  } finally {
+    authLoading.value = false;
+  }
 });
 
-onBeforeUnmount(() => window.removeEventListener('hashchange', onHashChange));
+onBeforeUnmount(() => {
+  setUnauthorizedHandler(null);
+  window.removeEventListener('hashchange', onHashChange);
+});
 </script>
 
 <template>
-  <AppShell :current-page="currentPage" :title="title" :can-add="canAdd" @navigate="navigate" @add="openAdd">
+  <div v-if="authLoading" class="auth-page">
+    <div class="panel auth-loading">Загрузка…</div>
+  </div>
+  <AuthView v-else-if="!currentUser" @authenticated="authenticated" />
+  <AppShell
+    v-else
+    :current-page="currentPage"
+    :title="title"
+    :can-add="canAdd"
+    :user="activeUser"
+    @navigate="navigate"
+    @add="openAdd"
+    @logout="logout"
+  >
     <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" @navigate="navigate" @open-recipe="openRecipe" />
-    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" @edit="modal = { kind: 'products', id: $event }" />
+    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" @edit="modal = { kind: 'products', id: $event }" />
     <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" @open-recipe="openRecipe" />
     <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" @edit="modal = { kind: 'diary', id: $event }" />
     <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" @edit="modal = { kind: 'progress', id: $event }" />
     <WorkoutsView
       v-else-if="currentPage === 'workouts'"
       :refresh-key="reloadKey"
+      :is-admin="isAdmin"
       @edit="modal = { kind: 'workouts', id: $event }"
       @add-exercise="openExerciseAdd"
       @manage-exercises="exerciseManagerOpen = true"
     />
   </AppShell>
 
-  <RecipeDetailModal :recipe-id="recipeDetailId" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" />
-  <ExerciseManagerModal :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @changed="refresh" />
+  <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" />
+  <ExerciseManagerModal v-if="isAdmin" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @changed="refresh" />
 
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">
     <ProductForm v-if="modal?.kind === 'products'" :product-id="modal.id" @saved="saved" @deleted="saved" @cancel="closeModal" />

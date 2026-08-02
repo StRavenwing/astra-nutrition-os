@@ -17,3 +17,4 @@ data-backups/
 Thumbs.db
 .idea/
 .vscode/
+.env

@@ -4,11 +4,15 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 STATIC_ROOT = PROJECT_ROOT / "ui" / "dist"
 DATABASE_TEMPLATE = PROJECT_ROOT / "database" / "Astra_Nutrition_OS_v7.sql"
 DATABASE_NAME = "Astra_Nutrition_OS_v7.sqlite"
+
+load_dotenv(PROJECT_ROOT / ".env")
 
 
 @dataclass(frozen=True)
@@ -20,6 +24,17 @@ class Settings:
     backup_dir: Path
     host: str
     port: int
+    admin_email: str
+    admin_password: str
+    auth_secret: str
+    access_token_minutes: int
+
+
+def _required_env(name: str) -> str:
+    value = os.environ.get(name)
+    if value:
+        return value
+    raise RuntimeError(f"Set {name} in .env or environment before starting Astra Nutrition OS")
 
 
 def _default_db_path() -> Path:
@@ -62,5 +77,8 @@ def get_settings() -> Settings:
         backup_dir=backup_dir.resolve(),
         host=os.environ.get("ASTRA_HOST", "127.0.0.1"),
         port=int(os.environ.get("ASTRA_PORT", "8787")),
+        admin_email=_required_env("ASTRA_ADMIN_EMAIL"),
+        admin_password=_required_env("ASTRA_ADMIN_PASSWORD"),
+        auth_secret=_required_env("ASTRA_AUTH_SECRET"),
+        access_token_minutes=int(os.environ.get("ASTRA_ACCESS_TOKEN_MINUTES", "10080")),
     )
-

@@ -1,24 +1,29 @@
 from __future__ import annotations
 
-from backend.models import DiaryEntry, Recipe, current_database
+from backend.models import DiaryEntry, Recipe, User, current_database
 from backend.services.calculations import normalise_measure, number
 from backend.services.errors import NotFoundError
 from backend.services.serialization import serialize_diary_entry
 
 
-def list_diary() -> list[dict]:
-    query = DiaryEntry.select().order_by(DiaryEntry.entry_date.desc(), DiaryEntry.id.desc())
+def list_diary(user: User) -> list[dict]:
+    query = (
+        DiaryEntry
+        .select()
+        .where(DiaryEntry.user == user)
+        .order_by(DiaryEntry.entry_date.desc(), DiaryEntry.id.desc())
+    )
     return [serialize_diary_entry(entry) for entry in query]
 
 
-def get_diary_entry(entry_id: int) -> DiaryEntry:
-    entry = DiaryEntry.get_or_none(DiaryEntry.id == entry_id)
+def get_diary_entry(entry_id: int, user: User) -> DiaryEntry:
+    entry = DiaryEntry.get_or_none((DiaryEntry.id == entry_id) & (DiaryEntry.user == user))
     if entry is None:
         raise NotFoundError("Запись не найдена")
     return entry
 
 
-def _create_entry(entry_date: str, item: dict) -> DiaryEntry:
+def _create_entry(entry_date: str, item: dict, user: User) -> DiaryEntry:
     shown_quantity = shown_measure = None
     quantity = number(item.get("quantity"))
     product_id = item.get("product_id")
@@ -39,6 +44,7 @@ def _create_entry(entry_date: str, item: dict) -> DiaryEntry:
         raise ValueError("Нужно выбрать рецепт или продукт")
 
     return DiaryEntry.create(
+        user=user,
         entry_date=entry_date,
         meal_type=item.get("meal_type"),
         recipe=recipe_id,
@@ -51,7 +57,7 @@ def _create_entry(entry_date: str, item: dict) -> DiaryEntry:
     )
 
 
-def create_diary_entries(data: dict) -> list[dict]:
+def create_diary_entries(data: dict, user: User) -> list[dict]:
     with current_database().atomic():
         items = data.get("items") or [data]
         created = []
@@ -59,13 +65,13 @@ def create_diary_entries(data: dict) -> list[dict]:
             entry_date = data.get("entry_date") or item.get("entry_date")
             if not entry_date:
                 raise ValueError("Дата обязательна")
-            created.append(_create_entry(entry_date, item))
+            created.append(_create_entry(entry_date, item, user))
         return [serialize_diary_entry(entry) for entry in created]
 
 
-def update_diary_entry(entry_id: int, data: dict) -> dict:
+def update_diary_entry(entry_id: int, data: dict, user: User) -> dict:
     with current_database().atomic():
-        entry = get_diary_entry(entry_id)
+        entry = get_diary_entry(entry_id, user)
         shown_quantity = shown_measure = None
         quantity = number(data.get("quantity"))
         product_id = data.get("product_id")
@@ -93,9 +99,8 @@ def update_diary_entry(entry_id: int, data: dict) -> dict:
         return serialize_diary_entry(entry)
 
 
-def delete_diary_entry(entry_id: int) -> dict:
+def delete_diary_entry(entry_id: int, user: User) -> dict:
     with current_database().atomic():
-        entry = get_diary_entry(entry_id)
+        entry = get_diary_entry(entry_id, user)
         entry.delete_instance()
         return {"deleted": True, "id": entry_id}
-

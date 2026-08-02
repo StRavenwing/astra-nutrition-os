@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from backend.models import Exercise, WorkoutLog, current_database
+from backend.models import Exercise, User, WorkoutLog, current_database
 from backend.services.calculations import int_number, number
 from backend.services.codes import next_code
-from backend.services.errors import ConflictError, NotFoundError
+from backend.services.errors import ConflictError, ForbiddenError, NotFoundError
 from backend.services.serialization import serialize_exercise, serialize_workout
 
 
@@ -47,29 +47,32 @@ def delete_exercise(exercise_id: int) -> dict:
         return {"deleted": True, "id": exercise_id}
 
 
-def list_workouts() -> list[dict]:
+def list_workouts(user: User) -> list[dict]:
     query = (
         WorkoutLog
         .select(WorkoutLog, Exercise)
         .join(Exercise)
+        .where(WorkoutLog.user == user)
         .order_by(WorkoutLog.performed_at.desc(), WorkoutLog.id.desc())
     )
     return [serialize_workout(log) for log in query]
 
 
-def get_workout(log_id: int) -> WorkoutLog:
-    log = WorkoutLog.get_or_none(WorkoutLog.id == log_id)
+def get_workout(log_id: int, user: User) -> WorkoutLog:
+    log = WorkoutLog.get_or_none((WorkoutLog.id == log_id) & (WorkoutLog.user == user))
     if log is None:
         raise NotFoundError("Тренировка не найдена")
     return log
 
 
-def _exercise_for_workout(data: dict) -> Exercise:
+def _exercise_for_workout(data: dict, user: User) -> Exercise:
     exercise_id = data.get("exercise_id")
     if exercise_id:
         return get_exercise(exercise_id)
     if not data.get("exercise_name"):
         raise ValueError("Нужно выбрать или указать упражнение")
+    if not user.is_admin:
+        raise ForbiddenError("Только admin может создавать упражнения")
     return Exercise.create(
         code=next_code("EX"),
         name=data["exercise_name"],
@@ -82,10 +85,11 @@ def _exercise_for_workout(data: dict) -> Exercise:
     )
 
 
-def create_workout(data: dict) -> dict:
+def create_workout(data: dict, user: User) -> dict:
     with current_database().atomic():
-        exercise = _exercise_for_workout(data)
+        exercise = _exercise_for_workout(data, user)
         log = WorkoutLog.create(
+            user=user,
             performed_at=data["performed_at"],
             exercise=exercise,
             working_weight=number(data.get("working_weight")),
@@ -98,10 +102,10 @@ def create_workout(data: dict) -> dict:
         return serialize_workout(log)
 
 
-def update_workout(log_id: int, data: dict) -> dict:
+def update_workout(log_id: int, data: dict, user: User) -> dict:
     with current_database().atomic():
-        log = get_workout(log_id)
-        exercise = _exercise_for_workout(data)
+        log = get_workout(log_id, user)
+        exercise = _exercise_for_workout(data, user)
         log.performed_at = data["performed_at"]
         log.exercise = exercise
         log.working_weight = number(data.get("working_weight"))
@@ -114,9 +118,8 @@ def update_workout(log_id: int, data: dict) -> dict:
         return serialize_workout(log)
 
 
-def delete_workout(log_id: int) -> dict:
+def delete_workout(log_id: int, user: User) -> dict:
     with current_database().atomic():
-        log = get_workout(log_id)
+        log = get_workout(log_id, user)
         log.delete_instance()
         return {"deleted": True, "id": log_id}
-

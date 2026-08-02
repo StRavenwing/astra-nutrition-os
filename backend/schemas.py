@@ -5,6 +5,11 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class AuthInput(BaseModel):
+    email: str
+    password: str
+
+
 class ProductMeasureInput(BaseModel):
     measure_name: str
     base_quantity: Any = None

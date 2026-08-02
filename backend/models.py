@@ -4,6 +4,7 @@ from pathlib import Path
 
 from peewee import (
     AutoField,
+    BooleanField,
     CharField,
     Check,
     DatabaseProxy,
@@ -80,6 +81,17 @@ class Changelog(BaseModel):
         table_name = "changelog"
 
 
+class User(BaseModel):
+    id = AutoField()
+    email = CharField(unique=True, index=True)
+    password_hash = CharField()
+    is_admin = BooleanField(default=False)
+    created_at = CharField()
+
+    class Meta:
+        table_name = "users"
+
+
 class Product(BaseModel):
     id = AutoField()
     code = CharField(unique=True)
@@ -151,6 +163,7 @@ class RecipeIngredient(BaseModel):
 
 class DiaryEntry(BaseModel):
     id = AutoField()
+    user = ForeignKeyField(User, backref="diary_entries", on_delete="CASCADE")
     entry_date = CharField(index=True)
     meal_type = CharField(null=True)
     recipe = ForeignKeyField(Recipe, backref="diary_entries", null=True, on_delete="SET NULL")
@@ -167,7 +180,8 @@ class DiaryEntry(BaseModel):
 
 class ProgressEntry(BaseModel):
     id = AutoField()
-    measured_at = CharField(unique=True)
+    user = ForeignKeyField(User, backref="progress_entries", on_delete="CASCADE")
+    measured_at = CharField()
     weight_kg = FloatField(null=True)
     height_cm = FloatField(null=True)
     bmi = FloatField(null=True)
@@ -186,6 +200,7 @@ class ProgressEntry(BaseModel):
 
     class Meta:
         table_name = "progress_entries"
+        indexes = ((("user", "measured_at"), True),)
 
 
 class Exercise(BaseModel):
@@ -205,6 +220,7 @@ class Exercise(BaseModel):
 
 class WorkoutLog(BaseModel):
     id = AutoField()
+    user = ForeignKeyField(User, backref="workout_logs", on_delete="CASCADE")
     performed_at = CharField(index=True)
     exercise = ForeignKeyField(Exercise, backref="workout_logs")
     working_weight = FloatField(null=True)
@@ -222,6 +238,7 @@ MODELS = [
     AppMeta,
     IdSequence,
     Changelog,
+    User,
     Product,
     Recipe,
     Exercise,

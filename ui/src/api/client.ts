@@ -1,4 +1,6 @@
 import type {
+  AuthResponse,
+  AuthUser,
   DashboardResponse,
   DiaryEntry,
   Exercise,
@@ -10,13 +12,41 @@ import type {
   WorkoutEntry
 } from '@/types';
 
+const TOKEN_KEY = 'astra_access_token';
+let unauthorizedHandler: (() => void) | null = null;
+
+export function getAccessToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setAccessToken(token: string) {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearAccessToken() {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+export function setUnauthorizedHandler(handler: (() => void) | null) {
+  unauthorizedHandler = handler;
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set('Content-Type', headers.get('Content-Type') || 'application/json');
+  const token = getAccessToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
   const response = await fetch(`/api/v1/${path}`, {
-    headers: { 'Content-Type': 'application/json', ...(init.headers || {}) },
-    ...init
+    ...init,
+    headers
   });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
+    if (response.status === 401) {
+      clearAccessToken();
+      unauthorizedHandler?.();
+    }
     const detail = Array.isArray(payload?.details) ? payload.details[0]?.msg : payload?.details;
     throw new Error(payload?.error || detail || 'Ошибка');
   }
@@ -34,6 +64,16 @@ function write<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknow
 }
 
 export const api = {
+  me: () => request<AuthUser>('auth/me'),
+  login: (email: string, password: string) => request<AuthResponse>('auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password })
+  }),
+  register: (email: string, password: string) => request<AuthResponse>('auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ email, password })
+  }),
+  logout: () => write<{ ok: boolean }>('POST', 'auth/logout'),
   dashboard: () => request<DashboardResponse>('dashboard'),
   products: () => request<Product[]>('products'),
   productMeasures: () => request<ProductMeasure[]>('product-measures'),

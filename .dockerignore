@@ -11,5 +11,6 @@ data-backups/
 docs/
 .idea/
 .vscode/
+.env
 .DS_Store
 Thumbs.db

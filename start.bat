@@ -1,5 +1,10 @@
 @echo off
 cd /d "%~dp0"
+if not exist ".env" if "%ASTRA_ADMIN_EMAIL%"=="" (
+  echo Create .env from .env.example and set ASTRA_ADMIN_EMAIL, ASTRA_ADMIN_PASSWORD and ASTRA_AUTH_SECRET.
+  pause
+  exit /b 1
+)
 echo Installing Astra backend dependencies...
 python -m pip install -r requirements.txt
 if errorlevel 1 (

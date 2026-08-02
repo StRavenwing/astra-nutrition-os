@@ -12,7 +12,8 @@ from peewee import IntegrityError
 from backend.config import Settings, get_settings
 from backend.migrations import backup_database, ensure_database
 from backend.models import current_database, initialize_database
-from backend.routers import dashboard, diary, health, products, progress, recipes, workouts
+from backend.routers import auth, dashboard, diary, health, products, progress, recipes, workouts
+from backend.services.auth import ensure_admin_user
 from backend.services.errors import DomainError
 
 
@@ -33,6 +34,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
     ensure_database(settings)
     initialize_database(settings.db_path)
+    database = current_database()
+    database.connect(reuse_if_open=True)
+    try:
+        ensure_admin_user(settings)
+    finally:
+        if not database.is_closed():
+            database.close()
 
     app = FastAPI(title="Astra Nutrition OS API")
     app.state.settings = settings
@@ -64,6 +72,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return _error_response("Некорректные данные запроса", 422, exc.errors())
 
     app.include_router(health.router)
+    app.include_router(auth.router)
     app.include_router(dashboard.router)
     app.include_router(products.router)
     app.include_router(recipes.router)
@@ -109,4 +118,3 @@ def run() -> None:
     backup_database(settings.db_path, settings.backup_dir)
     print(f"Astra Nutrition OS: http://{settings.host}:{settings.port}")
     uvicorn.run(app, host=settings.host, port=settings.port)
-

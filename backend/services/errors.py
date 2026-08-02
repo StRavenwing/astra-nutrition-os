@@ -18,3 +18,12 @@ class ConflictError(DomainError):
     def __init__(self, message: str):
         super().__init__(message, 409)
 
+
+class UnauthorizedError(DomainError):
+    def __init__(self, message: str = "Требуется вход"):
+        super().__init__(message, 401)
+
+
+class ForbiddenError(DomainError):
+    def __init__(self, message: str = "Недостаточно прав"):
+        super().__init__(message, 403)

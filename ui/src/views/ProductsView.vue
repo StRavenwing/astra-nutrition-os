@@ -6,7 +6,10 @@ import type { Product, SortState } from '@/types';
 import { compareValues, fmt, searchable } from '@/utils/format';
 import Toolbar from '@/components/shared/Toolbar.vue';
 
-const props = defineProps<{ refreshKey: number }>();
+const props = defineProps<{
+  refreshKey: number;
+  isAdmin: boolean;
+}>();
 const emit = defineEmits<{ edit: [id: number] }>();
 
 const data = ref<Product[]>([]);
@@ -147,7 +150,7 @@ function productSpriteStyle(item: string) {
           <span>{{ item.package_size ? `${fmt(item.package_size)} ${item.unit || ''} в упаковке` : 'Цена за расчётную единицу' }}</span>
           <b>{{ fmt(item.price_per_100_or_unit_rsd) }} RSD</b>
         </div>
-        <div class="product-tile-actions">
+        <div v-if="props.isAdmin" class="product-tile-actions">
           <button type="button" class="edit-product" @click="emit('edit', item.id)">✎ Редактировать</button>
           <button type="button" class="delete-product" @click="remove(item.id)">Удалить</button>
         </div>

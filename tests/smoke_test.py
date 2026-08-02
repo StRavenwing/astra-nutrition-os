@@ -17,6 +17,9 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="astra-ci-") as temp_dir:
         os.environ["ASTRA_DB_PATH"] = str(Path(temp_dir) / "astra-test.sqlite")
         os.environ["ASTRA_BACKUP_DIR"] = str(Path(temp_dir) / "backups")
+        os.environ["ASTRA_ADMIN_EMAIL"] = "admin@example.com"
+        os.environ["ASTRA_ADMIN_PASSWORD"] = "admin-password"
+        os.environ["ASTRA_AUTH_SECRET"] = "test-secret-with-at-least-thirty-two-bytes"
         os.chdir(ROOT)
         sys.path.insert(0, str(ROOT))
 
@@ -29,15 +32,34 @@ def main() -> None:
             assert response.json() == {"status": "ok"}
 
             response = client.get("/api/v1/dashboard")
+            assert response.status_code == 401
+
+            response = client.post(
+                "/api/v1/auth/login",
+                json={"email": "ADMIN@example.com", "password": "admin-password"},
+            )
+            assert response.status_code == 200, response.text
+            admin_auth = response.json()
+            admin_headers = {"Authorization": f"Bearer {admin_auth['access_token']}"}
+            assert admin_auth["user"]["email"] == "admin@example.com"
+            assert admin_auth["user"]["is_admin"] is True
+
+            response = client.get("/api/v1/auth/me", headers=admin_headers)
+            assert response.status_code == 200
+            assert response.json()["email"] == "admin@example.com"
+
+            response = client.get("/api/v1/dashboard", headers=admin_headers)
             dashboard = response.json()
             assert response.status_code == 200
             assert dashboard["products"] > 0
             assert dashboard["recipes"] > 0
             assert dashboard["latest"] is None or "weight_kg" in dashboard["latest"]
             assert all("id" in recipe and "code" in recipe for recipe in dashboard["top"])
+            assert len(client.get("/api/v1/diary", headers=admin_headers).json()) > 0
 
             response = client.post(
                 "/api/v1/products",
+                headers=admin_headers,
                 json={
                     "name": "Соус для smoke-теста",
                     "category": "Соусы",
@@ -61,6 +83,7 @@ def main() -> None:
 
             response = client.put(
                 f"/api/v1/products/{created_product['id']}",
+                headers=admin_headers,
                 json={
                     "name": "Соус для smoke-теста",
                     "category": "Соусы",
@@ -88,6 +111,7 @@ def main() -> None:
 
             response = client.post(
                 "/api/v1/recipes",
+                headers=admin_headers,
                 json={
                     "category": "Sauce",
                     "name": "Smoke recipe",
@@ -103,7 +127,7 @@ def main() -> None:
             )
             assert response.status_code == 201, response.text
             recipe = response.json()
-            response = client.get(f"/api/v1/recipes/{recipe['id']}")
+            response = client.get(f"/api/v1/recipes/{recipe['id']}", headers=admin_headers)
             detail = response.json()
             assert response.status_code == 200
             assert detail["recipe"]["id"] == recipe["id"]
@@ -111,6 +135,7 @@ def main() -> None:
 
             response = client.post(
                 "/api/v1/diary",
+                headers=admin_headers,
                 json={
                     "entry_date": "2026-08-02",
                     "items": [
@@ -132,8 +157,9 @@ def main() -> None:
 
             response = client.post(
                 "/api/v1/progress",
+                headers=admin_headers,
                 json={
-                    "measured_at": "2026-08-02",
+                    "measured_at": "2099-01-01",
                     "weight_kg": 70,
                     "height_cm": 169,
                     "body_fat_pct": 25,
@@ -147,12 +173,14 @@ def main() -> None:
 
             response = client.post(
                 "/api/v1/exercises",
+                headers=admin_headers,
                 json={"name": "Smoke exercise", "muscle_group": "Кор"},
             )
             assert response.status_code == 201, response.text
             exercise = response.json()
             response = client.post(
                 "/api/v1/workouts",
+                headers=admin_headers,
                 json={
                     "performed_at": "2026-08-02",
                     "exercise_id": exercise["id"],
@@ -164,8 +192,72 @@ def main() -> None:
             assert response.status_code == 201, response.text
             workout = response.json()
             assert workout["exercise_id"] == exercise["id"]
-            assert client.delete(f"/api/v1/workouts/{workout['id']}").status_code == 200
-            assert client.delete(f"/api/v1/exercises/{exercise['id']}").status_code == 200
+
+            response = client.post(
+                "/api/v1/auth/register",
+                json={"email": "user@example.com", "password": "user-password"},
+            )
+            assert response.status_code == 201, response.text
+            user_auth = response.json()
+            user_headers = {"Authorization": f"Bearer {user_auth['access_token']}"}
+            assert user_auth["user"]["is_admin"] is False
+
+            response = client.get("/api/v1/dashboard", headers=user_headers)
+            assert response.status_code == 200
+            assert response.json()["latest"] is None
+            assert client.get("/api/v1/diary", headers=user_headers).json() == []
+            assert client.get("/api/v1/progress", headers=user_headers).json() == []
+            assert client.get("/api/v1/workouts", headers=user_headers).json() == []
+
+            response = client.get("/api/v1/products", headers=user_headers)
+            assert response.status_code == 200
+            assert len(response.json()) > 0
+            response = client.post(
+                "/api/v1/products",
+                headers=user_headers,
+                json={"name": "Forbidden product", "protein_g": 1, "fat_g": 1, "carbs_g": 1},
+            )
+            assert response.status_code == 403
+            response = client.post(
+                "/api/v1/exercises",
+                headers=user_headers,
+                json={"name": "Forbidden exercise"},
+            )
+            assert response.status_code == 403
+
+            response = client.put(
+                f"/api/v1/diary/{diary_items[0]['id']}",
+                headers=user_headers,
+                json={
+                    "entry_date": "2026-08-02",
+                    "meal_type": "Обед",
+                    "recipe_id": recipe["id"],
+                    "servings": 1,
+                },
+            )
+            assert response.status_code == 404
+
+            response = client.post(
+                "/api/v1/progress",
+                headers=user_headers,
+                json={"measured_at": "2099-01-01", "weight_kg": 65},
+            )
+            assert response.status_code == 201, response.text
+            response = client.post(
+                "/api/v1/workouts",
+                headers=user_headers,
+                json={
+                    "performed_at": "2099-01-01",
+                    "exercise_id": exercise["id"],
+                    "sets": 2,
+                    "reps": 10,
+                },
+            )
+            assert response.status_code == 201, response.text
+            assert client.delete(f"/api/v1/workouts/{workout['id']}", headers=user_headers).status_code == 404
+
+            assert client.delete(f"/api/v1/workouts/{workout['id']}", headers=admin_headers).status_code == 200
+            assert client.delete(f"/api/v1/exercises/{exercise['id']}", headers=admin_headers).status_code == 409
 
             response = client.get("/manifest.webmanifest")
             manifest = response.json()

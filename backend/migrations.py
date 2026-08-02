@@ -19,15 +19,17 @@ from backend.models import (
     ProgressEntry,
     Recipe,
     RecipeIngredient,
+    User,
     WorkoutLog,
     database_proxy,
     make_database,
 )
+from backend.services.auth import hash_password, normalize_email, utc_now
 from backend.services.calculations import RECIPE_PREFIXES, ensure_product_measures, int_number
 from backend.services.codes import sequence_rows
 
 
-SCHEMA_VERSION = "2"
+SCHEMA_VERSION = "3"
 
 
 def _connect_raw(path: Path) -> sqlite3.Connection:
@@ -58,6 +60,24 @@ def _count(connection: sqlite3.Connection, table: str) -> int:
     if not _table_exists(connection, table):
         return 0
     return int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
+
+
+def _admin_row(connection: sqlite3.Connection, settings: Settings) -> sqlite3.Row:
+    email = normalize_email(settings.admin_email)
+    password_hash = hash_password(settings.admin_password)
+    connection.execute("UPDATE users SET is_admin=0 WHERE email<>?", (email,))
+    row = connection.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+    if row is None:
+        connection.execute(
+            "INSERT INTO users (email, password_hash, is_admin, created_at) VALUES (?, ?, 1, ?)",
+            (email, password_hash, utc_now()),
+        )
+    else:
+        connection.execute(
+            "UPDATE users SET password_hash=?, is_admin=1 WHERE id=?",
+            (password_hash, row["id"]),
+        )
+    return connection.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
 
 
 def backup_database(db_path: Path, backup_dir: Path, prefix: str = "astra-auto") -> Path | None:
@@ -98,6 +118,8 @@ def _legacy_schema_status(path: Path) -> str:
             ).fetchone()
             if row and row[0] == SCHEMA_VERSION:
                 return "normalized"
+            if row and row[0] == "2":
+                return "normalized_v2"
         if "product_id" in _columns(connection, "products"):
             return "legacy"
     return "unknown"
@@ -195,12 +217,19 @@ def _seed_default_measures() -> None:
         measure.save()
 
 
-def _migrate_legacy_rows(source: sqlite3.Connection, destination) -> None:
+def _migrate_legacy_rows(source: sqlite3.Connection, destination, settings: Settings) -> None:
     product_map: dict[str, int] = {}
     recipe_map: dict[str, int] = {}
     exercise_map: dict[str, int] = {}
 
     with destination.atomic():
+        admin = User.create(
+            email=normalize_email(settings.admin_email),
+            password_hash=hash_password(settings.admin_password),
+            is_admin=True,
+            created_at=utc_now(),
+        )
+
         for row in source.execute("SELECT * FROM products ORDER BY product_id"):
             product = Product.create(
                 code=row["product_id"],
@@ -281,6 +310,7 @@ def _migrate_legacy_rows(source: sqlite3.Connection, destination) -> None:
             recipe_id = recipe_map.get(_row_value(row, "recipe_id"))
             product_id = product_map.get(_row_value(row, "product_id"))
             DiaryEntry.create(
+                user=admin,
                 entry_date=row["entry_date"],
                 meal_type=_row_value(row, "meal_type"),
                 recipe=recipe_id,
@@ -294,6 +324,7 @@ def _migrate_legacy_rows(source: sqlite3.Connection, destination) -> None:
 
         for row in source.execute("SELECT * FROM progress ORDER BY progress_id"):
             ProgressEntry.create(
+                user=admin,
                 measured_at=row["measured_at"],
                 weight_kg=_row_value(row, "weight_kg"),
                 height_cm=_row_value(row, "height_cm"),
@@ -317,6 +348,7 @@ def _migrate_legacy_rows(source: sqlite3.Connection, destination) -> None:
             if exercise_id is None:
                 continue
             WorkoutLog.create(
+                user=admin,
                 performed_at=row["performed_at"],
                 exercise=exercise_id,
                 working_weight=_row_value(row, "working_weight"),
@@ -392,7 +424,7 @@ def migrate_legacy_database(settings: Settings, backup_existing: bool) -> None:
         _upgrade_legacy_schema(source)
         source.commit()
         destination = _create_normalized_schema(temp_path)
-        _migrate_legacy_rows(source, destination)
+        _migrate_legacy_rows(source, destination, settings)
         _validate_migration(source)
     except Exception:
         if destination is not None and not destination.is_closed():
@@ -411,6 +443,176 @@ def migrate_legacy_database(settings: Settings, backup_existing: bool) -> None:
     os.replace(temp_path, settings.db_path)
 
 
+def _create_users_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email VARCHAR(255) NOT NULL UNIQUE,
+            password_hash VARCHAR(255) NOT NULL,
+            is_admin INTEGER NOT NULL,
+            created_at VARCHAR(255) NOT NULL
+        )
+        """
+    )
+    connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS users_email ON users (email)")
+
+
+def _rebuild_diary_entries(connection: sqlite3.Connection, admin_id: int) -> None:
+    connection.execute(
+        """
+        CREATE TABLE diary_entries_v3 (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            entry_date VARCHAR(255) NOT NULL,
+            meal_type VARCHAR(255),
+            recipe_id INTEGER,
+            product_id INTEGER,
+            servings REAL NOT NULL CHECK(servings > 0),
+            quantity REAL,
+            measurement_name VARCHAR(255),
+            measurement_quantity REAL,
+            comment TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(recipe_id) REFERENCES recipes(id) ON DELETE SET NULL,
+            FOREIGN KEY(product_id) REFERENCES products(id) ON DELETE SET NULL
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO diary_entries_v3 (
+            id, user_id, entry_date, meal_type, recipe_id, product_id, servings,
+            quantity, measurement_name, measurement_quantity, comment
+        )
+        SELECT
+            id, ?, entry_date, meal_type, recipe_id, product_id, servings,
+            quantity, measurement_name, measurement_quantity, comment
+        FROM diary_entries
+        """,
+        (admin_id,),
+    )
+    connection.execute("DROP TABLE diary_entries")
+    connection.execute("ALTER TABLE diary_entries_v3 RENAME TO diary_entries")
+    connection.execute("CREATE INDEX diary_entries_user_id ON diary_entries (user_id)")
+    connection.execute("CREATE INDEX diary_entries_entry_date ON diary_entries (entry_date)")
+    connection.execute("CREATE INDEX diary_entries_recipe_id ON diary_entries (recipe_id)")
+    connection.execute("CREATE INDEX diary_entries_product_id ON diary_entries (product_id)")
+
+
+def _rebuild_progress_entries(connection: sqlite3.Connection, admin_id: int) -> None:
+    connection.execute(
+        """
+        CREATE TABLE progress_entries_v3 (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            measured_at VARCHAR(255) NOT NULL,
+            weight_kg REAL,
+            height_cm REAL,
+            bmi REAL,
+            body_fat_pct REAL,
+            fat_mass_kg REAL,
+            muscle_pct REAL,
+            muscle_mass_kg REAL,
+            protein_target_g REAL,
+            fat_target_g REAL,
+            waist_cm REAL,
+            chest_cm REAL,
+            hips_cm REAL,
+            sleep_score INTEGER,
+            wellbeing_score INTEGER,
+            comment TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            UNIQUE(user_id, measured_at)
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO progress_entries_v3 (
+            id, user_id, measured_at, weight_kg, height_cm, bmi, body_fat_pct,
+            fat_mass_kg, muscle_pct, muscle_mass_kg, protein_target_g,
+            fat_target_g, waist_cm, chest_cm, hips_cm, sleep_score,
+            wellbeing_score, comment
+        )
+        SELECT
+            id, ?, measured_at, weight_kg, height_cm, bmi, body_fat_pct,
+            fat_mass_kg, muscle_pct, muscle_mass_kg, protein_target_g,
+            fat_target_g, waist_cm, chest_cm, hips_cm, sleep_score,
+            wellbeing_score, comment
+        FROM progress_entries
+        """,
+        (admin_id,),
+    )
+    connection.execute("DROP TABLE progress_entries")
+    connection.execute("ALTER TABLE progress_entries_v3 RENAME TO progress_entries")
+    connection.execute("CREATE INDEX progress_entries_user_id ON progress_entries (user_id)")
+
+
+def _rebuild_workout_logs(connection: sqlite3.Connection, admin_id: int) -> None:
+    connection.execute(
+        """
+        CREATE TABLE workout_logs_v3 (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            performed_at VARCHAR(255) NOT NULL,
+            exercise_id INTEGER NOT NULL,
+            working_weight REAL,
+            sets INTEGER,
+            reps INTEGER,
+            rir VARCHAR(255),
+            machine_location VARCHAR(255),
+            comment TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY(exercise_id) REFERENCES exercises(id)
+        )
+        """
+    )
+    connection.execute(
+        """
+        INSERT INTO workout_logs_v3 (
+            id, user_id, performed_at, exercise_id, working_weight, sets, reps,
+            rir, machine_location, comment
+        )
+        SELECT
+            id, ?, performed_at, exercise_id, working_weight, sets, reps,
+            rir, machine_location, comment
+        FROM workout_logs
+        """,
+        (admin_id,),
+    )
+    connection.execute("DROP TABLE workout_logs")
+    connection.execute("ALTER TABLE workout_logs_v3 RENAME TO workout_logs")
+    connection.execute("CREATE INDEX workout_logs_user_id ON workout_logs (user_id)")
+    connection.execute("CREATE INDEX workout_logs_performed_at ON workout_logs (performed_at)")
+    connection.execute("CREATE INDEX workout_logs_exercise_id ON workout_logs (exercise_id)")
+
+
+def migrate_v2_database(settings: Settings, backup_existing: bool) -> None:
+    if backup_existing:
+        backup_database(settings.db_path, settings.backup_dir, prefix="astra-pre-v3")
+
+    connection = _connect_raw(settings.db_path)
+    try:
+        connection.execute("PRAGMA foreign_keys=OFF")
+        _create_users_table(connection)
+        admin = _admin_row(connection, settings)
+        _rebuild_diary_entries(connection, admin["id"])
+        _rebuild_progress_entries(connection, admin["id"])
+        _rebuild_workout_logs(connection, admin["id"])
+        connection.execute(
+            "UPDATE app_meta SET value=? WHERE key='schema_version'",
+            (SCHEMA_VERSION,),
+        )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.execute("PRAGMA foreign_keys=ON")
+        connection.close()
+
+
 def ensure_database(settings: Settings) -> None:
     existed = settings.db_path.exists()
     if not existed:
@@ -418,6 +620,9 @@ def ensure_database(settings: Settings) -> None:
 
     status = _legacy_schema_status(settings.db_path)
     if status == "normalized":
+        return
+    if status == "normalized_v2":
+        migrate_v2_database(settings, backup_existing=existed)
         return
     if status == "legacy":
         migrate_legacy_database(settings, backup_existing=existed)

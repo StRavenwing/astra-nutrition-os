@@ -3,7 +3,7 @@ from __future__ import annotations
 from backend.models import DiaryEntry, Recipe, RecipeIngredient, current_database
 from backend.services.calculations import RECIPE_PREFIXES, normalise_measure, number
 from backend.services.codes import next_code
-from backend.services.errors import NotFoundError
+from backend.services.errors import ConflictError, NotFoundError
 from backend.services.serialization import serialize_recipe_detail, serialize_recipe_summary
 
 
@@ -106,6 +106,10 @@ def delete_recipe(recipe_id: int) -> dict:
     with current_database().atomic():
         recipe = get_recipe(recipe_id)
         diary_count = DiaryEntry.select().where(DiaryEntry.recipe == recipe).count()
-        DiaryEntry.delete().where(DiaryEntry.recipe == recipe).execute()
+        if diary_count:
+            raise ConflictError(
+                f"Рецепт используется в дневнике питания: {diary_count}. "
+                "Сначала удалите связанные записи дневника."
+            )
         recipe.delete_instance(recursive=True)
-        return {"deleted": True, "id": recipe_id, "deleted_diary_entries": diary_count}
+        return {"deleted": True, "id": recipe_id, "deleted_diary_entries": 0}

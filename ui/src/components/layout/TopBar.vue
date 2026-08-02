@@ -1,12 +1,17 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
+import type { AuthUser } from '@/types';
 
 defineProps<{
   title: string;
   canAdd: boolean;
+  user: AuthUser;
 }>();
 
-defineEmits<{ add: [] }>();
+defineEmits<{
+  add: [];
+  logout: [];
+}>();
 
 const installVisible = ref(false);
 let deferredPrompt: any = null;
@@ -72,6 +77,10 @@ onBeforeUnmount(() => {
         Установить приложение
       </button>
       <button v-if="canAdd" type="button" class="primary" @click="$emit('add')">＋ Добавить</button>
+      <div class="user-chip">
+        <span>{{ user.email }}</span>
+        <button type="button" title="Выйти" @click="$emit('logout')">Выйти</button>
+      </div>
     </div>
   </header>
 </template>
@@ -81,5 +90,28 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 9px;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 4px 5px 4px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: #44546f;
+  font-size: 12px;
+  font-weight: 700;
+
+  button {
+    border: 0;
+    border-radius: 6px;
+    padding: 7px 9px;
+    background: #f1f2f4;
+    color: #44546f;
+    cursor: pointer;
+  }
 }
 </style>
