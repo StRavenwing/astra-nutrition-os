@@ -231,3 +231,27 @@ if(installAppButton){
 }
 
 window.addEventListener('appinstalled',()=>{deferredInstallPrompt=null;if(installAppButton)installAppButton.hidden=true});
+
+// Editable household conversions for products. New gram/ml products receive
+// useful defaults, while the product card can store a more accurate value.
+const productMeasureMap=measures=>Object.fromEntries((measures||[]).map(item=>[item.measure_name,item.base_quantity]));
+const mountProductMeasureFields=(container,measures=[])=>{
+ const current=productMeasureMap(measures),unitControl=container.querySelector('[name="unit"]');
+ const section=document.createElement('section');section.className='product-measure-fields';
+ section.innerHTML=`<div class="product-measure-head"><div><p class="eyebrow">ДОМАШНИЕ МЕРЫ</p><h3>Вес или объём одной меры</h3></div><small>Можно изменить для конкретного продукта</small></div><div class="grid"><div class="field"><label data-measure-label="teaspoon">1 ч. л.</label><input name="teaspoon_base_quantity" type="number" min="0.01" step="0.01"></div><div class="field"><label data-measure-label="tablespoon">1 ст. л.</label><input name="tablespoon_base_quantity" type="number" min="0.01" step="0.01"></div><div class="field full"><label data-measure-label="cup">1 стакан</label><input name="cup_base_quantity" type="number" min="0.01" step="0.01"></div></div><p class="subtle">Для жидкостей: 1 ч. л. = 5 мл, 1 ст. л. = 15 мл. Для продуктов в граммах значения являются оценочными и их можно уточнить.</p>`;
+ const destructive=container.querySelector('.destructive-zone');if(destructive)destructive.insertAdjacentElement('beforebegin',section);else container.querySelector('.grid').insertAdjacentElement('afterend',section);
+ const teaspoon=section.querySelector('[name="teaspoon_base_quantity"]'),tablespoon=section.querySelector('[name="tablespoon_base_quantity"]'),cup=section.querySelector('[name="cup_base_quantity"]');
+ const sync=()=>{const unit=unitControl.value,supported=unit==='г'||unit==='мл',cupName=`стакан (200 ${unit})`;section.hidden=!supported;section.querySelector('[data-measure-label="teaspoon"]').textContent=`1 ч. л. — количество, ${unit}`;section.querySelector('[data-measure-label="tablespoon"]').textContent=`1 ст. л. — количество, ${unit}`;section.querySelector('[data-measure-label="cup"]').textContent=`1 стакан — количество, ${unit}`;if(supported&&!teaspoon.value)teaspoon.value=current['ч. л.']??5;if(supported&&!tablespoon.value)tablespoon.value=current['ст. л.']??15;if(supported&&!cup.value)cup.value=current[cupName]??200};
+ sync();unitControl.addEventListener('change',sync);return section;
+};
+const productPayloadWithMeasures=form=>{const data=Object.fromEntries(new FormData(form)),unit=data.unit;data.measures=unit==='г'||unit==='мл'?[{measure_name:'ч. л.',base_quantity:data.teaspoon_base_quantity},{measure_name:'ст. л.',base_quantity:data.tablespoon_base_quantity},{measure_name:`стакан (200 ${unit})`,base_quantity:data.cup_base_quantity}]:[];delete data.teaspoon_base_quantity;delete data.tablespoon_base_quantity;delete data.cup_base_quantity;return data};
+
+const openProductEditorBeforeMeasureFields=openProductEditor;
+openProductEditor=async function(productId,data=null){
+ const measures=await api('product-measures');await openProductEditorBeforeMeasureFields(productId,data);mountProductMeasureFields($('#fields'),measures.filter(item=>item.product_id===productId));$('#form').onsubmit=async event=>{event.preventDefault();try{await api('products/'+productId,{method:'PUT',body:JSON.stringify(productPayloadWithMeasures(event.target))});$('#modal').close();await render()}catch(error){$('#form-error').textContent=error.message}};
+};
+
+const openFormBeforeProductMeasureFields=openForm;
+openForm=async function(kind){
+ await openFormBeforeProductMeasureFields(kind);if(kind!=='products')return;mountProductMeasureFields($('#fields'));$('#form').onsubmit=async event=>{event.preventDefault();try{await api('products',{method:'POST',body:JSON.stringify(productPayloadWithMeasures(event.target))});$('#modal').close();await render()}catch(error){$('#form-error').textContent=error.message}};
+};

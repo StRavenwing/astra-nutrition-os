@@ -53,7 +53,7 @@ def backup_database():
         source.backup(target)
     target.close()
     source.close()
-    for old_backup in sorted(backup_dir.glob("astra-auto-*.sqlite"))[:-20]:
+    for old_backup in sorted(BACKUP_DIR.glob("astra-auto-*.sqlite"))[:-20]:
         old_backup.unlink(missing_ok=True)
 
 
@@ -140,6 +140,50 @@ RECIPE_PREFIXES = {
 }
 
 
+def ensure_product_measures(connection, product_id, unit):
+    """Add standard household measures for one weighted or liquid product."""
+    if unit == "г":
+        measures = [
+            (product_id, "ч. л.", 5),
+            (product_id, "ст. л.", 15),
+            (product_id, "стакан (200 г)", 200),
+        ]
+    elif unit == "мл":
+        measures = [
+            (product_id, "ч. л.", 5),
+            (product_id, "ст. л.", 15),
+            (product_id, "стакан (200 мл)", 200),
+        ]
+    else:
+        measures = []
+    connection.executemany(
+        "INSERT OR IGNORE INTO product_measures "
+        "(product_id, measure_name, base_quantity) VALUES (?,?,?)",
+        measures,
+    )
+
+
+def replace_product_measures(connection, product_id, measures):
+    """Replace editable household conversions received from the product form."""
+    standard_names = ("ч. л.", "ст. л.", "стакан (200 г)", "стакан (200 мл)")
+    connection.execute(
+        "DELETE FROM product_measures WHERE product_id = ? "
+        "AND measure_name IN (?,?,?,?)",
+        (product_id, *standard_names),
+    )
+    values = []
+    for measure in measures or []:
+        name = measure.get("measure_name")
+        quantity = number(measure.get("base_quantity"))
+        if name in standard_names and quantity is not None and quantity > 0:
+            values.append((product_id, name, quantity))
+    connection.executemany(
+        "INSERT INTO product_measures "
+        "(product_id, measure_name, base_quantity) VALUES (?,?,?)",
+        values,
+    )
+
+
 def seed_product_measures(connection):
     """Fill a small, editable reference of household measures for products.
 
@@ -148,25 +192,8 @@ def seed_product_measures(connection):
     selected household measure is kept separately for a human-friendly display.
     """
     products = connection.execute("SELECT product_id, unit FROM products").fetchall()
-    measures = []
     for product in products:
-        if product["unit"] == "г":
-            measures.extend([
-                (product["product_id"], "ч. л.", 5),
-                (product["product_id"], "ст. л.", 15),
-                (product["product_id"], "стакан (200 г)", 200),
-            ])
-        elif product["unit"] == "мл":
-            measures.extend([
-                (product["product_id"], "ч. л.", 5),
-                (product["product_id"], "ст. л.", 15),
-                (product["product_id"], "стакан (200 мл)", 200),
-            ])
-
-    connection.executemany(
-        "INSERT OR IGNORE INTO product_measures (product_id, measure_name, base_quantity) VALUES (?,?,?)",
-        measures,
-    )
+        ensure_product_measures(connection, product["product_id"], product["unit"])
     # More accurate kitchen portions for the products that are used most often.
     overrides = [
         ("P-002", "ч. л.", 8), ("P-002", "ст. л.", 25),
@@ -513,6 +540,14 @@ class App(SimpleHTTPRequestHandler):
                             data.get("data_status", "Подтверждено"), data.get("note"),
                         ),
                     )
+                    if "measures" in data:
+                        replace_product_measures(
+                            connection, product_id, data.get("measures")
+                        )
+                    else:
+                        ensure_product_measures(
+                            connection, product_id, data.get("unit", "г")
+                        )
                 elif path == "/api/recipes":
                     prefix = RECIPE_PREFIXES.get(data["category"])
                     if not prefix:
@@ -811,6 +846,12 @@ class App(SimpleHTTPRequestHandler):
                 data = self.body()
                 with db() as connection:
                     connection.execute("BEGIN IMMEDIATE")
+                    existing = connection.execute(
+                        "SELECT unit FROM products WHERE product_id = ?", (product_id,)
+                    ).fetchone()
+                    if not existing:
+                        return self.send_json({"error": "Продукт не найден"}, 404)
+                    new_unit = data.get("unit", "г")
                     cursor = connection.execute(
                         """
                         UPDATE products
@@ -821,7 +862,7 @@ class App(SimpleHTTPRequestHandler):
                         WHERE product_id = ?
                         """,
                         (
-                            data["name"], data.get("category"), data.get("unit", "г"),
+                            data["name"], data.get("category"), new_unit,
                             number(data.get("package_price_rsd")),
                             number(data.get("package_size")),
                             product_unit_price(data),
@@ -833,6 +874,18 @@ class App(SimpleHTTPRequestHandler):
                     )
                     if not cursor.rowcount:
                         return self.send_json({"error": "Продукт не найден"}, 404)
+                    if "measures" in data:
+                        replace_product_measures(
+                            connection, product_id, data.get("measures")
+                        )
+                    elif existing["unit"] != new_unit:
+                        connection.execute(
+                            "DELETE FROM product_measures WHERE product_id = ? "
+                            "AND measure_name IN ('ч. л.','ст. л.','стакан (200 г)','стакан (200 мл)')",
+                            (product_id,),
+                        )
+                    if "measures" not in data:
+                        ensure_product_measures(connection, product_id, new_unit)
                 return self.send_json({"ok": True, "product_id": product_id})
             except sqlite3.IntegrityError as error:
                 return self.send_json({"error": str(error)}, 409)

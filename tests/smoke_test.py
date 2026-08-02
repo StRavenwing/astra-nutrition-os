@@ -1,6 +1,7 @@
 """Dependency-free smoke test used locally and by GitHub Actions."""
 
 import importlib
+import gc
 import json
 import os
 from pathlib import Path
@@ -8,7 +9,7 @@ import sys
 import tempfile
 import threading
 from http.server import ThreadingHTTPServer
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -16,6 +17,17 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def get(base_url, path):
     with urlopen(base_url + path, timeout=5) as response:
+        return response, response.read()
+
+
+def send_json(base_url, path, payload, method="POST"):
+    request = Request(
+        base_url + path,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method=method,
+    )
+    with urlopen(request, timeout=5) as response:
         return response, response.read()
 
 
@@ -45,6 +57,61 @@ def main():
             assert dashboard["products"] > 0
             assert dashboard["recipes"] > 0
 
+            response, _ = send_json(
+                base_url,
+                "/api/products",
+                {
+                    "name": "Соус для smoke-теста",
+                    "category": "Соусы",
+                    "unit": "мл",
+                    "protein_g": 1,
+                    "fat_g": 0,
+                    "carbs_g": 2,
+                },
+            )
+            assert response.status == 201
+            _, body = get(base_url, "/api/products")
+            created = next(
+                product for product in json.loads(body)
+                if product["name"] == "Соус для smoke-теста"
+            )
+            _, body = get(base_url, "/api/product-measures")
+            created_measures = {
+                item["measure_name"]: item["base_quantity"]
+                for item in json.loads(body)
+                if item["product_id"] == created["product_id"]
+            }
+            assert created_measures == {
+                "ч. л.": 5.0,
+                "ст. л.": 15.0,
+                "стакан (200 мл)": 200.0,
+            }
+
+            custom = dict(created)
+            custom["measures"] = [
+                {"measure_name": "ч. л.", "base_quantity": 6},
+                {"measure_name": "ст. л.", "base_quantity": 18},
+                {"measure_name": "стакан (200 мл)", "base_quantity": 240},
+            ]
+            response, _ = send_json(
+                base_url,
+                f"/api/products/{created['product_id']}",
+                custom,
+                method="PUT",
+            )
+            assert response.status == 200
+            _, body = get(base_url, "/api/product-measures")
+            custom_measures = {
+                item["measure_name"]: item["base_quantity"]
+                for item in json.loads(body)
+                if item["product_id"] == created["product_id"]
+            }
+            assert custom_measures == {
+                "ч. л.": 6.0,
+                "ст. л.": 18.0,
+                "стакан (200 мл)": 240.0,
+            }
+
             response, body = get(base_url, "/manifest.webmanifest")
             manifest = json.loads(body)
             assert response.headers.get_content_type() == "application/manifest+json"
@@ -61,7 +128,9 @@ def main():
             assert body.startswith(b"\x89PNG")
         finally:
             server.shutdown()
+            worker.join(timeout=5)
             server.server_close()
+            gc.collect()
 
     print("Astra smoke test passed")
 
