@@ -66,6 +66,18 @@ export interface ProductMeasure {
   base_quantity: number;
 }
 
+export interface ProductNutritionScanResult {
+  kcal: number | null;
+  protein_g: number | null;
+  fat_g: number | null;
+  carbs_g: number | null;
+  basis: 'per_100' | 'unknown' | string;
+  confidence: number;
+  field_confidence: Record<string, number>;
+  raw_text: string;
+  warnings: string[];
+}
+
 export interface RecipeSummary {
   id: number;
   code: string;

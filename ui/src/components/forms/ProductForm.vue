@@ -9,6 +9,10 @@ const emit = defineEmits<{ saved: []; deleted: []; cancel: [] }>();
 
 const loading = ref(false);
 const error = ref('');
+const scanning = ref(false);
+const scanMessage = ref('');
+const scanError = ref('');
+const scanInput = ref<HTMLInputElement | null>(null);
 const measures = ref<ProductMeasure[]>([]);
 const form = reactive<Record<string, string>>({
   code: 'Автоматически: P-…',
@@ -60,6 +64,21 @@ function calculateKcal() {
   form.kcal = ((Number(form.protein_g) || 0) * 4 + (Number(form.fat_g) || 0) * 9 + (Number(form.carbs_g) || 0) * 4)
     .toFixed(2)
     .replace(/\.00$/, '');
+}
+
+function scanValue(value: number | null) {
+  if (value == null) return '';
+  return String(Number(value.toFixed(2)));
+}
+
+function scanSummary() {
+  const values = [
+    form.kcal ? `${form.kcal} ккал` : '',
+    form.protein_g ? `${form.protein_g} Б` : '',
+    form.fat_g ? `${form.fat_g} Ж` : '',
+    form.carbs_g ? `${form.carbs_g} У` : ''
+  ].filter(Boolean);
+  return values.length ? values.join(' · ') : 'Значения не найдены';
 }
 
 watch(() => [form.package_price_rsd, form.package_size, form.unit], calculatePrice);
@@ -124,6 +143,35 @@ async function save() {
   }
 }
 
+async function scanNutrition(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  if (!file) return;
+
+  scanError.value = '';
+  scanMessage.value = '';
+  scanning.value = true;
+  try {
+    const result = await api.scanProductNutrition(file);
+    if (result.kcal != null) {
+      form.kcal = scanValue(result.kcal);
+      automaticKcal = false;
+    }
+    if (result.protein_g != null) form.protein_g = scanValue(result.protein_g);
+    if (result.fat_g != null) form.fat_g = scanValue(result.fat_g);
+    if (result.carbs_g != null) form.carbs_g = scanValue(result.carbs_g);
+    if (result.kcal == null) calculateKcal();
+    form.data_status = 'Оценка';
+    scanMessage.value = `${scanSummary()} · ${Math.round(result.confidence * 100)}%`;
+    if (result.warnings.length) scanMessage.value += ` · ${result.warnings[0]}`;
+  } catch (err) {
+    scanError.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    scanning.value = false;
+    input.value = '';
+  }
+}
+
 async function remove() {
   if (!props.productId || !confirm('Удалить продукт? Это действие нельзя отменить.')) return;
   error.value = '';
@@ -140,6 +188,28 @@ async function remove() {
   <form class="modal-form-body" @submit.prevent="save">
     <div v-if="loading" class="panel">Загрузка…</div>
     <template v-else>
+      <section v-if="!props.productId" class="product-scan-fields">
+        <div class="product-scan-head">
+          <div>
+            <p class="eyebrow">СКАН УПАКОВКИ</p>
+            <h3>КБЖУ с этикетки</h3>
+          </div>
+          <button type="button" class="scan-button" :disabled="scanning" @click="scanInput?.click()">
+            {{ scanning ? 'Сканирование…' : 'Выбрать фото' }}
+          </button>
+        </div>
+        <input
+          ref="scanInput"
+          class="product-scan-input"
+          type="file"
+          accept="image/*"
+          capture="environment"
+          @change="scanNutrition"
+        >
+        <p v-if="scanMessage" class="scan-status">{{ scanMessage }}</p>
+        <p v-if="scanError" class="scan-status error">{{ scanError }}</p>
+      </section>
+
       <div class="grid">
         <div class="field"><label>ID продукта</label><input v-model="form.code" readonly tabindex="-1"></div>
         <div class="field"><label>Название</label><input v-model="form.name" required></div>
@@ -187,5 +257,55 @@ async function remove() {
 <style lang="scss">
 .modal-form-body {
   margin: 0;
+}
+
+.product-scan-fields {
+  margin-bottom: 17px;
+  padding: 14px;
+  border: 1px solid #b9d8ce;
+  border-radius: 13px;
+  background: #f5fbf8;
+}
+
+.product-scan-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+
+  h3 {
+    margin: 0;
+    font-size: 15px;
+  }
+}
+
+.product-scan-input {
+  display: none;
+}
+
+.scan-button {
+  border: 0;
+  border-radius: 8px;
+  background: #176f5c;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 9px 13px;
+
+  &:disabled {
+    cursor: wait;
+    opacity: .72;
+  }
+}
+
+.scan-status {
+  color: #246554;
+  font-size: 12px;
+  font-weight: 700;
+  margin: 10px 0 0;
+
+  &.error {
+    color: #c43b3b;
+  }
 }
 </style>

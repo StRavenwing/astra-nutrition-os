@@ -6,6 +6,7 @@ import type {
   Exercise,
   Product,
   ProductMeasure,
+  ProductNutritionScanResult,
   ProgressEntry,
   RecipeDetail,
   RecipeSummary,
@@ -33,7 +34,9 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  headers.set('Content-Type', headers.get('Content-Type') || 'application/json');
+  if (!(init.body instanceof FormData)) {
+    headers.set('Content-Type', headers.get('Content-Type') || 'application/json');
+  }
   const token = getAccessToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
 
@@ -76,6 +79,14 @@ export const api = {
   logout: () => write<{ ok: boolean }>('POST', 'auth/logout'),
   dashboard: () => request<DashboardResponse>('dashboard'),
   products: () => request<Product[]>('products'),
+  scanProductNutrition: (file: File) => {
+    const body = new FormData();
+    body.append('image', file);
+    return request<ProductNutritionScanResult>('products/scan-nutrition-label', {
+      method: 'POST',
+      body
+    });
+  },
   productMeasures: () => request<ProductMeasure[]>('product-measures'),
   recipes: () => request<RecipeSummary[]>('recipes'),
   recipe: (id: number) => request<RecipeDetail>(`recipes/${id}`),

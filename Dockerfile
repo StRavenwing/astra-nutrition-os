@@ -18,11 +18,14 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY requirements.txt ./
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
 RUN groupadd --system astra \
     && useradd --system --gid astra --home-dir /app astra \
-    && mkdir -p /app/.data \
+    && mkdir -p /app/.data/ocr-models \
     && chown astra:astra /app/.data
 
 COPY --chown=astra:astra . .

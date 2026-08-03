@@ -31,6 +31,18 @@ class ProductInput(BaseModel):
     measures: list[ProductMeasureInput] | None = None
 
 
+class ProductNutritionScanResult(BaseModel):
+    kcal: float | None = None
+    protein_g: float | None = None
+    fat_g: float | None = None
+    carbs_g: float | None = None
+    basis: str
+    confidence: float
+    field_confidence: dict[str, float]
+    raw_text: str
+    warnings: list[str] = Field(default_factory=list)
+
+
 class RecipeIngredientInput(BaseModel):
     product_id: int
     quantity: Any = None

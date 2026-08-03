@@ -13,6 +13,7 @@
 - Изоляция дневника, прогресса и тренировок по активному пользователю.
 - Установка как отдельного приложения (PWA) с фирменной иконкой на ноутбук или экран телефона.
 - Каталог продуктов с КБЖУ и ценами.
+- Сканирование КБЖУ с фото упаковки продукта с ручной проверкой перед сохранением.
 - Рецепты с категориями, версиями и статусами.
 - Интерактивные карточки типов рецептов с мгновенной фильтрацией каталога.
 - Плиточный каталог рецептов и фотокарточки категорий.
@@ -42,6 +43,8 @@
 5. Чтобы остановить приложение, нажмите `Ctrl+C` в окне сервера.
 
 `start.bat` устанавливает Python-зависимости из `requirements.txt`, устанавливает зависимости UI через `npm --prefix ui ci`, собирает Vue-приложение в `ui/dist`, затем запускает FastAPI backend.
+
+Сканирование КБЖУ работает локально через PaddleOCR на CPU. При первом запуске модели `PP-OCRv6_small_det` и `PP-OCRv6_small_rec` могут скачиваться в `.data/ocr-models`, поэтому первый скан занимает больше времени и требует доступа к источнику моделей.
 
 При первом запуске новая версия автоматически переносит legacy SQLite-схему в нормализованную схему с внутренними числовыми ID и видимыми кодами `P-001`, `M-001`, `EX-001`. Все существующие записи дневника, прогресса и тренировок назначаются admin-пользователю из `.env`. Перед миграцией существующей базы создаётся backup в `ASTRA_BACKUP_DIR`.
 
@@ -147,6 +150,68 @@ docker compose -f ci/docker-compose.yml up --build -d
 docker compose -f ci/docker-compose.yml down
 ```
 
+## Обновление на удалённом сервере через Docker Compose
+
+Эти шаги рассчитаны на сервер, где предыдущая версия уже запущена через `ci/docker-compose.yml`, а SQLite-база хранится в папке `.data/`.
+
+1. Подключитесь к серверу и перейдите в папку проекта:
+
+```bash
+ssh user@server
+cd /path/to/astra-nutrition-os
+```
+
+2. Сделайте ручную резервную копию данных перед обновлением:
+
+```bash
+mkdir -p .data/manual-backups
+cp .data/Astra_Nutrition_OS_v7.sqlite ".data/manual-backups/Astra_Nutrition_OS_v7.$(date +%Y%m%d-%H%M%S).sqlite"
+```
+
+3. Обновите код до нужной версии:
+
+```bash
+git fetch --all --prune
+git pull --ff-only
+```
+
+Если разворачиваете конкретный релиз или commit, вместо `git pull --ff-only` выполните `git checkout <tag-or-commit>`.
+
+4. Проверьте `.env`. Для уже работающего сервера обычно достаточно оставить текущие значения `ASTRA_ADMIN_EMAIL`, `ASTRA_ADMIN_PASSWORD`, `ASTRA_AUTH_SECRET`, `ASTRA_PUBLIC_BASE_URL` и `ASTRA_PORT`. Если включена новая OCR-функция, первый скан может скачать модели в `.data/ocr-models`.
+
+5. Пересоберите образ и перезапустите контейнер:
+
+```bash
+docker compose -f ci/docker-compose.yml up --build -d
+```
+
+`docker compose` пересоздаст контейнер `astra-nutrition-os`, но сохранит данные, потому что `.data` смонтирована как volume в `/app/.data`.
+
+6. Проверьте статус, health endpoint и логи:
+
+```bash
+docker compose -f ci/docker-compose.yml ps
+curl -f http://127.0.0.1:${ASTRA_PORT:-8787}/api/health
+docker compose -f ci/docker-compose.yml logs --tail=100 astra
+```
+
+7. Если сервер стоит за reverse proxy, проверьте внешний адрес из `ASTRA_PUBLIC_BASE_URL` в браузере. Для MCP/OAuth production-адрес должен быть HTTPS и совпадать с публичным URL приложения.
+
+Откат к предыдущей версии:
+
+```bash
+git checkout <previous-tag-or-commit>
+docker compose -f ci/docker-compose.yml up --build -d
+```
+
+Если после обновления повредилась база или нужно вернуть данные на момент до обновления, остановите контейнер и восстановите файл из `.data/manual-backups/`:
+
+```bash
+docker compose -f ci/docker-compose.yml down
+cp .data/manual-backups/<backup-file>.sqlite .data/Astra_Nutrition_OS_v7.sqlite
+docker compose -f ci/docker-compose.yml up -d
+```
+
 ## Установка на рабочий стол
 
 ### Windows или macOS
@@ -230,6 +295,7 @@ docker run -d --name astra -p 8787:8787 -v astra-data:/app/.data ghcr.io/straven
 | `GET` | `/api/v1/auth/me` | текущий пользователь |
 | `GET` | `/api/v1/dashboard` | KPI для главной страницы |
 | `GET/POST` | `/api/v1/products` | продукты с вложенными `measures` |
+| `POST` | `/api/v1/products/scan-nutrition-label` | распознавание КБЖУ с фото упаковки продукта |
 | `GET` | `/api/v1/product-measures` | плоский справочник мер продуктов |
 | `GET/POST` | `/api/v1/recipes` | рецепты |
 | `GET` | `/api/v1/recipes/{id}` | карточка рецепта и ингредиенты |
