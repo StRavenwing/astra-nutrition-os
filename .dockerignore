@@ -2,12 +2,15 @@
 .github
 __pycache__/
 *.py[cod]
+ui/node_modules/
+ui/dist/
+.data/
 *.sqlite
 *.sqlite-*
 data-backups/
 docs/
 .idea/
 .vscode/
+.env
 .DS_Store
 Thumbs.db
-

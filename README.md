@@ -2,15 +2,18 @@
 
 [![Astra CI/CD](https://github.com/StRavenwing/astra-nutrition-os/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/StRavenwing/astra-nutrition-os/actions/workflows/ci-cd.yml)
 
-Локальный трекер питания и тренировок с веб-интерфейсом, SQLite-базой и Excel-книгой.
+Локальный трекер питания и тренировок с Vue-интерфейсом, FastAPI backend, Peewee ORM и SQLite-базой.
 
 Проект помогает хранить продукты и рецепты, автоматически считать КБЖУ и стоимость порций, вести дневник питания, замеры тела и журнал тренировок.
 
 ## Возможности
 
 - Dashboard с ключевыми показателями.
+- Регистрация и вход по email/паролю.
+- Изоляция дневника, прогресса и тренировок по активному пользователю.
 - Установка как отдельного приложения (PWA) с фирменной иконкой на ноутбук или экран телефона.
 - Каталог продуктов с КБЖУ и ценами.
+- Сканирование КБЖУ с фото упаковки продукта с ручной проверкой перед сохранением.
 - Рецепты с категориями, версиями и статусами.
 - Интерактивные карточки типов рецептов с мгновенной фильтрацией каталога.
 - Плиточный каталог рецептов и фотокарточки категорий.
@@ -27,17 +30,187 @@
 - Календарь питания по месяцам и дням с группировкой приёмов пищи и итоговыми КБЖУ.
 - Добавление новых продуктов, рецептов, записей дневника, замеров и тренировок.
 - Удаление рецептов, записей дневника и замеров прогресса с подтверждением.
+- MCP Streamable HTTP сервер для AI-клиентов с OAuth и tools модуля рецептов.
 - Автоматическая генерация ID продуктов, рецептов и упражнений; внутренние ID записей создаёт SQLite.
 - Готовые SQLite, SQL и Excel-версии данных.
 
 ## Быстрый запуск на Windows
 
-1. Установите [Python 3](https://www.python.org/downloads/), если он ещё не установлен.
-2. Дважды щёлкните `start.bat`.
-3. Откройте <http://127.0.0.1:8787/>. Обычно страница откроется автоматически.
-4. Чтобы остановить приложение, нажмите `Ctrl+C` в окне сервера.
+1. Установите [Python 3](https://www.python.org/downloads/) и [Node.js LTS](https://nodejs.org/), если они ещё не установлены.
+2. Создайте `.env` по примеру `.env.example` и задайте `ASTRA_ADMIN_EMAIL`, `ASTRA_ADMIN_PASSWORD`, `ASTRA_AUTH_SECRET`.
+3. Дважды щёлкните `start.bat`.
+4. Откройте <http://127.0.0.1:8787/>. Обычно страница откроется автоматически.
+5. Чтобы остановить приложение, нажмите `Ctrl+C` в окне сервера.
 
-Дополнительные библиотеки не требуются: приложение использует только стандартную библиотеку Python.
+`start.bat` устанавливает Python-зависимости из `requirements.txt`, устанавливает зависимости UI через `npm --prefix ui ci`, собирает Vue-приложение в `ui/dist`, затем запускает FastAPI backend.
+
+Сканирование КБЖУ работает локально через PaddleOCR на CPU. При первом запуске модели `PP-OCRv6_small_det` и `PP-OCRv6_small_rec` могут скачиваться в `.data/ocr-models`, поэтому первый скан занимает больше времени и требует доступа к источнику моделей.
+
+При первом запуске новая версия автоматически переносит legacy SQLite-схему в нормализованную схему с внутренними числовыми ID и видимыми кодами `P-001`, `M-001`, `EX-001`. Все существующие записи дневника, прогресса и тренировок назначаются admin-пользователю из `.env`. Перед миграцией существующей базы создаётся backup в `ASTRA_BACKUP_DIR`.
+
+## Авторизация
+
+Обязательные переменные:
+
+```bash
+cp .env.example .env
+```
+
+После этого задайте реальные значения:
+
+- `ASTRA_ADMIN_EMAIL` — email admin-пользователя.
+- `ASTRA_ADMIN_PASSWORD` — пароль admin-пользователя, минимум 8 символов.
+- `ASTRA_AUTH_SECRET` — длинный случайный секрет для подписи JWT.
+- `ASTRA_ACCESS_TOKEN_MINUTES` — срок действия токена, по умолчанию 10080 минут.
+- `ASTRA_PUBLIC_BASE_URL` — публичный base URL приложения. Для ChatGPT/MCP в production должен быть HTTPS-адресом, например `https://astra.example.com`.
+- `ASTRA_MCP_ACCESS_TOKEN_MINUTES` — срок действия MCP access token, по умолчанию 60 минут.
+- `ASTRA_MCP_REFRESH_TOKEN_DAYS` — срок действия MCP refresh token, по умолчанию 30 дней.
+- `ASTRA_MCP_AUTH_CODE_MINUTES` — срок действия OAuth authorization code, по умолчанию 5 минут.
+
+Admin из `.env` может менять общие справочники продуктов, рецептов и упражнений. Обычные пользователи могут читать справочники и вести только свои дневник, прогресс и тренировки.
+
+## MCP и OAuth
+
+MCP endpoint доступен по `POST/GET /mcp` и использует Streamable HTTP. Для подключения ChatGPT или другого remote MCP-клиента сервер должен быть опубликован по HTTPS, а `ASTRA_PUBLIC_BASE_URL` должен совпадать с внешним адресом без завершающего `/`.
+
+OAuth endpoints:
+
+| Метод | Адрес | Назначение |
+|---|---|---|
+| `GET` | `/.well-known/oauth-authorization-server` | OAuth authorization server metadata |
+| `GET` | `/.well-known/oauth-protected-resource/mcp` | protected resource metadata для MCP |
+| `POST` | `/oauth/register` | Dynamic Client Registration |
+| `GET` | `/oauth/authorize` | authorization-code + PKCE старт |
+| `GET/POST` | `/oauth/login` | вход пользователя и выдача authorization code |
+| `POST` | `/oauth/token` | exchange authorization code или refresh token |
+| `POST` | `/oauth/revoke` | отзыв refresh token |
+
+Scopes:
+
+- `recipes:read` — `recipes.search`, `recipes.get`.
+- `recipes:write` — `recipes.create`, `recipes.update`, `recipes.delete`; дополнительно требуется admin-пользователь.
+
+В первом релизе MCP поддерживает только tools модуля рецептов. Остальные модули остаются доступны через REST API и будут добавляться в MCP отдельно.
+
+## Разработка Backend
+
+Первичная установка зависимостей:
+
+```bash
+cp .env.example .env
+python -m pip install -r requirements-dev.txt
+```
+
+Запуск API и собранного UI:
+
+```bash
+python server.py
+```
+
+Проверки backend:
+
+```bash
+python -m compileall server.py backend tests
+python -m pytest tests/test_migration.py
+python -m pytest tests/test_mcp_oauth.py
+python tests/smoke_test.py
+```
+
+## Разработка UI
+
+Первичная установка зависимостей:
+
+```bash
+npm --prefix ui ci
+```
+
+Запуск Vite dev server с proxy на локальный FastAPI backend:
+
+```bash
+npm --prefix ui run dev
+```
+
+Production-сборка, которую отдаёт `server.py`:
+
+```bash
+npm --prefix ui run build
+```
+
+## Запуск через Docker Compose
+
+```bash
+docker compose -f ci/docker-compose.yml up --build -d
+```
+
+Перед запуском задайте `.env` по примеру `.env.example`. После запуска откройте <http://127.0.0.1:8787/>. Данные SQLite и резервные копии хранятся в локальной папке `.data/`.
+
+Чтобы остановить контейнер без удаления данных:
+
+```bash
+docker compose -f ci/docker-compose.yml down
+```
+
+## Обновление на удалённом сервере через Docker Compose
+
+Эти шаги рассчитаны на сервер, где предыдущая версия уже запущена через `ci/docker-compose.yml`, а SQLite-база хранится в папке `.data/`.
+
+1. Подключитесь к серверу и перейдите в папку проекта:
+
+```bash
+ssh user@server
+cd /path/to/astra-nutrition-os
+```
+
+2. Сделайте ручную резервную копию данных перед обновлением:
+
+```bash
+mkdir -p .data/manual-backups
+cp .data/Astra_Nutrition_OS_v7.sqlite ".data/manual-backups/Astra_Nutrition_OS_v7.$(date +%Y%m%d-%H%M%S).sqlite"
+```
+
+3. Обновите код до нужной версии:
+
+```bash
+git fetch --all --prune
+git pull --ff-only
+```
+
+Если разворачиваете конкретный релиз или commit, вместо `git pull --ff-only` выполните `git checkout <tag-or-commit>`.
+
+4. Проверьте `.env`. Для уже работающего сервера обычно достаточно оставить текущие значения `ASTRA_ADMIN_EMAIL`, `ASTRA_ADMIN_PASSWORD`, `ASTRA_AUTH_SECRET`, `ASTRA_PUBLIC_BASE_URL` и `ASTRA_PORT`. Если включена новая OCR-функция, первый скан может скачать модели в `.data/ocr-models`.
+
+5. Пересоберите образ и перезапустите контейнер:
+
+```bash
+docker compose -f ci/docker-compose.yml up --build -d
+```
+
+`docker compose` пересоздаст контейнер `astra-nutrition-os`, но сохранит данные, потому что `.data` смонтирована как volume в `/app/.data`.
+
+6. Проверьте статус, health endpoint и логи:
+
+```bash
+docker compose -f ci/docker-compose.yml ps
+curl -f http://127.0.0.1:${ASTRA_PORT:-8787}/api/health
+docker compose -f ci/docker-compose.yml logs --tail=100 astra
+```
+
+7. Если сервер стоит за reverse proxy, проверьте внешний адрес из `ASTRA_PUBLIC_BASE_URL` в браузере. Для MCP/OAuth production-адрес должен быть HTTPS и совпадать с публичным URL приложения.
+
+Откат к предыдущей версии:
+
+```bash
+git checkout <previous-tag-or-commit>
+docker compose -f ci/docker-compose.yml up --build -d
+```
+
+Если после обновления повредилась база или нужно вернуть данные на момент до обновления, остановите контейнер и восстановите файл из `.data/manual-backups/`:
+
+```bash
+docker compose -f ci/docker-compose.yml down
+cp .data/manual-backups/<backup-file>.sqlite .data/Astra_Nutrition_OS_v7.sqlite
+docker compose -f ci/docker-compose.yml up -d
+```
 
 ## Установка на рабочий стол
 
@@ -57,41 +230,51 @@
 1. Откройте опубликованный HTTPS-адрес Astra в Safari.
 2. Нажмите **«Поделиться»** → **«На экран Домой»**.
 
-Локальный адрес `127.0.0.1` доступен только на том компьютере, где запущен сервер. Для установки на телефон приложение нужно отдельно опубликовать по HTTPS; простой GitHub Pages для текущей версии не подходит, потому что ей необходим Python API и SQLite.
+Локальный адрес `127.0.0.1` доступен только на том компьютере, где запущен сервер. Для установки на телефон и подключения ChatGPT к MCP приложение нужно отдельно опубликовать по HTTPS; простой GitHub Pages для текущей версии не подходит, потому что ей необходим Python API и SQLite.
 
 ## CI/CD через GitHub Actions
 
 Workflow `.github/workflows/ci-cd.yml` автоматически выполняется при pull request, push в `main`, теге вида `v1.0.0` и ручном запуске:
 
-1. Проверяет синтаксис Python и JavaScript.
-2. Создаёт временную чистую SQLite-базу из публичного SQL-шаблона.
-3. Запускает сервер и проверяет API, PWA-манифест, service worker и иконку.
-4. Проверяет сборку Docker-контейнера.
-5. После успешного push в `main` публикует контейнер в GitHub Container Registry с тегами `latest` и `sha-…`.
+1. Устанавливает Python-зависимости.
+2. Проверяет синтаксис Python.
+3. Проверяет миграцию legacy SQLite в нормализованную схему.
+4. Устанавливает зависимости UI, запускает typecheck и собирает Vue/Vite frontend.
+5. Проверяет API, PWA-манифест, service worker, root HTML и иконку через FastAPI smoke test.
+6. Проверяет сборку Docker-контейнера.
+7. После успешного push в `main` публикует контейнер в GitHub Container Registry с тегами `latest` и `sha-…`.
 
 Личная SQLite-база в контейнер не попадает. При запуске опубликованного образа данные нужно хранить в отдельном Docker volume:
 
 ```bash
-docker run -d --name astra -p 8787:8787 -v astra-data:/data ghcr.io/stravenwing/astra-nutrition-os:latest
+docker run -d --name astra -p 8787:8787 -v astra-data:/app/.data ghcr.io/stravenwing/astra-nutrition-os:latest
 ```
 
-Для доступа из интернета контейнер необходимо разместить у хостинг-провайдера и закрыть HTTPS и авторизацией.
+Для доступа из интернета контейнер необходимо разместить у хостинг-провайдера и закрыть HTTPS.
+Для подключения MCP из ChatGPT укажите внешний HTTPS-адрес в `ASTRA_PUBLIC_BASE_URL`; OAuth metadata и protected resource metadata публикуются на его основе.
 
 ## Структура проекта
 
 ```text
 .
-├── server.py                         # локальный HTTP-сервер и REST API
-├── index.html                        # интерфейс
-├── app.js                            # логика интерфейса
-├── styles.css                        # основные стили
-├── styles-extra.css                  # стили таблиц, сортировки и popup
-├── manifest.webmanifest              # параметры установки PWA
-├── service-worker.js                 # кэш интерфейса приложения
+├── server.py                         # совместимый entrypoint, запускает FastAPI/Uvicorn
+├── backend/                          # FastAPI routers, Peewee models, services, migrations
+├── requirements.txt                  # runtime Python dependencies
+├── requirements-dev.txt              # test/development Python dependencies
+├── ui/                               # Vue 3 + TypeScript + Vite интерфейс
+│   ├── index.html                    # HTML entrypoint Vite
+│   ├── package.json                  # зависимости и scripts UI
+│   ├── public/
+│   │   ├── manifest.webmanifest      # параметры установки PWA
+│   │   ├── service-worker.js         # кэш интерфейса приложения
+│   │   └── assets/                   # иконки и спрайты категорий
+│   └── src/                          # компоненты, views, forms, API-клиент
 ├── Dockerfile                         # production-контейнер
+├── ci/
+│   └── docker-compose.yml             # локальный запуск через Docker Compose
 ├── tests/smoke_test.py                # проверка API и PWA
+├── tests/test_migration.py            # проверка миграции SQLite
 ├── .github/workflows/ci-cd.yml        # CI/CD GitHub Actions
-├── assets/app-icon-*.png             # иконки приложения
 ├── Astra_Nutrition_OS_v7.sqlite      # локальная SQLite-база (не публикуется в Git)
 ├── database/
 │   └── Astra_Nutrition_OS_v7.sql     # SQL-дамп структуры и данных
@@ -105,14 +288,24 @@ docker run -d --name astra -p 8787:8787 -v astra-data:/data ghcr.io/stravenwing/
 
 | Метод | Адрес | Назначение |
 |---|---|---|
-| `GET` | `/api/dashboard` | KPI для главной страницы |
-| `GET/POST` | `/api/products` | продукты |
-| `GET/POST` | `/api/recipes` | рецепты |
-| `GET` | `/api/recipes/{id}` | карточка рецепта и ингредиенты |
-| `GET/POST` | `/api/diary` | дневник питания |
-| `GET/POST` | `/api/progress` | замеры и прогресс |
-| `GET/POST` | `/api/workouts` | журнал тренировок |
-| `GET` | `/api/exercises` | справочник упражнений |
+| `GET` | `/api/health` | health check |
+| `POST` | `/api/v1/auth/register` | регистрация пользователя |
+| `POST` | `/api/v1/auth/login` | вход, возвращает Bearer JWT |
+| `POST` | `/api/v1/auth/logout` | stateless logout |
+| `GET` | `/api/v1/auth/me` | текущий пользователь |
+| `GET` | `/api/v1/dashboard` | KPI для главной страницы |
+| `GET/POST` | `/api/v1/products` | продукты с вложенными `measures` |
+| `POST` | `/api/v1/products/scan-nutrition-label` | распознавание КБЖУ с фото упаковки продукта |
+| `GET` | `/api/v1/product-measures` | плоский справочник мер продуктов |
+| `GET/POST` | `/api/v1/recipes` | рецепты |
+| `GET` | `/api/v1/recipes/{id}` | карточка рецепта и ингредиенты |
+| `GET/POST` | `/api/v1/diary` | дневник питания |
+| `GET/POST` | `/api/v1/progress` | замеры и прогресс |
+| `GET/POST` | `/api/v1/workouts` | журнал тренировок |
+| `GET/POST` | `/api/v1/exercises` | справочник упражнений |
+| `POST/GET` | `/mcp` | MCP Streamable HTTP endpoint для AI-клиентов |
+
+Все `/api/v1/*`, кроме `auth/register` и `auth/login`, требуют заголовок `Authorization: Bearer <token>`. Изменение продуктов, рецептов и упражнений доступно только admin.
 
 ## ID рецептов
 
@@ -129,4 +322,4 @@ docker run -d --name astra -p 8787:8787 -v astra-data:/data ghcr.io/stravenwing/
 
 ## Важно
 
-Локальная версия не содержит авторизации, а сервер слушает только `127.0.0.1`; не открывайте его напрямую в интернет. SQLite-файл с персональными данными исключён из Git. Перед публикацией приложения для телефона потребуется защищённый сервер с HTTPS и авторизацией.
+Сервер по умолчанию слушает только `127.0.0.1`. SQLite-файл с персональными данными исключён из Git. Перед публикацией приложения для телефона потребуется защищённый сервер с HTTPS.

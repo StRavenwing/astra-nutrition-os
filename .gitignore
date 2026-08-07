@@ -1,9 +1,15 @@
 __pycache__/
 *.py[cod]
+.pytest_cache/
+ui/node_modules/
+ui/dist/
+ui/node_modules/.cache/
+ui/*.tsbuildinfo
 *.sqlite-journal
 *.sqlite-shm
 *.sqlite-wal
 # Personal runtime data. The app recreates a local database from the public SQL template.
+.data/
 Astra_Nutrition_OS_v7.sqlite
 docs/Astra_Nutrition_OS_v7.xlsx
 data-backups/
@@ -11,3 +17,4 @@ data-backups/
 Thumbs.db
 .idea/
 .vscode/
+.env
