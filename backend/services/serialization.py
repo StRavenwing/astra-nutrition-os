@@ -133,6 +133,12 @@ def serialize_recipe_summary(recipe: Recipe) -> dict:
         "manual_protein_per_serving_g": recipe.manual_protein_per_serving_g,
         "manual_fat_per_serving_g": recipe.manual_fat_per_serving_g,
         "manual_carbs_per_serving_g": recipe.manual_carbs_per_serving_g,
+        "collection": "local" if recipe.owner_id is not None else "common",
+        "owner_id": recipe.owner_id,
+        "submission_requested": bool(recipe.submission_requested),
+        "moderation_status": recipe.moderation_status,
+        "moderation_note": recipe.moderation_note,
+        "submitted_by_id": recipe.submitted_by_id,
         **recipe_totals(recipe),
     }
 

@@ -41,7 +41,7 @@ const isAdmin = computed(() => Boolean(currentUser.value?.is_admin));
 const activeUser = computed(() => currentUser.value as AuthUser);
 const canAdd = computed(() => {
   if (currentPage.value === 'dashboard') return false;
-  if (currentPage.value === 'products' || currentPage.value === 'recipes') return isAdmin.value;
+  if (currentPage.value === 'products') return isAdmin.value;
   return true;
 });
 const modalTitle = computed(() => {
@@ -94,7 +94,6 @@ function openRecipe(id: number) {
 }
 
 function editRecipe(id: number) {
-  if (!isAdmin.value) return;
   recipeDetailId.value = null;
   modal.value = { kind: 'recipes', id };
 }
@@ -168,7 +167,7 @@ onBeforeUnmount(() => {
   >
     <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" @navigate="navigate" @open-recipe="openRecipe" />
     <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" @edit="modal = { kind: 'products', id: $event }" />
-    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" @open-recipe="openRecipe" />
+    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" @open-recipe="openRecipe" />
     <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" @edit="modal = { kind: 'diary', id: $event }" />
     <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" @edit="modal = { kind: 'progress', id: $event }" />
     <WorkoutsView
@@ -181,7 +180,7 @@ onBeforeUnmount(() => {
     />
   </AppShell>
 
-  <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" />
+  <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
   <ExerciseManagerModal v-if="isAdmin" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @changed="refresh" />
 
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">

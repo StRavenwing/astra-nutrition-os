@@ -68,6 +68,11 @@ class RecipeInput(BaseModel):
     ingredients: list[RecipeIngredientInput] = Field(default_factory=list)
 
 
+class RecipeModerationInput(BaseModel):
+    action: str
+    note: str | None = None
+
+
 class DiaryItemInput(BaseModel):
     meal_type: str | None = None
     recipe_id: int | None = None

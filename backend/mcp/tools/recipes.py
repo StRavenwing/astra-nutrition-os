@@ -86,9 +86,9 @@ def register_recipe_tools(mcp: FastMCP) -> None:
         limit: int = 20,
         include_archived: bool = False,
     ) -> list[dict[str, Any]]:
-        require_mcp_user("recipes:read")
+        current_user = require_mcp_user("recipes:read")
         max_items = min(max(int(limit or 20), 1), 100)
-        recipes = list_recipes()
+        recipes = list_recipes(current_user)
         if not include_archived:
             recipes = [recipe for recipe in recipes if recipe.get("status") != "Archived"]
         if query:
@@ -114,9 +114,9 @@ def register_recipe_tools(mcp: FastMCP) -> None:
         structured_output=True,
     )
     def recipes_get(id: int | None = None, code: str | None = None) -> dict[str, Any]:
-        require_mcp_user("recipes:read")
+        current_user = require_mcp_user("recipes:read")
         recipe = _find_recipe(id=id, code=code)
-        return get_recipe_detail(recipe.id)
+        return get_recipe_detail(recipe.id, current_user)
 
     @mcp.tool(
         name="recipes.create",
@@ -183,7 +183,7 @@ def register_recipe_tools(mcp: FastMCP) -> None:
         manual_carbs_per_serving_g: float | None = None,
         ingredients: list[dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
-        require_mcp_user("recipes:write", admin=True)
+        current_user = require_mcp_user("recipes:write", admin=True)
         recipe = _find_recipe(id=id, code=code)
         updates = {
             "category": category,
@@ -199,10 +199,10 @@ def register_recipe_tools(mcp: FastMCP) -> None:
             "manual_fat_per_serving_g": manual_fat_per_serving_g,
             "manual_carbs_per_serving_g": manual_carbs_per_serving_g,
         }
-        payload = _recipe_update_payload(get_recipe_detail(recipe.id), updates)
+        payload = _recipe_update_payload(get_recipe_detail(recipe.id, current_user), updates)
         if ingredients is not None:
             payload["ingredients"] = ingredients
-        return update_recipe(recipe.id, payload)
+        return update_recipe(recipe.id, payload, current_user)
 
     @mcp.tool(
         name="recipes.delete",
@@ -212,6 +212,6 @@ def register_recipe_tools(mcp: FastMCP) -> None:
         structured_output=True,
     )
     def recipes_delete(id: int | None = None, code: str | None = None) -> dict[str, Any]:
-        require_mcp_user("recipes:write", admin=True)
+        current_user = require_mcp_user("recipes:write", admin=True)
         recipe = _find_recipe(id=id, code=code)
-        return delete_recipe(recipe.id)
+        return delete_recipe(recipe.id, current_user)

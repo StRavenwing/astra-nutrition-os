@@ -23,6 +23,13 @@ def get_diary_entry(entry_id: int, user: User) -> DiaryEntry:
     return entry
 
 
+def _recipe_available(recipe_id: int, user: User) -> bool:
+    return Recipe.select().where(
+        (Recipe.id == recipe_id)
+        & ((Recipe.owner.is_null(True)) | (Recipe.owner == user))
+    ).exists()
+
+
 def _create_entry(entry_date: str, item: dict, user: User) -> DiaryEntry:
     shown_quantity = shown_measure = None
     quantity = number(item.get("quantity"))
@@ -37,7 +44,7 @@ def _create_entry(entry_date: str, item: dict, user: User) -> DiaryEntry:
         )
         recipe_id = None
     elif recipe_id:
-        if Recipe.get_or_none(Recipe.id == recipe_id) is None:
+        if not _recipe_available(recipe_id, user):
             raise NotFoundError("Рецепт не найден")
         product_id = None
     else:
@@ -83,7 +90,7 @@ def update_diary_entry(entry_id: int, data: dict, user: User) -> dict:
                 data.get("measurement_name"),
             )
             recipe_id = None
-        elif recipe_id and Recipe.get_or_none(Recipe.id == recipe_id) is None:
+        elif recipe_id and not _recipe_available(recipe_id, user):
             raise NotFoundError("Рецепт не найден")
 
         entry.entry_date = data["entry_date"]

@@ -189,7 +189,7 @@ def test_migrates_legacy_template_to_normalized_schema(tmp_path) -> None:
         assert Product.select().count() == expected["products"]
         assert Recipe.select().count() == expected["recipes"]
         assert Exercise.select().count() == expected["exercises"]
-        assert AppMeta.get(AppMeta.key == "schema_version").value == "4"
+        assert AppMeta.get(AppMeta.key == "schema_version").value == "6"
         assert OAuthClient.select().count() == 0
         assert OAuthPendingAuthorization.select().count() == 0
         assert OAuthAuthorizationCode.select().count() == 0
@@ -236,7 +236,7 @@ def test_migrates_v2_database_to_user_scoped_schema(tmp_path) -> None:
     try:
         admin = User.get(User.email == "admin@example.com")
         assert admin.is_admin is True
-        assert AppMeta.get(AppMeta.key == "schema_version").value == "4"
+        assert AppMeta.get(AppMeta.key == "schema_version").value == "6"
         assert OAuthClient.select().count() == 0
         assert OAuthPendingAuthorization.select().count() == 0
         assert OAuthAuthorizationCode.select().count() == 0

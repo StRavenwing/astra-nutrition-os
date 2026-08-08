@@ -13,12 +13,14 @@ const emit = defineEmits<{
   close: [];
   edit: [id: number];
   deleted: [];
+  changed: [];
 }>();
 
 const loading = ref(false);
 const error = ref('');
 const detail = ref<RecipeDetail | null>(null);
 const recipe = computed<RecipeSummary | null>(() => detail.value?.recipe || null);
+const canManage = computed(() => Boolean(recipe.value && (props.isAdmin || recipe.value.collection === 'local')));
 
 watch(
   () => props.recipeId,
@@ -48,6 +50,24 @@ async function removeRecipe() {
   }
 }
 
+async function resubmit() {
+  if (!recipe.value) return;
+  try {
+    const updated = await api.requestRecipeSubmission(recipe.value.id);
+    if (detail.value) detail.value.recipe = updated;
+    emit('changed');
+  } catch (err) { error.value = err instanceof Error ? err.message : String(err); }
+}
+
+async function cancelSubmission() {
+  if (!recipe.value) return;
+  try {
+    const updated = await api.cancelRecipeSubmission(recipe.value.id);
+    if (detail.value) detail.value.recipe = updated;
+    emit('changed');
+  } catch (err) { error.value = err instanceof Error ? err.message : String(err); }
+}
+
 function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; carbs: unknown }) {
   return [
     { label: 'Калории', value: `${fmt(values.kcal)} ккал` },
@@ -70,7 +90,15 @@ function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; car
     <div v-if="loading" class="panel">Загрузка…</div>
     <div v-else-if="error" class="panel empty">{{ error }}</div>
     <div v-else-if="recipe && detail" class="recipe-body">
-      <div v-if="props.isAdmin" class="recipe-actions">
+      <div v-if="recipe.moderation_status === 'revision' && recipe.is_submitter" class="revision-note">
+        <b>Комментарий администратора</b>
+        <p>{{ recipe.moderation_note }}</p>
+        <div class="review-actions">
+          <button type="button" class="primary" @click="resubmit">Отправить повторно</button>
+          <button type="button" @click="cancelSubmission">Отменить отправку</button>
+        </div>
+      </div>
+      <div v-if="canManage" class="recipe-actions">
         <button type="button" class="edit-recipe" @click="$emit('edit', recipe.id)">✎ Редактировать</button>
         <button type="button" class="danger-button" @click="removeRecipe">Удалить</button>
       </div>
@@ -132,4 +160,6 @@ function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; car
 .recipe-meta {
   margin-top: -12px;
 }
+.revision-note { margin-bottom: 18px; padding: 15px; border: 1px solid #f0b429; border-radius: 11px; background: #fff7d6; }
+.revision-note p { margin: 7px 0 12px; white-space: pre-wrap; }
 </style>

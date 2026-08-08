@@ -211,9 +211,15 @@ class Recipe(BaseModel):
     manual_protein_per_serving_g = FloatField(null=True)
     manual_fat_per_serving_g = FloatField(null=True)
     manual_carbs_per_serving_g = FloatField(null=True)
+    owner = ForeignKeyField(User, backref="local_recipes", null=True, on_delete="CASCADE")
+    submitted_by = ForeignKeyField(User, backref="submitted_recipes", null=True, on_delete="SET NULL")
+    submission_requested = BooleanField(default=False)
+    moderation_status = CharField(default="none")
+    moderation_note = TextField(null=True)
 
     class Meta:
         table_name = "recipes"
+        indexes = ((('owner',), False),)
 
 
 class RecipeIngredient(BaseModel):

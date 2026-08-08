@@ -29,7 +29,7 @@ from backend.services.calculations import RECIPE_PREFIXES, ensure_product_measur
 from backend.services.codes import sequence_rows
 
 
-SCHEMA_VERSION = "4"
+SCHEMA_VERSION = "6"
 
 
 def _connect_raw(path: Path) -> sqlite3.Connection:
@@ -122,6 +122,10 @@ def _legacy_schema_status(path: Path) -> str:
                 return "normalized_v2"
             if row and row[0] == "3":
                 return "normalized_v3"
+            if row and row[0] == "4":
+                return "normalized_v4"
+            if row and row[0] == "5":
+                return "normalized_v5"
         if "product_id" in _columns(connection, "products"):
             return "legacy"
     return "unknown"
@@ -540,6 +544,29 @@ def _create_oauth_tables(connection: sqlite3.Connection) -> None:
         connection.execute(f"CREATE INDEX IF NOT EXISTS {table}_{column} ON {table} ({column})")
 
 
+def _add_recipe_ownership(connection: sqlite3.Connection) -> None:
+    recipe_columns = _columns(connection, "recipes")
+    if "owner_id" not in recipe_columns:
+        connection.execute(
+            "ALTER TABLE recipes ADD COLUMN owner_id INTEGER REFERENCES users(id) ON DELETE CASCADE"
+        )
+    if "submission_requested" not in recipe_columns:
+        connection.execute(
+            "ALTER TABLE recipes ADD COLUMN submission_requested INTEGER NOT NULL DEFAULT 0"
+        )
+    if "submitted_by_id" not in recipe_columns:
+        connection.execute("ALTER TABLE recipes ADD COLUMN submitted_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL")
+    if "moderation_status" not in recipe_columns:
+        connection.execute("ALTER TABLE recipes ADD COLUMN moderation_status VARCHAR(255) NOT NULL DEFAULT 'none'")
+    if "moderation_note" not in recipe_columns:
+        connection.execute("ALTER TABLE recipes ADD COLUMN moderation_note TEXT")
+    connection.execute(
+        "UPDATE recipes SET moderation_status='pending', submitted_by_id=owner_id "
+        "WHERE submission_requested=1 AND moderation_status='none'"
+    )
+    connection.execute("CREATE INDEX IF NOT EXISTS recipes_owner_id ON recipes (owner_id)")
+
+
 def _rebuild_diary_entries(connection: sqlite3.Connection, admin_id: int) -> None:
     connection.execute(
         """
@@ -683,6 +710,7 @@ def migrate_v2_database(settings: Settings, backup_existing: bool) -> None:
         _rebuild_progress_entries(connection, admin["id"])
         _rebuild_workout_logs(connection, admin["id"])
         _create_oauth_tables(connection)
+        _add_recipe_ownership(connection)
         connection.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
         connection.commit()
     except Exception:
@@ -700,6 +728,7 @@ def migrate_v3_database(settings: Settings, backup_existing: bool) -> None:
     connection = _connect_raw(settings.db_path)
     try:
         _create_oauth_tables(connection)
+        _add_recipe_ownership(connection)
         connection.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
         connection.commit()
     except Exception:
@@ -707,6 +736,26 @@ def migrate_v3_database(settings: Settings, backup_existing: bool) -> None:
         raise
     finally:
         connection.close()
+
+
+def migrate_v4_database(settings: Settings, backup_existing: bool) -> None:
+    if backup_existing:
+        backup_database(settings.db_path, settings.backup_dir, prefix="astra-pre-v5")
+
+    connection = _connect_raw(settings.db_path)
+    try:
+        _add_recipe_ownership(connection)
+        connection.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+
+
+def migrate_v5_database(settings: Settings, backup_existing: bool) -> None:
+    migrate_v4_database(settings, backup_existing)
 
 
 def ensure_database(settings: Settings) -> None:
@@ -722,6 +771,12 @@ def ensure_database(settings: Settings) -> None:
         return
     if status == "normalized_v3":
         migrate_v3_database(settings, backup_existing=existed)
+        return
+    if status == "normalized_v4":
+        migrate_v4_database(settings, backup_existing=existed)
+        return
+    if status == "normalized_v5":
+        migrate_v5_database(settings, backup_existing=existed)
         return
     if status == "legacy":
         migrate_legacy_database(settings, backup_existing=existed)

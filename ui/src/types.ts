@@ -93,6 +93,13 @@ export interface RecipeSummary {
   manual_protein_per_serving_g: number | null;
   manual_fat_per_serving_g: number | null;
   manual_carbs_per_serving_g: number | null;
+  collection: 'common' | 'local';
+  owner_id: number | null;
+  submission_requested: boolean;
+  moderation_status: 'none' | 'pending' | 'accepted' | 'rejected' | 'revision';
+  moderation_note: string | null;
+  submitted_by_id: number | null;
+  is_submitter: boolean;
   kcal: number | null;
   protein_g: number | null;
   fat_g: number | null;
