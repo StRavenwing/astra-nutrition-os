@@ -5,6 +5,7 @@ import PwaInstallButton from '@/components/shared/PwaInstallButton.vue';
 defineProps<{
   title: string;
   canAdd: boolean;
+  addLabel?: string;
   user: AuthUser;
 }>();
 
@@ -22,7 +23,7 @@ defineEmits<{
     </div>
     <div class="header-actions">
       <PwaInstallButton />
-      <button v-if="canAdd" type="button" class="primary" @click="$emit('add')">＋ Добавить</button>
+      <button v-if="canAdd" type="button" class="primary" @click="$emit('add')">＋ {{ addLabel || 'Добавить' }}</button>
       <div class="user-chip">
         <span>{{ user.email }}</span>
         <button type="button" title="Выйти" @click="$emit('logout')">Выйти</button>

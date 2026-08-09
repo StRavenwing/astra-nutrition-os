@@ -10,7 +10,8 @@ import type {
   ProgressEntry,
   RecipeDetail,
   RecipeSummary,
-  WorkoutEntry
+  WorkoutEntry,
+  WorkoutPlan
 } from '@/types';
 
 const TOKEN_KEY = 'astra_access_token';
@@ -96,6 +97,9 @@ export const api = {
   diary: () => request<DiaryEntry[]>('diary'),
   progress: () => request<ProgressEntry[]>('progress'),
   workouts: () => request<WorkoutEntry[]>('workouts'),
+  workoutPlans: () => request<WorkoutPlan[]>('workout-plans'),
+  completeWorkoutPlan: (id: number) => write<WorkoutPlan>('POST', `workout-plans/${id}/complete`),
+  cancelWorkoutPlan: (id: number) => write<{ deleted: boolean; id: number }>('DELETE', `workout-plans/${id}`),
   exercises: () => request<Exercise[]>('exercises'),
   post: <T = { ok: boolean }>(path: string, body: unknown) => write<T>('POST', path, body),
   put: <T = { ok: boolean }>(path: string, body: unknown) => write<T>('PUT', path, body),

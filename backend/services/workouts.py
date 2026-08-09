@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from backend.models import Exercise, User, WorkoutLog, current_database
+from datetime import datetime
+
+from backend.models import Exercise, User, WorkoutLog, WorkoutPlan, WorkoutPlanItem, current_database
 from backend.services.calculations import int_number, number
 from backend.services.codes import next_code
 from backend.services.errors import ConflictError, ForbiddenError, NotFoundError
-from backend.services.serialization import serialize_exercise, serialize_workout
+from backend.services.serialization import serialize_exercise, serialize_workout, serialize_workout_plan
 
 
 def list_exercises() -> list[dict]:
@@ -38,6 +40,7 @@ def delete_exercise(exercise_id: int) -> dict:
     with current_database().atomic():
         exercise = get_exercise(exercise_id)
         usage_count = WorkoutLog.select().where(WorkoutLog.exercise == exercise).count()
+        usage_count += WorkoutPlanItem.select().where(WorkoutPlanItem.exercise == exercise).count()
         if usage_count:
             raise ConflictError(
                 f"Упражнение используется в тренировках: {usage_count}. "
@@ -123,3 +126,55 @@ def delete_workout(log_id: int, user: User) -> dict:
         log = get_workout(log_id, user)
         log.delete_instance()
         return {"deleted": True, "id": log_id}
+
+
+def list_workout_plans(user: User) -> list[dict]:
+    query = (
+        WorkoutPlan
+        .select()
+        .where(WorkoutPlan.user == user)
+        .order_by(WorkoutPlan.status, WorkoutPlan.scheduled_at.desc(), WorkoutPlan.id.desc())
+    )
+    return [serialize_workout_plan(plan) for plan in query]
+
+
+def get_workout_plan(plan_id: int, user: User) -> WorkoutPlan:
+    plan = WorkoutPlan.get_or_none((WorkoutPlan.id == plan_id) & (WorkoutPlan.user == user))
+    if plan is None:
+        raise NotFoundError("Собранная тренировка не найдена")
+    return plan
+
+
+def create_workout_plan(data: dict, user: User) -> dict:
+    items = data.get("items") or []
+    if not items:
+        raise ValueError("Добавьте хотя бы одно упражнение")
+    with current_database().atomic():
+        plan = WorkoutPlan.create(user=user, scheduled_at=data["scheduled_at"], status="planned")
+        for item in items:
+            exercise = get_exercise(int(item["exercise_id"]))
+            WorkoutPlanItem.create(
+                plan=plan,
+                exercise=exercise,
+                working_weight=number(item.get("working_weight")),
+                sets=int_number(item.get("sets")),
+                duration_minutes=int_number(item.get("duration_minutes")),
+                speed_kmh=number(item.get("speed_kmh")),
+            )
+        return serialize_workout_plan(plan)
+
+
+def complete_workout_plan(plan_id: int, user: User) -> dict:
+    with current_database().atomic():
+        plan = get_workout_plan(plan_id, user)
+        plan.status = "archived"
+        plan.completed_at = datetime.utcnow().isoformat(timespec="seconds")
+        plan.save()
+        return serialize_workout_plan(plan)
+
+
+def delete_workout_plan(plan_id: int, user: User) -> dict:
+    with current_database().atomic():
+        plan = get_workout_plan(plan_id, user)
+        plan.delete_instance(recursive=True)
+        return {"deleted": True, "id": plan_id}

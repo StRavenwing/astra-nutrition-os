@@ -144,6 +144,19 @@ class WorkoutInput(BaseModel):
     comment: str | None = None
 
 
+class WorkoutPlanItemInput(BaseModel):
+    exercise_id: int
+    working_weight: Any = None
+    sets: Any = None
+    duration_minutes: Any = None
+    speed_kmh: Any = None
+
+
+class WorkoutPlanInput(BaseModel):
+    scheduled_at: str
+    items: list[WorkoutPlanItemInput]
+
+
 class DeleteResponse(BaseModel):
     deleted: bool = True
     id: int

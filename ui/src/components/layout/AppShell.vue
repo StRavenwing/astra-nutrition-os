@@ -7,6 +7,7 @@ defineProps<{
   currentPage: PageId;
   title: string;
   canAdd: boolean;
+  addLabel?: string;
   user: AuthUser;
 }>();
 
@@ -21,7 +22,7 @@ defineEmits<{
   <div class="app-shell">
     <SideNav :current-page="currentPage" @navigate="$emit('navigate', $event)" />
     <main>
-      <TopBar :title="title" :can-add="canAdd" :user="user" @add="$emit('add')" @logout="$emit('logout')" />
+      <TopBar :title="title" :can-add="canAdd" :add-label="addLabel" :user="user" @add="$emit('add')" @logout="$emit('logout')" />
       <slot />
     </main>
   </div>

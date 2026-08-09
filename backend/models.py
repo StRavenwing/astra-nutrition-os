@@ -38,6 +38,12 @@ def initialize_database(path: Path | str) -> SqliteDatabase:
         pass
     database = make_database(path)
     database_proxy.initialize(database)
+    # Keep normalized installations forward-compatible when a new model is added.
+    # The full schema migrations still handle structural upgrades; this creates
+    # newly introduced tables safely on existing databases.
+    database.connect(reuse_if_open=True)
+    database.create_tables(MODELS, safe=True)
+    database.close()
     return database
 
 
@@ -313,6 +319,32 @@ class WorkoutLog(BaseModel):
         table_name = "workout_logs"
 
 
+class WorkoutPlan(BaseModel):
+    id = AutoField()
+    user = ForeignKeyField(User, backref="workout_plans", on_delete="CASCADE")
+    scheduled_at = CharField(index=True)
+    status = CharField(default="planned", index=True)
+    completed_at = CharField(null=True)
+
+    class Meta:
+        table_name = "workout_plans"
+        indexes = ((('user', 'status'), False), (('user', 'scheduled_at'), False))
+
+
+class WorkoutPlanItem(BaseModel):
+    id = AutoField()
+    plan = ForeignKeyField(WorkoutPlan, backref="items", on_delete="CASCADE")
+    exercise = ForeignKeyField(Exercise, backref="workout_plan_items")
+    working_weight = FloatField(null=True)
+    sets = IntegerField(null=True)
+    duration_minutes = IntegerField(null=True)
+    speed_kmh = FloatField(null=True)
+
+    class Meta:
+        table_name = "workout_plan_items"
+        indexes = ((('plan', 'id'), False),)
+
+
 MODELS = [
     AppMeta,
     IdSequence,
@@ -330,4 +362,6 @@ MODELS = [
     DiaryEntry,
     ProgressEntry,
     WorkoutLog,
+    WorkoutPlan,
+    WorkoutPlanItem,
 ]

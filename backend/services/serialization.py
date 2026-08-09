@@ -9,6 +9,8 @@ from backend.models import (
     Recipe,
     RecipeIngredient,
     WorkoutLog,
+    WorkoutPlan,
+    WorkoutPlanItem,
 )
 from backend.services.calculations import amount_value, product_amount_values, rounded
 
@@ -281,4 +283,35 @@ def serialize_workout(log: WorkoutLog) -> dict:
         "name": log.exercise.name,
         "muscle_group": log.exercise.muscle_group,
         "default_unit": log.exercise.default_unit,
+    }
+
+
+def serialize_workout_plan(plan: WorkoutPlan) -> dict:
+    items = (
+        WorkoutPlanItem
+        .select(WorkoutPlanItem, Exercise)
+        .join(Exercise)
+        .where(WorkoutPlanItem.plan == plan)
+        .order_by(WorkoutPlanItem.id)
+    )
+    return {
+        "id": plan.id,
+        "scheduled_at": plan.scheduled_at,
+        "status": plan.status,
+        "completed_at": plan.completed_at,
+        "items": [
+            {
+                "id": item.id,
+                "exercise_id": item.exercise.id,
+                "exercise_code": item.exercise.code,
+                "name": item.exercise.name,
+                "muscle_group": item.exercise.muscle_group,
+                "default_unit": item.exercise.default_unit,
+                "working_weight": item.working_weight,
+                "sets": item.sets,
+                "duration_minutes": item.duration_minutes,
+                "speed_kmh": item.speed_kmh,
+            }
+            for item in items
+        ],
     }

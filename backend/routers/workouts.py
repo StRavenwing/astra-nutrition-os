@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, status
 
 from backend.dependencies import get_current_user, require_admin
 from backend.models import User
-from backend.schemas import ExerciseInput, WorkoutInput, dump_model
+from backend.schemas import ExerciseInput, WorkoutInput, WorkoutPlanInput, dump_model
 from backend.services.workouts import (
     create_exercise,
     create_workout,
@@ -13,6 +13,10 @@ from backend.services.workouts import (
     list_exercises,
     list_workouts,
     update_workout,
+    complete_workout_plan,
+    create_workout_plan,
+    delete_workout_plan,
+    list_workout_plans,
 )
 
 
@@ -52,3 +56,23 @@ def put_workout(log_id: int, payload: WorkoutInput, current_user: User = Depends
 @router.delete("/workouts/{log_id}")
 def remove_workout(log_id: int, current_user: User = Depends(get_current_user)) -> dict:
     return delete_workout(log_id, current_user)
+
+
+@router.get("/workout-plans")
+def get_workout_plans(current_user: User = Depends(get_current_user)) -> list[dict]:
+    return list_workout_plans(current_user)
+
+
+@router.post("/workout-plans", status_code=status.HTTP_201_CREATED)
+def post_workout_plan(payload: WorkoutPlanInput, current_user: User = Depends(get_current_user)) -> dict:
+    return create_workout_plan(dump_model(payload), current_user)
+
+
+@router.post("/workout-plans/{plan_id}/complete")
+def finish_workout_plan(plan_id: int, current_user: User = Depends(get_current_user)) -> dict:
+    return complete_workout_plan(plan_id, current_user)
+
+
+@router.delete("/workout-plans/{plan_id}")
+def cancel_workout_plan(plan_id: int, current_user: User = Depends(get_current_user)) -> dict:
+    return delete_workout_plan(plan_id, current_user)

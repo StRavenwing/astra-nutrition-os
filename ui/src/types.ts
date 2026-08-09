@@ -216,6 +216,27 @@ export interface WorkoutEntry {
   [key: string]: unknown;
 }
 
+export interface WorkoutPlanItem {
+  id?: number;
+  exercise_id: number;
+  exercise_code?: string;
+  name?: string;
+  muscle_group?: string | null;
+  default_unit?: string | null;
+  working_weight: number | null;
+  sets: number | null;
+  duration_minutes: number | null;
+  speed_kmh: number | null;
+}
+
+export interface WorkoutPlan {
+  id: number;
+  scheduled_at: string;
+  status: 'planned' | 'archived' | string;
+  completed_at: string | null;
+  items: WorkoutPlanItem[];
+}
+
 export type ModalKind = 'products' | 'recipes' | 'diary' | 'progress' | 'workouts' | 'exercises';
 
 export interface ModalState {
