@@ -1,40 +1,36 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
-import { workoutIcons } from '@/constants';
-import type { SortState, WorkoutEntry, WorkoutPlan } from '@/types';
-import { compareValues, formatDate, fmt, searchable } from '@/utils/format';
-import Toolbar from '@/components/shared/Toolbar.vue';
+import type { Exercise, WorkoutPlan } from '@/types';
+import { formatDate, fmt } from '@/utils/format';
 
 const props = defineProps<{
   refreshKey: number;
   isAdmin: boolean;
 }>();
+
 const emit = defineEmits<{
   edit: [id: number];
   addExercise: [];
   manageExercises: [];
   build: [];
+  editPlan: [plan: WorkoutPlan];
   repeat: [plan: WorkoutPlan];
 }>();
 
-const data = ref<WorkoutEntry[]>([]);
+const plans = ref<WorkoutPlan[]>([]);
+const exercises = ref<Exercise[]>([]);
 const loading = ref(false);
 const error = ref('');
-const category = ref('all');
-const query = ref('');
-const sort = ref<SortState>({ key: null, dir: 0 });
-const orderValue = ref('');
-const plans = ref<WorkoutPlan[]>([]);
-const section = ref<'workouts' | 'archive'>('workouts');
+const section = ref<'none' | 'workouts' | 'exercises' | 'archive'>('none');
 
 async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [workouts, workoutPlans] = await Promise.all([api.workouts(), api.workoutPlans()]);
-    data.value = workouts;
+    const [workoutPlans, exerciseList] = await Promise.all([api.workoutPlans(), api.exercises()]);
     plans.value = workoutPlans;
+    exercises.value = exerciseList.sort((a, b) => a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' }));
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -42,20 +38,37 @@ async function load() {
   }
 }
 
-const activePlans = computed(() => plans.value.filter((plan) => plan.status === 'planned'));
-const archivedPlans = computed(() => plans.value.filter((plan) => plan.status === 'archived'));
+onMounted(load);
+watch(() => props.refreshKey, load);
+
+const plannedPlans = computed(() => plans.value.filter((plan) => plan.status === 'planned'));
+const archivedPlans = computed(() => plans.value.filter((plan) => plan.status === 'archived' || plan.status === 'canceled'));
+
+const workoutComplexes = [
+  'Комплекс для рук',
+  'Комплекс для плеч',
+  'Комплекс на ягодицы',
+  'Круговая',
+  'День ног',
+  'Комплекс для спины',
+  'Пресс'
+];
 
 function planSummary(plan: WorkoutPlan) {
   return plan.items.map((item) => item.name).join(' · ');
 }
 
 function planMetric(item: WorkoutPlan['items'][number]) {
-  const values = [];
+  const values: string[] = [];
   if (item.working_weight != null) values.push(`${fmt(item.working_weight)} ${item.default_unit || 'кг'}`);
   if (item.sets != null) values.push(`${item.sets} подх.`);
   if (item.duration_minutes != null) values.push(`${item.duration_minutes} мин`);
   if (item.speed_kmh != null) values.push(`${fmt(item.speed_kmh)} км/ч`);
   return values.join(' · ') || 'Параметры не заданы';
+}
+
+function planStatus(plan: WorkoutPlan) {
+  return plan.status === 'canceled' ? 'Отменена' : 'Пройдена';
 }
 
 async function completePlan(id: number) {
@@ -68,49 +81,9 @@ async function completePlan(id: number) {
 }
 
 async function cancelPlan(id: number) {
-  if (!confirm('Отменить собранную тренировку?')) return;
+  if (!confirm('Отменить запланированную тренировку? Она попадёт в архив.')) return;
   try {
     await api.cancelWorkoutPlan(id);
-    await load();
-  } catch (err) {
-    alert(err instanceof Error ? err.message : String(err));
-  }
-}
-
-onMounted(load);
-watch(() => props.refreshKey, load);
-
-const counts = computed(() => data.value.reduce<Record<string, number>>((acc, item) => {
-  const key = item.muscle_group || 'Другое';
-  acc[key] = (acc[key] || 0) + 1;
-  return acc;
-}, {}));
-
-const categories = computed(() => Object.keys(counts.value).sort((a, b) => a.localeCompare(b, 'ru')));
-const shown = computed(() => {
-  let items = data.value.filter((item) => (category.value === 'all' || (item.muscle_group || 'Другое') === category.value) && searchable(item, query.value));
-  if (sort.value.dir && sort.value.key) items = [...items].sort((a, b) => compareValues(a[sort.value.key!], b[sort.value.key!]) * sort.value.dir);
-  return items;
-});
-
-function setOrder(value: string) {
-  orderValue.value = value;
-  if (!value) sort.value = { key: null, dir: 0 };
-  else {
-    const [key, dir] = value.split(':');
-    sort.value = { key, dir: Number(dir) as 1 | -1 };
-  }
-}
-
-function resetSort() {
-  sort.value = { key: null, dir: 0 };
-  orderValue.value = '';
-}
-
-async function remove(id: number) {
-  if (!confirm('Удалить запись тренировки? Это действие нельзя отменить.')) return;
-  try {
-    await api.delete(`workouts/${id}`);
     await load();
   } catch (err) {
     alert(err instanceof Error ? err.message : String(err));
@@ -122,333 +95,159 @@ async function remove(id: number) {
   <div v-if="loading" class="panel">Загрузка…</div>
   <div v-else-if="error" class="panel empty">{{ error }}</div>
   <template v-else>
-    <section class="workout-menu" aria-label="Разделы тренировок">
-      <button type="button" class="workout-menu-card" :class="{ active: section === 'workouts' }" @click="section = 'workouts'">
-        <span class="workout-menu-icon">🏋️</span>
-        <span><b>Упражнения и тренировки</b><small>Справочник и журнал занятий</small></span>
-        <strong>{{ data.length }}</strong>
-      </button>
-      <button type="button" class="workout-menu-card archive" :class="{ active: section === 'archive' }" @click="section = 'archive'">
-        <span class="workout-menu-icon">📦</span>
-        <span><b>Архив тренировок</b><small>Выполненные занятия и повторение</small></span>
-        <strong>{{ archivedPlans.length }}</strong>
-      </button>
-    </section>
+    <section class="scheduled-workouts">
+      <div class="scheduled-workouts-head">
+        <div>
+          <p class="eyebrow">ПЛАН ТРЕНИРОВОК</p>
+          <h2>Запланированные тренировки</h2>
+        </div>
+        <button type="button" class="primary" @click="emit('build')">＋ Собрать тренировку</button>
+      </div>
 
-    <section v-if="activePlans.length" class="planned-workouts">
-      <div class="section-heading"><div><span class="eyebrow">ЗАКРЕПЛЕНО СВЕРХУ</span><h2>Тренировка в плане</h2></div><button type="button" class="primary" @click="emit('build')">＋ Собрать тренировку</button></div>
-      <article v-for="plan in activePlans" :key="plan.id" class="planned-workout-card">
-        <div class="planned-workout-head"><div><span class="planned-badge">Запланировано</span><h3>{{ formatDate(plan.scheduled_at) }}</h3><p>{{ planSummary(plan) }}</p></div><div class="planned-actions"><button type="button" class="cancel-plan" @click="cancelPlan(plan.id)">Отменить</button><button type="button" class="complete-plan" @click="completePlan(plan.id)">Выполнено</button></div></div>
-        <div class="planned-items"><div v-for="item in plan.items" :key="item.id || item.exercise_id"><b>{{ item.name }}</b><span>{{ planMetric(item) }}</span></div></div>
-      </article>
-    </section>
-
-    <section v-if="section === 'archive'" class="archive-section">
-      <div class="section-heading"><div><span class="eyebrow">ИСТОРИЯ</span><h2>Архив тренировок</h2></div><button type="button" class="primary" @click="emit('build')">＋ Собрать тренировку</button></div>
-      <div class="archive-grid">
-        <article v-for="plan in archivedPlans" :key="plan.id" class="archive-card">
-          <div class="archive-card-head"><span>{{ formatDate(plan.scheduled_at) }}</span><span class="archive-badge">Выполнено</span></div>
+      <div v-if="plannedPlans.length" class="workout-grid scheduled-grid">
+        <article v-for="plan in plannedPlans" :key="plan.id" class="workout-tile planned-plan-tile">
+          <div class="workout-tile-head">
+            <span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span>
+            <span class="workout-group planned-badge">Запланирована</span>
+          </div>
           <h3>Тренировка</h3>
           <p>{{ planSummary(plan) }}</p>
-          <div class="archive-items"><div v-for="item in plan.items" :key="item.id || item.exercise_id"><b>{{ item.name }}</b><small>{{ planMetric(item) }}</small></div></div>
-          <button type="button" class="repeat-plan" @click="emit('repeat', plan)">↻ Повторить</button>
+          <div class="planned-plan-items">
+            <div v-for="item in plan.items" :key="item.id || item.exercise_id">
+              <b>{{ item.name }}</b>
+              <small>{{ planMetric(item) }}</small>
+            </div>
+          </div>
+          <div class="workout-tile-actions planned-tile-actions">
+            <button type="button" class="edit-workout" @click="emit('editPlan', plan)">✎ Редактировать</button>
+            <button type="button" class="complete-plan" @click="completePlan(plan.id)">Выполнено</button>
+            <button type="button" class="delete-workout" @click="cancelPlan(plan.id)">Отменить</button>
+          </div>
         </article>
-        <div v-if="!archivedPlans.length" class="panel empty">Выполненные собранные тренировки появятся здесь.</div>
       </div>
+      <div v-else class="scheduled-empty">Запланированных тренировок нет</div>
     </section>
 
-    <template v-else>
-    <div v-if="props.isAdmin" class="exercise-toolbar">
-      <div>
-        <span class="eyebrow">СПРАВОЧНИК</span>
-        <b>Управление упражнениями</b>
-      </div>
-      <div>
-        <button type="button" id="quick-add-exercise" @click="emit('addExercise')">＋ Добавить упражнение</button>
-        <button type="button" id="manage-exercises" @click="emit('manageExercises')">Все упражнения</button>
-      </div>
-    </div>
-
-    <section class="workout-categories" aria-label="Группы тренировок">
-      <button type="button" class="workout-category-card all" :class="{ active: category === 'all' }" @click="category = 'all'">
-        <span class="workout-category-icon">⚡</span>
-        <span><b>Все тренировки</b><small>Полный журнал</small></span>
-        <strong>{{ data.length }}</strong>
+    <section class="workout-section-menu" aria-label="Разделы тренировок">
+      <button type="button" class="workout-section-tile" :class="{ active: section === 'workouts' }" @click="section = 'workouts'">
+        <span class="workout-section-icon">🏋️</span>
+        <span><b>Тренировки</b><small>Комплексы и программы</small></span>
       </button>
-      <button v-for="item in categories" :key="item" type="button" class="workout-category-card" :class="{ active: category === item }" @click="category = item">
-        <span class="workout-category-icon">{{ workoutIcons[item] || '○' }}</span>
-        <span><b>{{ item }}</b><small>Мышечная группа</small></span>
-        <strong>{{ counts[item] }}</strong>
+      <button type="button" class="workout-section-tile" :class="{ active: section === 'exercises' }" @click="section = 'exercises'">
+        <span class="workout-section-icon">💪</span>
+        <span><b>Упражнения</b><small>Справочник упражнений</small></span>
+      </button>
+      <button type="button" class="workout-section-tile archive" :class="{ active: section === 'archive' }" @click="section = 'archive'">
+        <span class="workout-section-icon">📦</span>
+        <span><b>Архив тренировок</b><small>Пройденные и отменённые</small></span>
       </button>
     </section>
 
-    <Toolbar v-model:query="query" placeholder="Поиск тренировки…" :count-label="`Записей: ${shown.length}`" :reset-disabled="!sort.dir" @reset="resetSort">
-      <select id="workout-order" :value="orderValue" aria-label="Сортировка тренировок" @change="setOrder(($event.target as HTMLSelectElement).value)">
-        <option value="">Сначала новые</option>
-        <option value="performed_at:1">Дата: сначала старые</option>
-        <option value="performed_at:-1">Дата: сначала новые</option>
-        <option value="name:1">Название: А–Я</option>
-        <option value="name:-1">Название: Я–А</option>
-        <option value="working_weight:1">Вес: меньше</option>
-        <option value="working_weight:-1">Вес: больше</option>
-        <option value="sets:1">Подходы: меньше</option>
-        <option value="sets:-1">Подходы: больше</option>
-        <option value="reps:1">Повторы: меньше</option>
-        <option value="reps:-1">Повторы: больше</option>
-      </select>
-    </Toolbar>
+    <section v-if="section === 'workouts'" class="workout-subsection">
+      <div class="subsection-heading"><p class="eyebrow">ТРЕНИРОВКИ</p><h2>Комплексы</h2></div>
+      <div class="recipe-categories workout-complex-grid">
+        <button v-for="complex in workoutComplexes" :key="complex" type="button" class="category-card workout-complex-card" disabled>
+          <span class="workout-complex-photo">🏋️</span>
+          <span class="category-copy"><b>{{ complex }}</b><small>Раздел в доработке</small></span>
+        </button>
+      </div>
+    </section>
 
-    <div class="workout-grid">
-      <article v-for="item in shown" :key="item.id" class="workout-tile">
-        <div class="workout-tile-head">
-          <span class="workout-date">{{ formatDate(item.performed_at) }}</span>
-          <span class="workout-group">{{ item.muscle_group || 'Другое' }}</span>
-        </div>
-        <h3>{{ item.name }}</h3>
-        <p>{{ item.machine_location || 'Тренажёр не указан' }}<template v-if="item.comment"> · {{ item.comment }}</template></p>
-        <div class="workout-stats">
-          <span><b>{{ fmt(item.working_weight) }}</b><small>{{ item.default_unit || 'кг' }}</small></span>
-          <span><b>{{ fmt(item.sets) }}</b><small>подхода</small></span>
-          <span><b>{{ fmt(item.reps) }}</b><small>повторов</small></span>
-          <span><b>{{ item.rir || '—' }}</b><small>RIR</small></span>
-        </div>
-        <div class="workout-tile-actions">
-          <button type="button" class="edit-workout" @click="emit('edit', item.id)">✎ Редактировать</button>
-          <button type="button" class="delete-workout" @click="remove(item.id)">Удалить</button>
-        </div>
-      </article>
-      <div v-if="!shown.length" class="panel empty">Ничего не найдено</div>
-    </div>
-    </template>
+    <section v-else-if="section === 'exercises'" class="workout-subsection">
+      <div class="subsection-heading">
+        <div><p class="eyebrow">СПРАВОЧНИК</p><h2>Упражнения</h2></div>
+        <div v-if="props.isAdmin" class="exercise-actions"><button type="button" class="secondary-button" @click="emit('addExercise')">＋ Добавить</button><button type="button" class="secondary-button" @click="emit('manageExercises')">Управление</button></div>
+      </div>
+      <div class="exercise-grid">
+        <article v-for="exercise in exercises" :key="exercise.id" class="workout-tile exercise-card">
+          <div class="workout-tile-head"><span class="workout-group">{{ exercise.muscle_group || 'Другое' }}</span><span class="exercise-code">{{ exercise.code }}</span></div>
+          <h3>{{ exercise.name }}</h3>
+          <p>{{ exercise.note || 'Упражнение из справочника' }}</p>
+          <div class="exercise-meta"><span><b>{{ exercise.default_sets || '—' }}</b><small>подхода</small></span><span><b>{{ exercise.default_reps || '—' }}</b><small>повторов</small></span><span><b>{{ exercise.default_unit || '—' }}</b><small>единица</small></span></div>
+        </article>
+        <div v-if="!exercises.length" class="panel empty">Упражнений пока нет</div>
+      </div>
+    </section>
+
+    <section v-else-if="section === 'archive'" class="workout-subsection">
+      <div class="subsection-heading"><p class="eyebrow">ИСТОРИЯ</p><h2>Архив тренировок</h2></div>
+      <div class="workout-grid archive-workout-grid">
+        <article v-for="plan in archivedPlans" :key="plan.id" class="workout-tile archive-plan-tile">
+          <div class="workout-tile-head"><span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span><span class="workout-group" :class="plan.status === 'canceled' ? 'canceled-badge' : 'completed-badge'">{{ planStatus(plan) }}</span></div>
+          <h3>Тренировка</h3>
+          <p>{{ planSummary(plan) }}</p>
+          <div class="planned-plan-items"><div v-for="item in plan.items" :key="item.id || item.exercise_id"><b>{{ item.name }}</b><small>{{ planMetric(item) }}</small></div></div>
+          <div class="workout-tile-actions"><button type="button" class="edit-workout" @click="emit('repeat', plan)">↻ Повторить</button></div>
+        </article>
+        <div v-if="!archivedPlans.length" class="panel empty">Архив тренировок пуст</div>
+      </div>
+    </section>
   </template>
 </template>
 
 <style lang="scss">
-.workout-menu {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 22px;
+.scheduled-workouts {
+  margin-bottom: 24px;
 }
 
-.workout-menu-card {
-  display: grid;
-  grid-template-columns: 48px 1fr auto;
-  gap: 12px;
-  align-items: center;
-  min-height: 94px;
-  padding: 15px;
-  border: 1px solid var(--line);
-  border-radius: 15px;
-  background: linear-gradient(135deg, #fff, #f4f1ff);
-  color: var(--ink);
-  text-align: left;
-  box-shadow: 0 2px 5px #091e4214;
-  cursor: pointer;
-  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
-
-  &:hover,
-  &.active {
-    border-color: var(--purple);
-    box-shadow: 0 0 0 2px #6e5dc626, 0 9px 24px #091e4218;
-    transform: translateY(-2px);
-  }
-
-  &.archive {
-    background: linear-gradient(135deg, #fff, #eef7ff);
-
-    &:hover,
-    &.active {
-      border-color: var(--blue);
-      box-shadow: 0 0 0 2px #0c66e426, 0 9px 24px #091e4218;
-    }
-  }
-
-  b,
-  small {
-    display: block;
-  }
-
-  small {
-    margin-top: 3px;
-    color: var(--muted);
-    font-size: 10px;
-  }
-
-  strong {
-    align-self: start;
-    padding: 3px 8px;
-    border-radius: 99px;
-    background: #fff;
-    color: var(--blue);
-    font-size: 12px;
-  }
-}
-
-.workout-menu-icon {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: 13px;
-  background: linear-gradient(135deg, #e9ddff, #d9e7fd);
-  font-size: 23px;
-}
-
-.planned-workouts,
-.archive-section {
-  margin-bottom: 23px;
-}
-
-.section-heading {
+.scheduled-workouts-head,
+.subsection-heading {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
   gap: 14px;
-  margin-bottom: 12px;
-
-  h2 {
-    font-size: 22px;
-  }
+  margin-bottom: 13px;
 }
 
-.planned-workout-card {
-  padding: 18px;
-  border: 1px solid #9f8fef;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #fff, #f4f1ff 60%, #edf7ff);
-  box-shadow: 0 9px 25px #091e4220;
+.scheduled-workouts-head h2,
+.subsection-heading h2 {
+  margin: 0;
+  font-size: 24px;
 }
 
-.planned-workout-head {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-
-  h3 {
-    margin: 7px 0 2px;
-    font-size: 21px;
-  }
-
-  p {
-    margin: 0;
-    color: var(--muted);
-    font-size: 12px;
-  }
+.scheduled-grid,
+.archive-workout-grid,
+.exercise-grid {
+  margin-top: 0;
 }
 
-.planned-badge,
-.archive-badge {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 99px;
-  background: #e9ddff;
-  color: #5e4db2;
-  font-size: 10px;
-  font-weight: 850;
-  text-transform: uppercase;
-}
-
-.planned-actions {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-
-  button,
-  .repeat-plan {
-    border-radius: 8px;
-    padding: 9px 12px;
-    font-size: 11px;
-    font-weight: 800;
-    cursor: pointer;
-  }
-}
-
-.cancel-plan {
-  border: 1px solid #f5a79b;
-  background: #ffebe6;
-  color: #ae2a19;
-}
-
-.complete-plan {
-  border: 0;
-  background: var(--green);
-  color: #fff;
-}
-
-.planned-items {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 8px;
-  margin-top: 16px;
-
-  div {
-    padding: 10px 11px;
-    border: 1px solid #ffffffc4;
-    border-radius: 10px;
-    background: #ffffffa8;
-  }
-
-  b,
-  span {
-    display: block;
-  }
-
-  span {
-    margin-top: 3px;
-    color: var(--muted);
-    font-size: 10px;
-  }
-}
-
-.archive-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
-  gap: 14px;
-}
-
-.archive-card {
+.planned-plan-tile,
+.archive-plan-tile {
   display: flex;
   flex-direction: column;
-  min-height: 230px;
-  padding: 17px;
-  border: 1px solid var(--line);
-  border-radius: 15px;
-  background: #fff;
-  box-shadow: 0 2px 5px #091e4214;
+  min-height: 300px;
+
+  .workout-tile-head {
+    min-height: 24px;
+  }
 
   h3 {
-    margin: 12px 0 4px;
-    font-size: 18px;
+    display: flex;
+    align-items: flex-start;
+    min-height: 46px;
+    margin: 6px 0 5px;
   }
 
   > p {
-    min-height: 32px;
-    margin: 0;
-    color: var(--muted);
-    font-size: 11px;
+    min-height: 35px;
+  }
+
+  .planned-plan-items {
+    flex: 1 1 auto;
+    min-height: 108px;
+    max-height: 108px;
+    overflow-y: auto;
+  }
+
+  .workout-tile-actions {
+    margin-top: auto;
   }
 }
 
-.archive-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.archive-badge {
-  background: #e3fcef;
-  color: #216e4e;
-}
-
-.archive-items {
+.planned-plan-items {
   display: grid;
   gap: 6px;
-  margin-top: 10px;
+  margin: 14px 0;
 
   div {
     padding: 7px 9px;
@@ -468,39 +267,213 @@ async function remove(id: number) {
   }
 }
 
-.repeat-plan {
-  width: 100%;
-  margin-top: auto;
-  border: 1px solid #85b8ff;
+.planned-tile-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+
+  button {
+    min-width: 95px;
+  }
+}
+
+.planned-badge {
+  background: #e9ddff;
+  color: #5e4db2;
+}
+
+.complete-plan {
+  border: 0;
   border-radius: 8px;
-  padding: 9px 12px;
-  background: #e9f2ff;
-  color: var(--blue);
+  padding: 7px 9px;
+  background: var(--green);
+  color: #fff;
+  font-size: 10px;
   font-weight: 800;
   cursor: pointer;
 }
 
-.workout-grid {
-  margin-top: 0;
+.scheduled-empty {
+  padding: 25px 20px;
+  border: 1px dashed #b7beca;
+  border-radius: 13px;
+  background: #fff;
+  color: var(--muted);
+  text-align: center;
 }
 
-@media (max-width: 700px) {
-  .workout-menu {
-    grid-template-columns: 1fr;
+.workout-section-menu {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 13px;
+  margin-bottom: 23px;
+}
+
+.workout-section-tile {
+  display: grid;
+  grid-template-columns: 45px 1fr;
+  gap: 11px;
+  align-items: center;
+  min-height: 88px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #fff, #f4f1ff);
+  color: var(--ink);
+  text-align: left;
+  box-shadow: 0 2px 5px #091e4214;
+  cursor: pointer;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+
+  &:hover,
+  &.active {
+    border-color: var(--purple);
+    box-shadow: 0 0 0 2px #6e5dc626, 0 9px 24px #091e4218;
+    transform: translateY(-2px);
   }
 
-  .section-heading,
-  .planned-workout-head {
+  &.archive {
+    background: linear-gradient(145deg, #fff, #eef7ff);
+
+    &:hover,
+    &.active {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 2px #0c66e426, 0 9px 24px #091e4218;
+    }
+  }
+
+  b,
+  small {
+    display: block;
+  }
+
+  small {
+    margin-top: 3px;
+    color: var(--muted);
+    font-size: 10px;
+  }
+}
+
+.workout-section-icon {
+  display: grid;
+  place-items: center;
+  width: 45px;
+  height: 45px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e9ddff, #d9e7fd);
+  font-size: 22px;
+}
+
+.workout-subsection {
+  scroll-margin-top: 18px;
+}
+
+.workout-complex-card {
+  cursor: not-allowed;
+
+  &:hover {
+    transform: none;
+    border-color: var(--line);
+    box-shadow: 0 2px 5px #091e4214;
+  }
+}
+
+.workout-complex-photo {
+  display: grid;
+  place-items: center;
+  height: 112px;
+  background: linear-gradient(135deg, #e9ddff, #d9e7fd);
+  font-size: 28px;
+  filter: grayscale(.2);
+}
+
+.exercise-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+  gap: 15px;
+}
+
+.exercise-card {
+  min-height: 235px;
+}
+
+.exercise-code {
+  color: var(--muted);
+  font: 750 10px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.exercise-meta {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: auto;
+
+  span {
+    padding: 8px 4px;
+    border-radius: 8px;
+    background: #f7f8fa;
+    text-align: center;
+  }
+
+  b,
+  small {
+    display: block;
+  }
+
+  b {
+    font-size: 16px;
+  }
+
+  small {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 9px;
+  }
+}
+
+.exercise-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.secondary-button {
+  border: 1px solid #85b8ff;
+  border-radius: 8px;
+  padding: 8px 11px;
+  background: #e9f2ff;
+  color: var(--blue);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.completed-badge {
+  background: #e3fcef;
+  color: #216e4e;
+}
+
+.canceled-badge {
+  background: #ffebe6;
+  color: #ae2a19;
+}
+
+@media (max-width: 850px) {
+  .workout-section-menu {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .scheduled-workouts-head,
+  .subsection-heading {
     align-items: flex-start;
     flex-direction: column;
   }
 
-  .planned-actions {
-    width: 100%;
+  .workout-section-menu {
+    gap: 9px;
+  }
 
-    button {
-      flex: 1;
-    }
+  .planned-tile-actions {
+    grid-template-columns: 1fr;
   }
 }
 </style>

@@ -38,12 +38,14 @@ const recipeDetailId = ref<number | null>(null);
 const exerciseManagerOpen = ref(false);
 const workoutBuilderOpen = ref(false);
 const repeatPlan = ref<WorkoutPlan | null>(null);
+const editPlan = ref<WorkoutPlan | null>(null);
 
 const title = computed(() => pages.find((page) => page.id === currentPage.value)?.title || 'Обзор');
 const isAdmin = computed(() => Boolean(currentUser.value?.is_admin));
 const activeUser = computed(() => currentUser.value as AuthUser);
 const canAdd = computed(() => {
   if (currentPage.value === 'dashboard') return false;
+  if (currentPage.value === 'workouts') return false;
   if (currentPage.value === 'products') return isAdmin.value;
   return true;
 });
@@ -77,6 +79,7 @@ function openAdd() {
   if (!canAdd.value || currentPage.value === 'dashboard') return;
   if (currentPage.value === 'workouts') {
     repeatPlan.value = null;
+    editPlan.value = null;
     workoutBuilderOpen.value = true;
     return;
   }
@@ -112,6 +115,7 @@ function openExerciseAdd() {
   exerciseManagerOpen.value = false;
   workoutBuilderOpen.value = false;
   repeatPlan.value = null;
+  editPlan.value = null;
   modal.value = { kind: 'exercises' };
 }
 
@@ -128,6 +132,7 @@ function clearSession() {
   exerciseManagerOpen.value = false;
   workoutBuilderOpen.value = false;
   repeatPlan.value = null;
+  editPlan.value = null;
 }
 
 async function logout() {
@@ -191,14 +196,15 @@ onBeforeUnmount(() => {
       @edit="modal = { kind: 'workouts', id: $event }"
       @add-exercise="openExerciseAdd"
       @manage-exercises="exerciseManagerOpen = true"
-      @build="repeatPlan = null; workoutBuilderOpen = true"
-      @repeat="repeatPlan = $event; workoutBuilderOpen = true"
+      @build="repeatPlan = null; editPlan = null; workoutBuilderOpen = true"
+      @edit-plan="editPlan = $event; repeatPlan = null; workoutBuilderOpen = true"
+      @repeat="repeatPlan = $event; editPlan = null; workoutBuilderOpen = true"
     />
   </AppShell>
 
   <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
   <ExerciseManagerModal v-if="isAdmin" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @changed="refresh" />
-  <WorkoutBuilderModal :open="workoutBuilderOpen" :repeat-plan="repeatPlan" @close="workoutBuilderOpen = false; repeatPlan = null" @saved="workoutBuilderOpen = false; repeatPlan = null; refresh()" />
+  <WorkoutBuilderModal :open="workoutBuilderOpen" :repeat-plan="repeatPlan" :edit-plan="editPlan" @close="workoutBuilderOpen = false; repeatPlan = null; editPlan = null" @saved="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; refresh()" />
 
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">
     <ProductForm v-if="modal?.kind === 'products'" :product-id="modal.id" @saved="saved" @deleted="saved" @cancel="closeModal" />

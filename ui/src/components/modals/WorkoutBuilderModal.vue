@@ -15,6 +15,7 @@ type BuilderItem = {
 const props = defineProps<{
   open: boolean;
   repeatPlan?: WorkoutPlan | null;
+  editPlan?: WorkoutPlan | null;
 }>();
 
 const emit = defineEmits<{
@@ -31,6 +32,8 @@ const form = reactive<{ scheduled_at: string; items: BuilderItem[] }>({
   items: []
 });
 
+const sourcePlan = () => props.editPlan || props.repeatPlan;
+
 function today() {
   const now = new Date();
   const offset = now.getTimezoneOffset();
@@ -38,8 +41,9 @@ function today() {
 }
 
 function resetForm() {
-  form.scheduled_at = today();
-  form.items = props.repeatPlan?.items.map((item) => ({
+  const plan = sourcePlan();
+  form.scheduled_at = props.editPlan?.scheduled_at || today();
+  form.items = plan?.items.map((item) => ({
     exercise_id: item.exercise_id,
     working_weight: item.working_weight ?? '',
     sets: item.sets ?? '',
@@ -69,6 +73,10 @@ watch(() => props.open, (open) => {
 }, { immediate: true });
 
 watch(() => props.repeatPlan, () => {
+  if (props.open && exercises.value.length) resetForm();
+});
+
+watch(() => props.editPlan, () => {
   if (props.open && exercises.value.length) resetForm();
 });
 
@@ -115,7 +123,7 @@ async function save() {
   }
   saving.value = true;
   try {
-    await api.post('workout-plans', {
+    const payload = {
       scheduled_at: form.scheduled_at,
       items: form.items.map((item) => ({
         exercise_id: item.exercise_id,
@@ -124,7 +132,9 @@ async function save() {
         duration_minutes: item.duration_minutes || null,
         speed_kmh: item.speed_kmh || null
       }))
-    });
+    };
+    if (props.editPlan) await api.updateWorkoutPlan(props.editPlan.id, payload);
+    else await api.post('workout-plans', payload);
     emit('saved');
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
@@ -135,7 +145,7 @@ async function save() {
 </script>
 
 <template>
-  <ModalDialog :open="open" :title="repeatPlan ? 'Повторить тренировку' : 'Собрать тренировку'" eyebrow="WORKOUT BUILDER" wide @close="$emit('close')">
+  <ModalDialog :open="open" :title="editPlan ? 'Редактировать тренировку' : repeatPlan ? 'Повторить тренировку' : 'Собрать тренировку'" eyebrow="WORKOUT BUILDER" wide @close="$emit('close')">
     <form class="workout-builder" @submit.prevent="save">
       <div v-if="loading" class="panel">Загрузка…</div>
       <template v-else>
@@ -143,6 +153,7 @@ async function save() {
           <label for="planned-workout-date">Дата тренировки</label>
           <input id="planned-workout-date" v-model="form.scheduled_at" type="date" required>
           <small v-if="repeatPlan">По умолчанию выбрана текущая дата — её можно изменить.</small>
+          <small v-else-if="editPlan">Измените дату или состав запланированной тренировки.</small>
         </div>
 
         <div class="builder-items-head">
@@ -176,7 +187,7 @@ async function save() {
         <p id="form-error">{{ error }}</p>
         <div class="actions">
           <button type="button" @click="$emit('close')">Отмена</button>
-          <button type="submit" class="primary" :disabled="saving">{{ saving ? 'Сохранение…' : 'Закрепить тренировку' }}</button>
+          <button type="submit" class="primary" :disabled="saving">{{ saving ? 'Сохранение…' : editPlan ? 'Сохранить изменения' : 'Закрепить тренировку' }}</button>
         </div>
       </template>
     </form>

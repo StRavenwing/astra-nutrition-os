@@ -164,10 +164,46 @@ def create_workout_plan(data: dict, user: User) -> dict:
         return serialize_workout_plan(plan)
 
 
+def _replace_workout_plan_items(plan: WorkoutPlan, items: list[dict]) -> None:
+    if not items:
+        raise ValueError("Добавьте хотя бы одно упражнение")
+    WorkoutPlanItem.delete().where(WorkoutPlanItem.plan == plan).execute()
+    for item in items:
+        exercise = get_exercise(int(item["exercise_id"]))
+        WorkoutPlanItem.create(
+            plan=plan,
+            exercise=exercise,
+            working_weight=number(item.get("working_weight")),
+            sets=int_number(item.get("sets")),
+            duration_minutes=int_number(item.get("duration_minutes")),
+            speed_kmh=number(item.get("speed_kmh")),
+        )
+
+
+def update_workout_plan(plan_id: int, data: dict, user: User) -> dict:
+    with current_database().atomic():
+        plan = get_workout_plan(plan_id, user)
+        if plan.status != "planned":
+            raise ConflictError("Редактировать можно только запланированную тренировку")
+        plan.scheduled_at = data["scheduled_at"]
+        plan.save()
+        _replace_workout_plan_items(plan, data.get("items") or [])
+        return serialize_workout_plan(plan)
+
+
 def complete_workout_plan(plan_id: int, user: User) -> dict:
     with current_database().atomic():
         plan = get_workout_plan(plan_id, user)
         plan.status = "archived"
+        plan.completed_at = datetime.utcnow().isoformat(timespec="seconds")
+        plan.save()
+        return serialize_workout_plan(plan)
+
+
+def cancel_workout_plan(plan_id: int, user: User) -> dict:
+    with current_database().atomic():
+        plan = get_workout_plan(plan_id, user)
+        plan.status = "canceled"
         plan.completed_at = datetime.utcnow().isoformat(timespec="seconds")
         plan.save()
         return serialize_workout_plan(plan)
