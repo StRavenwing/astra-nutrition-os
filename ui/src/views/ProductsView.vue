@@ -135,7 +135,6 @@ function productSpriteStyle(item: string) {
       <article v-for="item in shown" :key="item.id" class="product-tile">
         <div class="product-tile-head">
           <span class="recipe-id">{{ item.code }}</span>
-          <span class="pill">{{ item.data_status || '—' }}</span>
         </div>
         <div class="product-tile-category">{{ item.category || 'Без категории' }}</div>
         <h3>{{ item.name }}</h3>

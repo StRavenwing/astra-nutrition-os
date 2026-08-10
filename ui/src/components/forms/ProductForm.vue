@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { productCategoryOptions, productStatusOptions, productUnitOptions } from '@/constants';
+import { productCategoryOptions, productUnitOptions } from '@/constants';
 import { api } from '@/api/client';
 import type { ProductMeasure } from '@/types';
 
@@ -26,7 +26,6 @@ const form = reactive<Record<string, string>>({
   protein_g: '',
   fat_g: '',
   carbs_g: '',
-  data_status: productStatusOptions[0],
   note: '',
   teaspoon_base_quantity: '',
   tablespoon_base_quantity: '',
@@ -161,7 +160,6 @@ async function scanNutrition(event: Event) {
     if (result.fat_g != null) form.fat_g = scanValue(result.fat_g);
     if (result.carbs_g != null) form.carbs_g = scanValue(result.carbs_g);
     if (result.kcal == null) calculateKcal();
-    form.data_status = 'Оценка';
     scanMessage.value = `${scanSummary()} · ${Math.round(result.confidence * 100)}%`;
     if (result.warnings.length) scanMessage.value += ` · ${result.warnings[0]}`;
   } catch (err) {
@@ -222,7 +220,6 @@ async function remove() {
         <div class="field"><label>Белки</label><input v-model="form.protein_g" type="number" step="0.01" required></div>
         <div class="field"><label>Жиры</label><input v-model="form.fat_g" type="number" step="0.01" required></div>
         <div class="field"><label>Углеводы</label><input v-model="form.carbs_g" type="number" step="0.01" required></div>
-        <div class="field"><label>Статус данных</label><select v-model="form.data_status"><option v-for="item in productStatusOptions" :key="item">{{ item }}</option></select></div>
         <div class="field full"><label>Примечание</label><input v-model="form.note"></div>
       </div>
 

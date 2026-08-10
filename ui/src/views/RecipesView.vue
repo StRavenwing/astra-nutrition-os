@@ -8,7 +8,7 @@ import Toolbar from '@/components/shared/Toolbar.vue';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 
 const props = defineProps<{ refreshKey: number; isAdmin: boolean }>();
-const emit = defineEmits<{ openRecipe: [id: number] }>();
+const emit = defineEmits<{ openRecipe: [id: number]; edit: [id: number] }>();
 
 const data = ref<RecipeSummary[]>([]);
 const loading = ref(false);
@@ -123,6 +123,16 @@ async function moderate(item: RecipeSummary, action: 'accept' | 'reject' | 'revi
 function openNotice(item: RecipeSummary) {
   notices.value = notices.value.filter((notice) => notice.id !== item.id);
   emit('openRecipe', item.id);
+}
+
+async function removeRecipe(item: RecipeSummary) {
+  if (!confirm('Удалить рецепт? Это действие нельзя отменить.')) return;
+  try {
+    await api.delete(`recipes/${item.id}`);
+    data.value = data.value.filter((recipe) => recipe.id !== item.id);
+  } catch (err) {
+    alert(err instanceof Error ? err.message : String(err));
+  }
 }
 </script>
 
@@ -240,6 +250,10 @@ function openNotice(item: RecipeSummary) {
           class="submit-to-common"
           @click.stop="item.submission_requested ? cancelSubmission(item) : submissionRecipe = item"
         >{{ item.submission_requested ? 'Отменить отправку' : 'Добавить в общую коллекцию' }}</button>
+        <div v-if="isAdmin || item.collection === 'local'" class="recipe-tile-actions" @click.stop>
+          <button type="button" class="edit-recipe" @click="emit('edit', item.id)">✎ Редактировать</button>
+          <button type="button" class="delete-recipe" @click="removeRecipe(item)">Удалить</button>
+        </div>
       </article>
       <div v-if="!shown.length" class="panel empty">Ничего не найдено</div>
     </div>

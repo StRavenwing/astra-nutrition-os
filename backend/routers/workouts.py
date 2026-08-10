@@ -7,6 +7,7 @@ from backend.models import User
 from backend.schemas import ExerciseInput, WorkoutInput, WorkoutPlanInput, dump_model
 from backend.services.workouts import (
     create_exercise,
+    update_exercise,
     create_workout,
     delete_exercise,
     delete_workout,
@@ -38,6 +39,11 @@ def post_exercise(payload: ExerciseInput, current_user: User = Depends(require_a
 @router.delete("/exercises/{exercise_id}")
 def remove_exercise(exercise_id: int, current_user: User = Depends(require_admin)) -> dict:
     return delete_exercise(exercise_id)
+
+
+@router.put("/exercises/{exercise_id}")
+def put_exercise(exercise_id: int, payload: ExerciseInput, current_user: User = Depends(require_admin)) -> dict:
+    return update_exercise(exercise_id, dump_model(payload))
 
 
 @router.get("/workouts")

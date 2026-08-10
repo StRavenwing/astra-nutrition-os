@@ -77,11 +77,7 @@ async function remove(id: number) {
           <p class="eyebrow">ТЕКУЩИЕ ПОКАЗАТЕЛИ</p>
           <h2>{{ formatDate(latest.measured_at) }}</h2>
         </div>
-        <div>
-          <span class="current-badge">Текущий замер</span>
-          <button type="button" class="edit-progress-tile" @click="emit('edit', latest.id)">✎ Редактировать</button>
-          <button type="button" class="delete-progress-tile" @click="remove(latest.id)">Удалить</button>
-        </div>
+        <span class="current-badge">Текущий замер</span>
       </div>
       <div class="current-progress-main">
         <span v-for="item in [metric(latest.weight_kg, 'Вес', 'кг'), metric(latest.height_cm, 'Рост', 'см'), metric(latest.bmi, 'ИМТ'), metric(latest.waist_cm, 'Талия', 'см')]" :key="item.label">
@@ -116,6 +112,10 @@ async function remove(id: number) {
         </div>
       </div>
       <p v-if="latest.comment" class="progress-comment">{{ latest.comment }}</p>
+      <div class="progress-tile-actions current-progress-actions">
+        <button type="button" class="edit-progress-tile" @click="emit('edit', latest.id)">✎ Редактировать</button>
+        <button type="button" class="delete-progress-tile" @click="remove(latest.id)">Удалить</button>
+      </div>
     </section>
     <div v-else class="panel empty">Замеров пока нет</div>
 
@@ -148,10 +148,6 @@ async function remove(id: number) {
       <article v-for="item in shown" :key="item.id" class="progress-tile">
         <div class="progress-tile-head">
           <span class="progress-date">{{ formatDate(item.measured_at) }}</span>
-          <div class="progress-card-actions">
-            <button type="button" class="edit-progress-tile" @click="emit('edit', item.id)">✎ Редактировать</button>
-            <button type="button" class="delete-progress-tile" @click="remove(item.id)">Удалить</button>
-          </div>
         </div>
         <div class="progress-primary">
           <span v-for="metricItem in [metric(item.weight_kg, 'Вес', 'кг'), metric(item.height_cm, 'Рост', 'см'), metric(item.bmi, 'ИМТ')]" :key="metricItem.label">
@@ -171,6 +167,10 @@ async function remove(id: number) {
           </span>
         </div>
         <p v-if="item.comment" class="progress-comment">{{ item.comment }}</p>
+        <div class="progress-tile-actions">
+          <button type="button" class="edit-progress-tile" @click="emit('edit', item.id)">✎ Редактировать</button>
+          <button type="button" class="delete-progress-tile" @click="remove(item.id)">Удалить</button>
+        </div>
       </article>
       <div v-if="!shown.length" class="panel empty">Предыдущих замеров пока нет</div>
     </div>

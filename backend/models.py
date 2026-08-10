@@ -298,6 +298,9 @@ class Exercise(BaseModel):
     default_reps = IntegerField(null=True)
     target_rir = CharField(null=True)
     note = TextField(null=True)
+    description = TextField(null=True)
+    photo_urls = TextField(null=True)
+    video_url = TextField(null=True)
 
     class Meta:
         table_name = "exercises"

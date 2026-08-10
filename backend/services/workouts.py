@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
 from backend.models import Exercise, User, WorkoutLog, WorkoutPlan, WorkoutPlanItem, current_database
@@ -21,8 +22,21 @@ def get_exercise(exercise_id: int) -> Exercise:
     return exercise
 
 
+def _media_values(data: dict) -> tuple[str | None, str | None]:
+    photos = data.get("photos") or []
+    if not isinstance(photos, list) or len(photos) > 6:
+        raise ValueError("Можно добавить не более 6 фотографий")
+    if any(not isinstance(item, str) or not item for item in photos):
+        raise ValueError("Некорректное изображение упражнения")
+    video = data.get("video")
+    if video is not None and not isinstance(video, str):
+        raise ValueError("Некорректное видео упражнения")
+    return json.dumps(photos, ensure_ascii=False) if photos else None, video or None
+
+
 def create_exercise(data: dict) -> dict:
     with current_database().atomic():
+        photo_urls, video_url = _media_values(data)
         exercise = Exercise.create(
             code=next_code("EX"),
             muscle_group=data.get("muscle_group"),
@@ -32,7 +46,28 @@ def create_exercise(data: dict) -> dict:
             default_reps=int_number(data.get("default_reps"), 12),
             target_rir=data.get("target_rir", "0–2"),
             note=data.get("note"),
+            description=data.get("description") or data.get("note"),
+            photo_urls=photo_urls,
+            video_url=video_url,
         )
+        return serialize_exercise(exercise)
+
+
+def update_exercise(exercise_id: int, data: dict) -> dict:
+    with current_database().atomic():
+        exercise = get_exercise(exercise_id)
+        photo_urls, video_url = _media_values(data)
+        exercise.name = data["name"]
+        exercise.muscle_group = data.get("muscle_group")
+        exercise.default_unit = data.get("default_unit", "кг")
+        exercise.default_sets = int_number(data.get("default_sets"), 3)
+        exercise.default_reps = int_number(data.get("default_reps"), 12)
+        exercise.target_rir = data.get("target_rir", "0–2")
+        exercise.note = data.get("note")
+        exercise.description = data.get("description") or data.get("note")
+        exercise.photo_urls = photo_urls
+        exercise.video_url = video_url
+        exercise.save()
         return serialize_exercise(exercise)
 
 

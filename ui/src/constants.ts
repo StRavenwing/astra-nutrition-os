@@ -16,7 +16,6 @@ export const productCategoryOptions = [
 ];
 
 export const productUnitOptions = ['г', 'мл', 'шт', 'бут.'];
-export const productStatusOptions = ['Подтверждено', 'Оценка'];
 export const mealOrder = ['Завтрак', 'Обед', 'Ужин', 'Перекус', 'Напиток'];
 export const recipeStatusOptions = ['Draft', 'Testing', 'Approved', 'Archived'];
 

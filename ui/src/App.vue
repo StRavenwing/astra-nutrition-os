@@ -119,6 +119,12 @@ function openExerciseAdd() {
   modal.value = { kind: 'exercises' };
 }
 
+function editExercise(id: number) {
+  if (!isAdmin.value) return;
+  exerciseManagerOpen.value = false;
+  modal.value = { kind: 'exercises', id };
+}
+
 function authenticated(user: AuthUser) {
   currentUser.value = user;
   refresh();
@@ -186,7 +192,7 @@ onBeforeUnmount(() => {
   >
     <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" @navigate="navigate" @open-recipe="openRecipe" />
     <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" @edit="modal = { kind: 'products', id: $event }" />
-    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" @open-recipe="openRecipe" />
+    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" @open-recipe="openRecipe" @edit="editRecipe" />
     <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" @edit="modal = { kind: 'diary', id: $event }" />
     <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" @edit="modal = { kind: 'progress', id: $event }" />
     <WorkoutsView
@@ -195,6 +201,7 @@ onBeforeUnmount(() => {
       :is-admin="isAdmin"
       @edit="modal = { kind: 'workouts', id: $event }"
       @add-exercise="openExerciseAdd"
+      @edit-exercise="editExercise"
       @manage-exercises="exerciseManagerOpen = true"
       @build="repeatPlan = null; editPlan = null; workoutBuilderOpen = true"
       @edit-plan="editPlan = $event; repeatPlan = null; workoutBuilderOpen = true"
@@ -203,7 +210,7 @@ onBeforeUnmount(() => {
   </AppShell>
 
   <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
-  <ExerciseManagerModal v-if="isAdmin" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @changed="refresh" />
+  <ExerciseManagerModal v-if="isAdmin" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @edit="editExercise" @changed="refresh" />
   <WorkoutBuilderModal :open="workoutBuilderOpen" :repeat-plan="repeatPlan" :edit-plan="editPlan" @close="workoutBuilderOpen = false; repeatPlan = null; editPlan = null" @saved="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; refresh()" />
 
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">
@@ -212,7 +219,7 @@ onBeforeUnmount(() => {
     <DiaryEntryForm v-else-if="modal?.kind === 'diary'" :diary-id="modal.id as number | undefined" @saved="saved" @deleted="saved" @cancel="closeModal" />
     <ProgressForm v-else-if="modal?.kind === 'progress'" :progress-id="modal.id as number | undefined" @saved="saved" @cancel="closeModal" />
     <WorkoutForm v-else-if="modal?.kind === 'workouts'" :workout-log-id="modal.id as number | undefined" @saved="saved" @deleted="saved" @cancel="closeModal" />
-    <ExerciseForm v-else-if="modal?.kind === 'exercises'" @saved="saved" @cancel="closeModal" />
+    <ExerciseForm v-else-if="modal?.kind === 'exercises'" :exercise-id="modal.id" @saved="saved" @cancel="closeModal" />
   </ModalDialog>
   <PwaUpdateToast />
 </template>
@@ -963,7 +970,10 @@ dialog {
 }
 
 .product-tile-actions,
-.workout-tile-actions {
+.workout-tile-actions,
+.recipe-tile-actions,
+.progress-tile-actions,
+.exercise-card-actions {
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 7px;
@@ -982,6 +992,7 @@ dialog {
 .edit-workout,
 .edit-progress-tile,
 .edit-recipe,
+.edit-exercise,
 .edit-diary-entry {
   border: 1px solid #85b8ff;
   background: #e9f2ff;
@@ -991,6 +1002,8 @@ dialog {
 .delete-product,
 .delete-workout,
 .delete-progress-tile,
+.delete-recipe,
+.delete-exercise,
 .delete-diary-entry,
 .danger-button,
 .row-delete {
@@ -1718,6 +1731,11 @@ dialog {
   gap: 8px;
 }
 
+.current-progress-actions {
+  justify-content: flex-end;
+  margin-top: 15px;
+}
+
 .current-badge {
   display: inline-block;
   padding: 3px 8px;
@@ -1845,9 +1863,9 @@ dialog {
 .edit-progress-tile,
 .delete-progress-tile {
   border-radius: 8px;
-  padding: 7px 9px;
-  font-size: 10px;
-  font-weight: 800;
+  padding: 8px 10px;
+  font-size: 11px;
+  font-weight: 750;
   cursor: pointer;
 }
 

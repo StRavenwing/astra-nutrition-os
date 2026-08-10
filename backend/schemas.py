@@ -128,6 +128,9 @@ class ExerciseInput(BaseModel):
     default_reps: Any = 12
     target_rir: str | None = "0–2"
     note: str | None = None
+    description: str | None = None
+    photos: list[str] = Field(default_factory=list, max_length=6)
+    video: str | None = None
 
 
 class WorkoutInput(BaseModel):

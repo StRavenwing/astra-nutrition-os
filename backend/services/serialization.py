@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from backend.models import (
     DiaryEntry,
     Exercise,
@@ -255,6 +257,12 @@ def serialize_progress(entry: ProgressEntry) -> dict:
 
 
 def serialize_exercise(exercise: Exercise) -> dict:
+    try:
+        photos = json.loads(exercise.photo_urls or "[]")
+    except (TypeError, ValueError):
+        photos = []
+    if not isinstance(photos, list):
+        photos = []
     return {
         "id": exercise.id,
         "code": exercise.code,
@@ -265,6 +273,9 @@ def serialize_exercise(exercise: Exercise) -> dict:
         "default_reps": exercise.default_reps,
         "target_rir": exercise.target_rir,
         "note": exercise.note,
+        "description": exercise.description or exercise.note,
+        "photos": photos,
+        "video": exercise.video_url,
     }
 
 

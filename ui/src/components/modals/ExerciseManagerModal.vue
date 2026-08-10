@@ -8,6 +8,7 @@ const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{
   close: [];
   add: [];
+  edit: [id: number];
   changed: [];
 }>();
 
@@ -55,9 +56,12 @@ async function removeExercise(id: number) {
       <div v-for="exercise in exercises" :key="exercise.id" class="exercise-manager-row">
         <div>
           <b>{{ exercise.name }}</b>
-          <small>{{ exercise.code }} · {{ exercise.muscle_group || 'Без группы' }} · {{ exercise.default_sets || '—' }} × {{ exercise.default_reps || '—' }} · {{ exercise.default_unit || 'кг' }}</small>
+          <small>{{ exercise.code }} · {{ exercise.muscle_group || 'Без группы' }}</small>
         </div>
-        <button type="button" class="delete-exercise" @click="removeExercise(exercise.id)">Удалить</button>
+        <div class="exercise-manager-actions">
+          <button type="button" class="edit-exercise" @click="$emit('edit', exercise.id)">✎ Редактировать</button>
+          <button type="button" class="delete-exercise" @click="removeExercise(exercise.id)">Удалить</button>
+        </div>
       </div>
       <div v-if="!exercises.length" class="empty">Упражнений пока нет</div>
     </div>
@@ -67,5 +71,23 @@ async function removeExercise(id: number) {
 <style lang="scss">
 .exercise-manager-list {
   min-height: 120px;
+}
+
+.exercise-manager-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.edit-exercise {
+  border: 1px solid #85b8ff;
+  border-radius: 7px;
+  padding: 7px 10px;
+  background: #e9f2ff;
+  color: var(--blue);
+  font-size: 10px;
+  font-weight: 800;
+  cursor: pointer;
 }
 </style>

@@ -11,6 +11,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   edit: [id: number];
+  editExercise: [id: number];
   addExercise: [];
   manageExercises: [];
   build: [];
@@ -23,6 +24,7 @@ const exercises = ref<Exercise[]>([]);
 const loading = ref(false);
 const error = ref('');
 const section = ref<'none' | 'workouts' | 'exercises' | 'archive'>('none');
+const exerciseGroup = ref('all');
 
 async function load() {
   loading.value = true;
@@ -43,6 +45,10 @@ watch(() => props.refreshKey, load);
 
 const plannedPlans = computed(() => plans.value.filter((plan) => plan.status === 'planned'));
 const archivedPlans = computed(() => plans.value.filter((plan) => plan.status === 'archived' || plan.status === 'canceled'));
+const completedPlans = computed(() => plans.value.filter((plan) => plan.status === 'archived'));
+const canceledPlans = computed(() => plans.value.filter((plan) => plan.status === 'canceled'));
+const exerciseGroups = computed(() => [...new Set(exercises.value.map((exercise) => exercise.muscle_group || 'Другое'))].sort((a, b) => a.localeCompare(b, 'ru')));
+const visibleExercises = computed(() => exercises.value.filter((exercise) => exerciseGroup.value === 'all' || (exercise.muscle_group || 'Другое') === exerciseGroup.value));
 
 const workoutComplexes = [
   'Комплекс для рук',
@@ -84,6 +90,16 @@ async function cancelPlan(id: number) {
   if (!confirm('Отменить запланированную тренировку? Она попадёт в архив.')) return;
   try {
     await api.cancelWorkoutPlan(id);
+    await load();
+  } catch (err) {
+    alert(err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function removeExercise(id: number) {
+  if (!confirm('Удалить упражнение из справочника? Это действие нельзя отменить.')) return;
+  try {
+    await api.delete(`exercises/${id}`);
     await load();
   } catch (err) {
     alert(err instanceof Error ? err.message : String(err));
@@ -131,15 +147,15 @@ async function cancelPlan(id: number) {
     <section class="workout-section-menu" aria-label="Разделы тренировок">
       <button type="button" class="workout-section-tile" :class="{ active: section === 'workouts' }" @click="section = 'workouts'">
         <span class="workout-section-icon">🏋️</span>
-        <span><b>Тренировки</b><small>Комплексы и программы</small></span>
+        <span><b>Тренировки</b><small>Комплексы и программы</small></span><strong>{{ plannedPlans.length }}</strong>
       </button>
       <button type="button" class="workout-section-tile" :class="{ active: section === 'exercises' }" @click="section = 'exercises'">
         <span class="workout-section-icon">💪</span>
-        <span><b>Упражнения</b><small>Справочник упражнений</small></span>
+        <span><b>Упражнения</b><small>Справочник упражнений</small></span><strong>{{ exercises.length }}</strong>
       </button>
       <button type="button" class="workout-section-tile archive" :class="{ active: section === 'archive' }" @click="section = 'archive'">
         <span class="workout-section-icon">📦</span>
-        <span><b>Архив тренировок</b><small>Пройденные и отменённые</small></span>
+        <span><b>Архив тренировок</b><small>Пройденные и отменённые</small></span><strong>{{ archivedPlans.length }}</strong>
       </button>
     </section>
 
@@ -158,28 +174,56 @@ async function cancelPlan(id: number) {
         <div><p class="eyebrow">СПРАВОЧНИК</p><h2>Упражнения</h2></div>
         <div v-if="props.isAdmin" class="exercise-actions"><button type="button" class="secondary-button" @click="emit('addExercise')">＋ Добавить</button><button type="button" class="secondary-button" @click="emit('manageExercises')">Управление</button></div>
       </div>
+      <div class="exercise-categories" aria-label="Категории упражнений по группе мышц">
+        <button type="button" class="exercise-category-card" :class="{ active: exerciseGroup === 'all' }" @click="exerciseGroup = 'all'"><span><b>Все группы</b><small>Все упражнения</small></span><strong>{{ exercises.length }}</strong></button>
+        <button v-for="group in exerciseGroups" :key="group" type="button" class="exercise-category-card" :class="{ active: exerciseGroup === group }" @click="exerciseGroup = group"><span><b>{{ group }}</b><small>Группа мышц</small></span><strong>{{ exercises.filter((item) => (item.muscle_group || 'Другое') === group).length }}</strong></button>
+      </div>
       <div class="exercise-grid">
-        <article v-for="exercise in exercises" :key="exercise.id" class="workout-tile exercise-card">
+        <article v-for="exercise in visibleExercises" :key="exercise.id" class="workout-tile exercise-card">
           <div class="workout-tile-head"><span class="workout-group">{{ exercise.muscle_group || 'Другое' }}</span><span class="exercise-code">{{ exercise.code }}</span></div>
           <h3>{{ exercise.name }}</h3>
-          <p>{{ exercise.note || 'Упражнение из справочника' }}</p>
-          <div class="exercise-meta"><span><b>{{ exercise.default_sets || '—' }}</b><small>подхода</small></span><span><b>{{ exercise.default_reps || '—' }}</b><small>повторов</small></span><span><b>{{ exercise.default_unit || '—' }}</b><small>единица</small></span></div>
+          <p>{{ exercise.description || exercise.note || 'Описание упражнения пока не добавлено' }}</p>
+          <div v-if="exercise.photos?.length || exercise.video" class="exercise-media-strip">
+            <img v-if="exercise.photos?.[0]" :src="exercise.photos[0]" alt="Фото упражнения">
+            <span v-if="exercise.photos?.length">Фото: {{ exercise.photos.length }}</span>
+            <span v-if="exercise.video">Видео</span>
+          </div>
+          <div v-if="props.isAdmin" class="workout-tile-actions exercise-card-actions">
+            <button type="button" class="edit-workout" @click="emit('editExercise', exercise.id)">✎ Редактировать</button>
+            <button type="button" class="delete-workout" @click="removeExercise(exercise.id)">Удалить</button>
+          </div>
         </article>
-        <div v-if="!exercises.length" class="panel empty">Упражнений пока нет</div>
+        <div v-if="!visibleExercises.length" class="panel empty">Упражнений в этой группе пока нет</div>
       </div>
     </section>
 
     <section v-else-if="section === 'archive'" class="workout-subsection">
       <div class="subsection-heading"><p class="eyebrow">ИСТОРИЯ</p><h2>Архив тренировок</h2></div>
-      <div class="workout-grid archive-workout-grid">
-        <article v-for="plan in archivedPlans" :key="plan.id" class="workout-tile archive-plan-tile">
+      <div class="archive-group">
+        <div class="archive-group-head"><div><p class="eyebrow">ЗАВЕРШЕНО</p><h3>Пройденные тренировки</h3></div><span class="subtle">{{ completedPlans.length }}</span></div>
+        <div class="workout-grid archive-workout-grid">
+        <article v-for="plan in completedPlans" :key="plan.id" class="workout-tile archive-plan-tile">
           <div class="workout-tile-head"><span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span><span class="workout-group" :class="plan.status === 'canceled' ? 'canceled-badge' : 'completed-badge'">{{ planStatus(plan) }}</span></div>
           <h3>Тренировка</h3>
           <p>{{ planSummary(plan) }}</p>
           <div class="planned-plan-items"><div v-for="item in plan.items" :key="item.id || item.exercise_id"><b>{{ item.name }}</b><small>{{ planMetric(item) }}</small></div></div>
           <div class="workout-tile-actions"><button type="button" class="edit-workout" @click="emit('repeat', plan)">↻ Повторить</button></div>
         </article>
-        <div v-if="!archivedPlans.length" class="panel empty">Архив тренировок пуст</div>
+        <div v-if="!completedPlans.length" class="panel empty">Пройденных тренировок пока нет</div>
+        </div>
+      </div>
+      <div class="archive-group canceled-archive-group">
+        <div class="archive-group-head"><div><p class="eyebrow">ОТМЕНЕНО</p><h3>Отменённые тренировки</h3></div><span class="subtle">{{ canceledPlans.length }}</span></div>
+        <div class="workout-grid archive-workout-grid">
+        <article v-for="plan in canceledPlans" :key="plan.id" class="workout-tile archive-plan-tile">
+          <div class="workout-tile-head"><span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span><span class="workout-group canceled-badge">Отменена</span></div>
+          <h3>Тренировка</h3>
+          <p>{{ planSummary(plan) }}</p>
+          <div class="planned-plan-items"><div v-for="item in plan.items" :key="item.id || item.exercise_id"><b>{{ item.name }}</b><small>{{ planMetric(item) }}</small></div></div>
+          <div class="workout-tile-actions"><button type="button" class="edit-workout" @click="emit('repeat', plan)">↻ Повторить</button></div>
+        </article>
+        <div v-if="!canceledPlans.length" class="panel empty">Отменённых тренировок пока нет</div>
+        </div>
       </div>
     </section>
   </template>
@@ -309,10 +353,10 @@ async function cancelPlan(id: number) {
 
 .workout-section-tile {
   display: grid;
-  grid-template-columns: 45px 1fr;
+  grid-template-columns: 45px 1fr auto;
   gap: 11px;
-  align-items: center;
-  min-height: 88px;
+  align-items: start;
+  min-height: 132px;
   padding: 14px;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -349,6 +393,15 @@ async function cancelPlan(id: number) {
     margin-top: 3px;
     color: var(--muted);
     font-size: 10px;
+  }
+
+  > strong {
+    padding: 4px 8px;
+    border-radius: 99px;
+    background: #fff;
+    color: var(--purple);
+    font-size: 12px;
+    box-shadow: 0 1px 3px #091e4220;
   }
 }
 
@@ -393,6 +446,71 @@ async function cancelPlan(id: number) {
 
 .exercise-card {
   min-height: 235px;
+
+  > p {
+    min-height: 52px;
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+}
+
+.exercise-categories {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+  margin: 0 0 16px;
+}
+
+.exercise-category-card {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 78px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover,
+  &.active {
+    border-color: var(--purple);
+    background: #f5f2ff;
+    box-shadow: 0 0 0 2px #6e5dc626;
+  }
+
+  b,
+  small { display: block; }
+  small { margin-top: 4px; color: var(--muted); font-size: 9px; text-transform: uppercase; }
+  strong { padding: 3px 8px; border-radius: 99px; background: #e9ddff; color: var(--purple); font-size: 12px; }
+}
+
+.exercise-media-strip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 42px;
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.exercise-media-strip img {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.exercise-card-actions {
+  grid-template-columns: 1fr auto;
+  margin-top: auto;
 }
 
 .exercise-code {
@@ -454,6 +572,22 @@ async function cancelPlan(id: number) {
   background: #ffebe6;
   color: #ae2a19;
 }
+
+.archive-group + .archive-group {
+  margin-top: 24px;
+}
+
+.archive-group-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  h3 { margin: 0; font-size: 18px; }
+}
+
+.canceled-archive-group .archive-group-head h3 { color: #ae2a19; }
 
 @media (max-width: 850px) {
   .workout-section-menu {

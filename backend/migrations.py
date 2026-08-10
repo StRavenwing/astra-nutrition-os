@@ -52,6 +52,20 @@ def _columns(connection: sqlite3.Connection, table: str) -> set[str]:
     return {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
 
 
+def _ensure_exercise_columns(connection: sqlite3.Connection) -> None:
+    columns = _columns(connection, "exercises")
+    additions = {
+        "description": "TEXT",
+        "photo_urls": "TEXT",
+        "video_url": "TEXT",
+    }
+    for column, column_type in additions.items():
+        if column not in columns:
+            connection.execute(f"ALTER TABLE exercises ADD COLUMN {column} {column_type}")
+    if "description" not in columns:
+        connection.execute("UPDATE exercises SET description=note WHERE description IS NULL")
+
+
 def _row_value(row: sqlite3.Row, key: str, default: Any = None) -> Any:
     return row[key] if key in row.keys() else default
 
@@ -282,6 +296,9 @@ def _migrate_legacy_rows(source: sqlite3.Connection, destination, settings: Sett
                 default_reps=int_number(_row_value(row, "default_reps")),
                 target_rir=_row_value(row, "target_rir"),
                 note=_row_value(row, "note"),
+                description=_row_value(row, "description") or _row_value(row, "note"),
+                photo_urls=_row_value(row, "photo_urls"),
+                video_url=_row_value(row, "video_url"),
             )
             exercise_map[exercise.code] = exercise.id
 
@@ -711,6 +728,7 @@ def migrate_v2_database(settings: Settings, backup_existing: bool) -> None:
         _rebuild_workout_logs(connection, admin["id"])
         _create_oauth_tables(connection)
         _add_recipe_ownership(connection)
+        _ensure_exercise_columns(connection)
         connection.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
         connection.commit()
     except Exception:
@@ -727,6 +745,7 @@ def migrate_v3_database(settings: Settings, backup_existing: bool) -> None:
 
     connection = _connect_raw(settings.db_path)
     try:
+        _ensure_exercise_columns(connection)
         _create_oauth_tables(connection)
         _add_recipe_ownership(connection)
         connection.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
@@ -744,6 +763,7 @@ def migrate_v4_database(settings: Settings, backup_existing: bool) -> None:
 
     connection = _connect_raw(settings.db_path)
     try:
+        _ensure_exercise_columns(connection)
         _add_recipe_ownership(connection)
         connection.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
         connection.commit()
@@ -765,6 +785,12 @@ def ensure_database(settings: Settings) -> None:
 
     status = _legacy_schema_status(settings.db_path)
     if status == "normalized":
+        connection = _connect_raw(settings.db_path)
+        try:
+            _ensure_exercise_columns(connection)
+            connection.commit()
+        finally:
+            connection.close()
         return
     if status == "normalized_v2":
         migrate_v2_database(settings, backup_existing=existed)

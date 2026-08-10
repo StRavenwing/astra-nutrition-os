@@ -53,7 +53,6 @@ export interface Product {
   protein_g: number | null;
   fat_g: number | null;
   carbs_g: number | null;
-  data_status: string | null;
   note: string | null;
   measures: ProductMeasure[];
   [key: string]: unknown;
@@ -197,6 +196,9 @@ export interface Exercise {
   default_reps: number | null;
   target_rir: string | null;
   note: string | null;
+  description: string | null;
+  photos: string[];
+  video: string | null;
 }
 
 export interface WorkoutEntry {
