@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
-import type { DashboardResponse, PageId } from '@/types';
-import { fmt } from '@/utils/format';
+import type { DashboardResponse, PageId, RegisteredUser } from '@/types';
+import { fmt, formatDate } from '@/utils/format';
 import MetricCard from '@/components/shared/MetricCard.vue';
+import ModalDialog from '@/components/shared/ModalDialog.vue';
 
-const props = defineProps<{ refreshKey: number }>();
+const props = defineProps<{ refreshKey: number; isAdmin: boolean }>();
 const emit = defineEmits<{
   navigate: [page: PageId];
   openRecipe: [id: number];
 }>();
 
 const data = ref<DashboardResponse | null>(null);
+const users = ref<RegisteredUser[]>([]);
+const usersOpen = ref(false);
 const loading = ref(false);
 const error = ref('');
 
@@ -19,7 +22,12 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    data.value = await api.dashboard();
+    const [dashboardData, registeredUsers] = await Promise.all([
+      api.dashboard(),
+      props.isAdmin ? api.users() : Promise.resolve([] as RegisteredUser[])
+    ]);
+    data.value = dashboardData;
+    users.value = registeredUsers;
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -46,6 +54,7 @@ watch(() => props.refreshKey, load);
         button
         @click="emit('navigate', 'progress')"
       />
+      <MetricCard v-if="props.isAdmin" label="Пользователи" :value="users.length" icon="👥" note="Открыть список →" button @click="usersOpen = true" />
     </div>
 
     <div class="panel">
@@ -67,6 +76,15 @@ watch(() => props.refreshKey, load);
       </div>
     </div>
   </template>
+  <ModalDialog :open="usersOpen" title="Зарегистрированные пользователи" eyebrow="USERS" wide @close="usersOpen = false">
+    <div class="registered-users-list">
+      <div v-for="user in users" :key="user.id" class="registered-user-row">
+        <div><b>{{ user.email }}</b><small>ID {{ user.id }} · {{ user.is_admin ? 'Администратор' : 'Пользователь' }}</small></div>
+        <time>{{ formatDate(user.created_at) }}</time>
+      </div>
+      <div v-if="!users.length" class="empty">Зарегистрированных пользователей пока нет</div>
+    </div>
+  </ModalDialog>
 </template>
 
 <style lang="scss">
@@ -76,4 +94,11 @@ watch(() => props.refreshKey, load);
     cursor: pointer;
   }
 }
+
+.registered-users-list { display: grid; gap: 8px; }
+.registered-user-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 13px; border: 1px solid var(--line); border-radius: 10px; background: #fafbfc; }
+.registered-user-row b, .registered-user-row small { display: block; }
+.registered-user-row small, .registered-user-row time { color: var(--muted); font-size: 11px; }
+.registered-user-row time { white-space: nowrap; }
+@media (max-width: 600px) { .registered-user-row { align-items: flex-start; flex-direction: column; gap: 4px; } }
 </style>

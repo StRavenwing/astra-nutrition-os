@@ -21,6 +21,7 @@ import ExerciseForm from '@/components/forms/ExerciseForm.vue';
 import RecipeDetailModal from '@/components/modals/RecipeDetailModal.vue';
 import ExerciseManagerModal from '@/components/modals/ExerciseManagerModal.vue';
 import WorkoutBuilderModal from '@/components/modals/WorkoutBuilderModal.vue';
+import WorkoutDetailModal from '@/components/modals/WorkoutDetailModal.vue';
 import PwaUpdateToast from '@/components/shared/PwaUpdateToast.vue';
 
 const pageIds = new Set(pages.map((page) => page.id));
@@ -39,6 +40,7 @@ const exerciseManagerOpen = ref(false);
 const workoutBuilderOpen = ref(false);
 const repeatPlan = ref<WorkoutPlan | null>(null);
 const editPlan = ref<WorkoutPlan | null>(null);
+const workoutDetailPlan = ref<WorkoutPlan | null>(null);
 
 const title = computed(() => pages.find((page) => page.id === currentPage.value)?.title || 'Обзор');
 const isAdmin = computed(() => Boolean(currentUser.value?.is_admin));
@@ -125,6 +127,45 @@ function editExercise(id: number) {
   modal.value = { kind: 'exercises', id };
 }
 
+function openWorkoutDetail(plan: WorkoutPlan) {
+  workoutDetailPlan.value = plan;
+}
+
+function editWorkoutFromDetail(plan: WorkoutPlan) {
+  workoutDetailPlan.value = null;
+  editPlan.value = plan;
+  repeatPlan.value = null;
+  workoutBuilderOpen.value = true;
+}
+
+function buildWorkoutFromComplex() {
+  workoutDetailPlan.value = null;
+  repeatPlan.value = null;
+  editPlan.value = null;
+  workoutBuilderOpen.value = true;
+}
+
+async function completeWorkoutFromDetail(plan: WorkoutPlan) {
+  try {
+    await api.completeWorkoutPlan(plan.id);
+    workoutDetailPlan.value = null;
+    refresh();
+  } catch (err) {
+    alert(err instanceof Error ? err.message : String(err));
+  }
+}
+
+async function cancelWorkoutFromDetail(plan: WorkoutPlan) {
+  if (!confirm('Отменить запланированную тренировку? Она попадёт в архив.')) return;
+  try {
+    await api.cancelWorkoutPlan(plan.id);
+    workoutDetailPlan.value = null;
+    refresh();
+  } catch (err) {
+    alert(err instanceof Error ? err.message : String(err));
+  }
+}
+
 function authenticated(user: AuthUser) {
   currentUser.value = user;
   refresh();
@@ -137,6 +178,7 @@ function clearSession() {
   recipeDetailId.value = null;
   exerciseManagerOpen.value = false;
   workoutBuilderOpen.value = false;
+  workoutDetailPlan.value = null;
   repeatPlan.value = null;
   editPlan.value = null;
 }
@@ -190,7 +232,7 @@ onBeforeUnmount(() => {
     @add="openAdd"
     @logout="logout"
   >
-    <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" @navigate="navigate" @open-recipe="openRecipe" />
+    <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" :is-admin="isAdmin" @navigate="navigate" @open-recipe="openRecipe" />
     <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" @edit="modal = { kind: 'products', id: $event }" />
     <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" @open-recipe="openRecipe" @edit="editRecipe" />
     <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" @edit="modal = { kind: 'diary', id: $event }" />
@@ -202,6 +244,8 @@ onBeforeUnmount(() => {
       @edit="modal = { kind: 'workouts', id: $event }"
       @add-exercise="openExerciseAdd"
       @edit-exercise="editExercise"
+      @open-plan="openWorkoutDetail"
+      @build-complex="buildWorkoutFromComplex"
       @manage-exercises="exerciseManagerOpen = true"
       @build="repeatPlan = null; editPlan = null; workoutBuilderOpen = true"
       @edit-plan="editPlan = $event; repeatPlan = null; workoutBuilderOpen = true"
@@ -212,6 +256,7 @@ onBeforeUnmount(() => {
   <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
   <ExerciseManagerModal v-if="isAdmin" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @edit="editExercise" @changed="refresh" />
   <WorkoutBuilderModal :open="workoutBuilderOpen" :repeat-plan="repeatPlan" :edit-plan="editPlan" @close="workoutBuilderOpen = false; repeatPlan = null; editPlan = null" @saved="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; refresh()" />
+  <WorkoutDetailModal :plan="workoutDetailPlan" @close="workoutDetailPlan = null" @edit="editWorkoutFromDetail" @repeat="repeatPlan = $event; editPlan = null; workoutDetailPlan = null; workoutBuilderOpen = true" @complete="completeWorkoutFromDetail" @cancel="cancelWorkoutFromDetail" />
 
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">
     <ProductForm v-if="modal?.kind === 'products'" :product-id="modal.id" @saved="saved" @deleted="saved" @cancel="closeModal" />
@@ -615,6 +660,11 @@ dialog {
   cursor: pointer;
   transition: background .16s ease, border-color .16s ease, transform .16s ease;
 
+  > span:first-child {
+    font-size: 14px;
+    font-weight: 750;
+  }
+
   &:hover {
     border-color: #85b8ff;
     background: #f4f8ff;
@@ -858,7 +908,7 @@ dialog {
     min-height: 35px;
     margin: 0;
     color: var(--muted);
-    font-size: 11px;
+    font-size: 12px;
   }
 }
 

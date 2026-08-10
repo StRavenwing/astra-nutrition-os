@@ -15,6 +15,8 @@ const emit = defineEmits<{
   addExercise: [];
   manageExercises: [];
   build: [];
+  openPlan: [plan: WorkoutPlan];
+  buildComplex: [name: string];
   editPlan: [plan: WorkoutPlan];
   repeat: [plan: WorkoutPlan];
 }>();
@@ -121,7 +123,8 @@ async function removeExercise(id: number) {
       </div>
 
       <div v-if="plannedPlans.length" class="workout-grid scheduled-grid">
-        <article v-for="plan in plannedPlans" :key="plan.id" class="workout-tile planned-plan-tile">
+        <article v-for="plan in plannedPlans" :key="plan.id" class="workout-tile planned-plan-tile" tabindex="0" @click="emit('openPlan', plan)" @keydown.enter.prevent="emit('openPlan', plan)" @keydown.space.prevent="emit('openPlan', plan)">
+          <button type="button" class="complete-plan workout-complete-action" @click.stop="completePlan(plan.id)">Выполнено</button>
           <div class="workout-tile-head">
             <span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span>
             <span class="workout-group planned-badge">Запланирована</span>
@@ -134,10 +137,9 @@ async function removeExercise(id: number) {
               <small>{{ planMetric(item) }}</small>
             </div>
           </div>
-          <div class="workout-tile-actions planned-tile-actions">
-            <button type="button" class="edit-workout" @click="emit('editPlan', plan)">✎ Редактировать</button>
-            <button type="button" class="complete-plan" @click="completePlan(plan.id)">Выполнено</button>
-            <button type="button" class="delete-workout" @click="cancelPlan(plan.id)">Отменить</button>
+          <div class="workout-tile-actions workout-card-actions planned-tile-actions">
+            <button type="button" class="edit-workout" @click.stop="emit('editPlan', plan)">✎ Редактировать</button>
+            <button type="button" class="delete-workout" @click.stop="cancelPlan(plan.id)">Отменить</button>
           </div>
         </article>
       </div>
@@ -162,10 +164,14 @@ async function removeExercise(id: number) {
     <section v-if="section === 'workouts'" class="workout-subsection">
       <div class="subsection-heading"><p class="eyebrow">ТРЕНИРОВКИ</p><h2>Комплексы</h2></div>
       <div class="recipe-categories workout-complex-grid">
-        <button v-for="complex in workoutComplexes" :key="complex" type="button" class="category-card workout-complex-card" disabled>
+        <article v-for="complex in workoutComplexes" :key="complex" class="category-card workout-complex-card">
           <span class="workout-complex-photo">🏋️</span>
           <span class="category-copy"><b>{{ complex }}</b><small>Раздел в доработке</small></span>
-        </button>
+          <div class="workout-complex-actions">
+            <button type="button" class="create-complex-button" @click="emit('buildComplex', complex)">＋ Создать тренировку</button>
+            <button v-if="props.isAdmin" type="button" class="edit-complex-button" @click="emit('buildComplex', complex)">✎ Редактировать</button>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -202,12 +208,12 @@ async function removeExercise(id: number) {
       <div class="archive-group">
         <div class="archive-group-head"><div><p class="eyebrow">ЗАВЕРШЕНО</p><h3>Пройденные тренировки</h3></div><span class="subtle">{{ completedPlans.length }}</span></div>
         <div class="workout-grid archive-workout-grid">
-        <article v-for="plan in completedPlans" :key="plan.id" class="workout-tile archive-plan-tile">
+        <article v-for="plan in completedPlans" :key="plan.id" class="workout-tile archive-plan-tile" tabindex="0" @click="emit('openPlan', plan)" @keydown.enter.prevent="emit('openPlan', plan)" @keydown.space.prevent="emit('openPlan', plan)">
           <div class="workout-tile-head"><span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span><span class="workout-group" :class="plan.status === 'canceled' ? 'canceled-badge' : 'completed-badge'">{{ planStatus(plan) }}</span></div>
           <h3>Тренировка</h3>
           <p>{{ planSummary(plan) }}</p>
           <div class="planned-plan-items"><div v-for="item in plan.items" :key="item.id || item.exercise_id"><b>{{ item.name }}</b><small>{{ planMetric(item) }}</small></div></div>
-          <div class="workout-tile-actions"><button type="button" class="edit-workout" @click="emit('repeat', plan)">↻ Повторить</button></div>
+          <div class="workout-tile-actions workout-card-actions"><button type="button" class="edit-workout" @click.stop="emit('repeat', plan)">↻ Повторить</button></div>
         </article>
         <div v-if="!completedPlans.length" class="panel empty">Пройденных тренировок пока нет</div>
         </div>
@@ -215,12 +221,12 @@ async function removeExercise(id: number) {
       <div class="archive-group canceled-archive-group">
         <div class="archive-group-head"><div><p class="eyebrow">ОТМЕНЕНО</p><h3>Отменённые тренировки</h3></div><span class="subtle">{{ canceledPlans.length }}</span></div>
         <div class="workout-grid archive-workout-grid">
-        <article v-for="plan in canceledPlans" :key="plan.id" class="workout-tile archive-plan-tile">
+        <article v-for="plan in canceledPlans" :key="plan.id" class="workout-tile archive-plan-tile" tabindex="0" @click="emit('openPlan', plan)" @keydown.enter.prevent="emit('openPlan', plan)" @keydown.space.prevent="emit('openPlan', plan)">
           <div class="workout-tile-head"><span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span><span class="workout-group canceled-badge">Отменена</span></div>
           <h3>Тренировка</h3>
           <p>{{ planSummary(plan) }}</p>
           <div class="planned-plan-items"><div v-for="item in plan.items" :key="item.id || item.exercise_id"><b>{{ item.name }}</b><small>{{ planMetric(item) }}</small></div></div>
-          <div class="workout-tile-actions"><button type="button" class="edit-workout" @click="emit('repeat', plan)">↻ Повторить</button></div>
+          <div class="workout-tile-actions workout-card-actions"><button type="button" class="edit-workout" @click.stop="emit('repeat', plan)">↻ Повторить</button></div>
         </article>
         <div v-if="!canceledPlans.length" class="panel empty">Отменённых тренировок пока нет</div>
         </div>
@@ -288,6 +294,10 @@ async function removeExercise(id: number) {
   }
 }
 
+.workout-tile h3 {
+  font-size: 20px;
+}
+
 .planned-plan-items {
   display: grid;
   gap: 6px;
@@ -304,6 +314,10 @@ async function removeExercise(id: number) {
     display: block;
   }
 
+  b {
+    font-size: 12px;
+  }
+
   small {
     margin-top: 2px;
     color: var(--muted);
@@ -312,11 +326,36 @@ async function removeExercise(id: number) {
 }
 
 .planned-tile-actions {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 
   button {
-    min-width: 95px;
+    min-width: 0;
   }
+}
+
+.planned-plan-tile {
+  padding-top: 56px;
+}
+
+.workout-card-actions {
+  min-height: 36px;
+
+  button {
+    width: 100%;
+    min-height: 36px;
+  }
+}
+
+.archive-plan-tile .workout-card-actions {
+  grid-template-columns: 1fr;
+}
+
+.workout-complete-action {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  z-index: 1;
+  min-width: 100px;
 }
 
 .planned-badge {
@@ -389,10 +428,14 @@ async function removeExercise(id: number) {
     display: block;
   }
 
+  b {
+    font-size: 16px;
+  }
+
   small {
     margin-top: 3px;
     color: var(--muted);
-    font-size: 10px;
+    font-size: 11px;
   }
 
   > strong {
@@ -420,22 +463,55 @@ async function removeExercise(id: number) {
 }
 
 .workout-complex-card {
-  cursor: not-allowed;
-
-  &:hover {
-    transform: none;
-    border-color: var(--line);
-    box-shadow: 0 2px 5px #091e4214;
-  }
+  display: flex;
+  min-height: 260px;
+  flex-direction: column;
+  cursor: default;
 }
 
 .workout-complex-photo {
   display: grid;
   place-items: center;
-  height: 112px;
+  height: 125px;
   background: linear-gradient(135deg, #e9ddff, #d9e7fd);
   font-size: 28px;
   filter: grayscale(.2);
+}
+
+.workout-complex-card .category-copy {
+  flex: 1 1 auto;
+}
+
+.workout-complex-card .category-copy b {
+  font-size: 16px;
+}
+
+.workout-complex-actions {
+  display: grid;
+  gap: 7px;
+  padding: 0 13px 13px;
+}
+
+.create-complex-button,
+.edit-complex-button {
+  width: 100%;
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.create-complex-button {
+  border: 1px solid var(--blue);
+  background: var(--blue);
+  color: #fff;
+}
+
+.edit-complex-button {
+  border: 1px solid #85b8ff;
+  background: #e9f2ff;
+  color: var(--blue);
 }
 
 .exercise-grid {

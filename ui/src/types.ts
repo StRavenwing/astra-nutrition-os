@@ -201,6 +201,10 @@ export interface Exercise {
   video: string | null;
 }
 
+export interface RegisteredUser extends AuthUser {
+  created_at: string;
+}
+
 export interface WorkoutEntry {
   id: number;
   performed_at: string;
