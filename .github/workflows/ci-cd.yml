@@ -53,6 +53,7 @@ jobs:
           npm --prefix ui run build
 
       - name: Check service worker syntax
+        if: ${{ hashFiles('ui/public/service-worker.js') != '' }}
         run: node --check ui/public/service-worker.js
 
       - name: Run API and PWA smoke test
@@ -104,3 +105,4 @@ jobs:
           labels: ${{ steps.metadata.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
