@@ -181,4 +181,12 @@ async function remove(id: number) {
 .progress-grid {
   margin-top: 12px;
 }
+
+.progress-tile-actions {
+  margin-top: auto;
+
+  button {
+    min-height: 36px;
+  }
+}
 </style>

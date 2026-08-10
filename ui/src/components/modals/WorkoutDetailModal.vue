@@ -49,7 +49,7 @@ const statusLabel = computed(() => {
         <button v-if="plan.status === 'planned'" type="button" class="edit-workout" @click="emit('edit', plan)">✎ Редактировать</button>
         <button v-if="plan.status === 'planned'" type="button" class="complete-plan" @click="emit('complete', plan)">Выполнено</button>
         <button v-if="plan.status === 'planned'" type="button" class="delete-workout" @click="emit('cancel', plan)">Отменить</button>
-        <button v-else type="button" class="edit-workout" @click="emit('repeat', plan)">↻ Повторить</button>
+        <button v-if="plan.status !== 'planned'" type="button" class="edit-workout" @click="emit('repeat', plan)">↻ Повторить</button>
       </div>
     </div>
   </ModalDialog>

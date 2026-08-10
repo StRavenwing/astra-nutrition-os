@@ -213,7 +213,6 @@ async function removeRecipe(item: RecipeSummary) {
         <option value="name:1">Название: А–Я</option>
         <option value="name:-1">Название: Я–А</option>
         <option value="category:1">Категория: А–Я</option>
-        <option value="status:1">Статус: А–Я</option>
         <option value="version:1">Версия: по возрастанию</option>
         <option value="version:-1">Версия: по убыванию</option>
         <option value="kcal_per_serving:1">Калории: меньше</option>
@@ -229,7 +228,6 @@ async function removeRecipe(item: RecipeSummary) {
       <article v-for="item in shown" :key="item.id" class="recipe-tile" tabindex="0" title="Открыть рецепт" @click="emit('openRecipe', item.id)" @keydown.enter.prevent="emit('openRecipe', item.id)" @keydown.space.prevent="emit('openRecipe', item.id)">
         <div class="recipe-tile-head">
           <span class="recipe-id">{{ item.code }}</span>
-          <span class="pill">{{ item.status }}</span>
         </div>
         <div class="recipe-category">{{ recipeCategoryMap[item.category]?.label || item.category }}</div>
         <h3>{{ item.name }}</h3>

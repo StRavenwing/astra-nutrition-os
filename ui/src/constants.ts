@@ -6,7 +6,8 @@ export const pages: PageInfo[] = [
   { id: 'recipes', icon: '◇', title: 'Рецепты' },
   { id: 'diary', icon: '☷', title: 'Дневник' },
   { id: 'progress', icon: '↗', title: 'Прогресс' },
-  { id: 'workouts', icon: '⚡', title: 'Тренировки' }
+  { id: 'workouts', icon: '⚡', title: 'Тренировки' },
+  { id: 'theory', icon: '◈', title: 'Теория' }
 ];
 
 export const productCategoryOptions = [
@@ -17,8 +18,6 @@ export const productCategoryOptions = [
 
 export const productUnitOptions = ['г', 'мл', 'шт', 'бут.'];
 export const mealOrder = ['Завтрак', 'Обед', 'Ужин', 'Перекус', 'Напиток'];
-export const recipeStatusOptions = ['Draft', 'Testing', 'Approved', 'Archived'];
-
 export const recipeCategories = [
   { key: 'Main', label: 'Основные блюда', prefix: 'M', x: 50, y: 0 },
   { key: 'Breakfast', label: 'Завтраки', prefix: 'B', x: 0, y: 0 },

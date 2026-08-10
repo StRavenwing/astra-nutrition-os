@@ -1,4 +1,4 @@
-export type PageId = 'dashboard' | 'products' | 'recipes' | 'diary' | 'progress' | 'workouts';
+export type PageId = 'dashboard' | 'products' | 'recipes' | 'diary' | 'progress' | 'workouts' | 'theory';
 
 export interface AuthUser {
   id: number;
@@ -199,6 +199,13 @@ export interface Exercise {
   description: string | null;
   photos: string[];
   video: string | null;
+}
+
+export interface FeedbackMessage {
+  id: number;
+  email: string;
+  submitted_at: string;
+  message: string;
 }
 
 export interface RegisteredUser extends AuthUser {

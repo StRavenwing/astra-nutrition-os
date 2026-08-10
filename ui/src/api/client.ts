@@ -5,6 +5,7 @@ import type {
   DashboardResponse,
   DiaryEntry,
   Exercise,
+  FeedbackMessage,
   Product,
   ProductMeasure,
   ProductNutritionScanResult,
@@ -104,6 +105,8 @@ export const api = {
   completeWorkoutPlan: (id: number) => write<WorkoutPlan>('POST', `workout-plans/${id}/complete`),
   cancelWorkoutPlan: (id: number) => write<WorkoutPlan>('POST', `workout-plans/${id}/cancel`),
   exercises: () => request<Exercise[]>('exercises'),
+  feedback: () => request<FeedbackMessage[]>('feedback'),
+  sendFeedback: (message: string) => write<FeedbackMessage>('POST', 'feedback', { message }),
   post: <T = { ok: boolean }>(path: string, body: unknown) => write<T>('POST', path, body),
   put: <T = { ok: boolean }>(path: string, body: unknown) => write<T>('PUT', path, body),
   delete: <T = { ok: boolean }>(path: string) => write<T>('DELETE', path)

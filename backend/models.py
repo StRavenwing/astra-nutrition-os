@@ -98,6 +98,16 @@ class User(BaseModel):
         table_name = "users"
 
 
+class FeedbackMessage(BaseModel):
+    id = AutoField()
+    user = ForeignKeyField(User, backref="feedback_messages", on_delete="CASCADE")
+    message = TextField()
+    submitted_at = CharField(index=True)
+
+    class Meta:
+        table_name = "feedback_messages"
+
+
 class OAuthClient(BaseModel):
     client_id = CharField(primary_key=True)
     client_secret_hash = CharField(null=True)
@@ -353,6 +363,7 @@ MODELS = [
     IdSequence,
     Changelog,
     User,
+    FeedbackMessage,
     OAuthClient,
     OAuthPendingAuthorization,
     OAuthAuthorizationCode,

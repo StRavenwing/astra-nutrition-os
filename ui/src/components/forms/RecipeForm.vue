@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { recipeCategories, recipeCategoryMap, recipeStatusOptions } from '@/constants';
+import { recipeCategories, recipeCategoryMap } from '@/constants';
 import { api } from '@/api/client';
 import type { Product, ProductMeasure, RecipeIngredient, RecipeSummary } from '@/types';
 
@@ -26,7 +26,6 @@ const form = reactive<Record<string, string>>({
   name: '',
   subcategory: '',
   version: '1.0',
-  status: 'Draft',
   servings: '1',
   tags: '',
   manual_price_per_serving_rsd: '',
@@ -114,7 +113,7 @@ function payload() {
     name: form.name,
     subcategory: form.subcategory,
     version: form.version,
-    status: form.status,
+    status: original.value?.status || 'Draft',
     servings: form.servings,
     tags: form.tags,
     manual_price_per_serving_rsd: form.manual_price_per_serving_rsd,
@@ -157,7 +156,6 @@ async function save() {
         <div class="field"><label>Название</label><input v-model="form.name" required></div>
         <div class="field"><label>Подкатегория</label><input v-model="form.subcategory"></div>
         <div class="field"><label>Версия</label><input v-model="form.version"></div>
-        <div class="field"><label>Статус</label><select v-model="form.status"><option v-for="item in recipeStatusOptions" :key="item">{{ item }}</option></select></div>
         <div class="field"><label>Количество порций</label><input v-model="form.servings" type="number" min="1" step="0.1" required></div>
         <div class="field"><label>Теги</label><input v-model="form.tags"></div>
         <div class="field full"><label>Фиксированная цена за порцию, RSD</label><input v-model="form.manual_price_per_serving_rsd" type="number" min="0" step="0.01" placeholder="Пусто = рассчитать по составу"></div>

@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { api, clearAccessToken, getAccessToken, setUnauthorizedHandler } from '@/api/client';
 import { pages } from '@/constants';
-import type { AuthUser, ModalState, PageId, WorkoutPlan } from '@/types';
+import type { AuthUser, Exercise, ModalState, PageId, WorkoutPlan } from '@/types';
 import AuthView from '@/components/AuthView.vue';
 import AppShell from '@/components/layout/AppShell.vue';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
@@ -12,6 +12,7 @@ import RecipesView from '@/views/RecipesView.vue';
 import DiaryView from '@/views/DiaryView.vue';
 import ProgressView from '@/views/ProgressView.vue';
 import WorkoutsView from '@/views/WorkoutsView.vue';
+import TheoryView from '@/views/TheoryView.vue';
 import ProductForm from '@/components/forms/ProductForm.vue';
 import RecipeForm from '@/components/forms/RecipeForm.vue';
 import DiaryEntryForm from '@/components/forms/DiaryEntryForm.vue';
@@ -22,6 +23,8 @@ import RecipeDetailModal from '@/components/modals/RecipeDetailModal.vue';
 import ExerciseManagerModal from '@/components/modals/ExerciseManagerModal.vue';
 import WorkoutBuilderModal from '@/components/modals/WorkoutBuilderModal.vue';
 import WorkoutDetailModal from '@/components/modals/WorkoutDetailModal.vue';
+import ExerciseDetailModal from '@/components/modals/ExerciseDetailModal.vue';
+import FeedbackModal from '@/components/modals/FeedbackModal.vue';
 import PwaUpdateToast from '@/components/shared/PwaUpdateToast.vue';
 
 const pageIds = new Set(pages.map((page) => page.id));
@@ -41,12 +44,14 @@ const workoutBuilderOpen = ref(false);
 const repeatPlan = ref<WorkoutPlan | null>(null);
 const editPlan = ref<WorkoutPlan | null>(null);
 const workoutDetailPlan = ref<WorkoutPlan | null>(null);
+const exerciseDetail = ref<Exercise | null>(null);
+const feedbackOpen = ref(false);
 
 const title = computed(() => pages.find((page) => page.id === currentPage.value)?.title || 'Обзор');
 const isAdmin = computed(() => Boolean(currentUser.value?.is_admin));
 const activeUser = computed(() => currentUser.value as AuthUser);
 const canAdd = computed(() => {
-  if (currentPage.value === 'dashboard') return false;
+  if (currentPage.value === 'dashboard' || currentPage.value === 'theory') return false;
   if (currentPage.value === 'workouts') return false;
   if (currentPage.value === 'products') return isAdmin.value;
   return true;
@@ -86,6 +91,10 @@ function openAdd() {
     return;
   }
   modal.value = { kind: currentPage.value as ModalState['kind'] };
+}
+
+function openFeedback() {
+  feedbackOpen.value = true;
 }
 
 function closeModal() {
@@ -131,15 +140,23 @@ function openWorkoutDetail(plan: WorkoutPlan) {
   workoutDetailPlan.value = plan;
 }
 
+function openExerciseDetail(exercise: Exercise) {
+  exerciseDetail.value = exercise;
+}
+
 function editWorkoutFromDetail(plan: WorkoutPlan) {
   workoutDetailPlan.value = null;
+  exerciseDetail.value = null;
   editPlan.value = plan;
   repeatPlan.value = null;
   workoutBuilderOpen.value = true;
 }
 
 function buildWorkoutFromComplex() {
+  if (!isAdmin.value) return;
   workoutDetailPlan.value = null;
+  exerciseDetail.value = null;
+  feedbackOpen.value = false;
   repeatPlan.value = null;
   editPlan.value = null;
   workoutBuilderOpen.value = true;
@@ -179,6 +196,7 @@ function clearSession() {
   exerciseManagerOpen.value = false;
   workoutBuilderOpen.value = false;
   workoutDetailPlan.value = null;
+  exerciseDetail.value = null;
   repeatPlan.value = null;
   editPlan.value = null;
 }
@@ -231,6 +249,7 @@ onBeforeUnmount(() => {
     @navigate="navigate"
     @add="openAdd"
     @logout="logout"
+    @feedback="openFeedback"
   >
     <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" :is-admin="isAdmin" @navigate="navigate" @open-recipe="openRecipe" />
     <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" @edit="modal = { kind: 'products', id: $event }" />
@@ -245,18 +264,22 @@ onBeforeUnmount(() => {
       @add-exercise="openExerciseAdd"
       @edit-exercise="editExercise"
       @open-plan="openWorkoutDetail"
+      @open-exercise="openExerciseDetail"
       @build-complex="buildWorkoutFromComplex"
       @manage-exercises="exerciseManagerOpen = true"
       @build="repeatPlan = null; editPlan = null; workoutBuilderOpen = true"
       @edit-plan="editPlan = $event; repeatPlan = null; workoutBuilderOpen = true"
       @repeat="repeatPlan = $event; editPlan = null; workoutBuilderOpen = true"
     />
+    <TheoryView v-else-if="currentPage === 'theory'" />
   </AppShell>
 
   <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
   <ExerciseManagerModal v-if="isAdmin" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @edit="editExercise" @changed="refresh" />
   <WorkoutBuilderModal :open="workoutBuilderOpen" :repeat-plan="repeatPlan" :edit-plan="editPlan" @close="workoutBuilderOpen = false; repeatPlan = null; editPlan = null" @saved="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; refresh()" />
   <WorkoutDetailModal :plan="workoutDetailPlan" @close="workoutDetailPlan = null" @edit="editWorkoutFromDetail" @repeat="repeatPlan = $event; editPlan = null; workoutDetailPlan = null; workoutBuilderOpen = true" @complete="completeWorkoutFromDetail" @cancel="cancelWorkoutFromDetail" />
+  <ExerciseDetailModal :exercise="exerciseDetail" @close="exerciseDetail = null" />
+  <FeedbackModal :open="feedbackOpen" :is-admin="isAdmin" @close="feedbackOpen = false" @sent="feedbackOpen = false" />
 
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">
     <ProductForm v-if="modal?.kind === 'products'" :product-id="modal.id" @saved="saved" @deleted="saved" @cancel="closeModal" />

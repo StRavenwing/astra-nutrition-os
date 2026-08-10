@@ -16,6 +16,7 @@ const emit = defineEmits<{
   manageExercises: [];
   build: [];
   openPlan: [plan: WorkoutPlan];
+  openExercise: [exercise: Exercise];
   buildComplex: [name: string];
   editPlan: [plan: WorkoutPlan];
   repeat: [plan: WorkoutPlan];
@@ -157,7 +158,7 @@ async function removeExercise(id: number) {
       </button>
       <button type="button" class="workout-section-tile archive" :class="{ active: section === 'archive' }" @click="section = 'archive'">
         <span class="workout-section-icon">📦</span>
-        <span><b>Архив тренировок</b><small>Пройденные и отменённые</small></span><strong>{{ archivedPlans.length }}</strong>
+        <span><b>История тренировок</b><small>Пройденные и отменённые</small></span><strong>{{ archivedPlans.length }}</strong>
       </button>
     </section>
 
@@ -168,7 +169,7 @@ async function removeExercise(id: number) {
           <span class="workout-complex-photo">🏋️</span>
           <span class="category-copy"><b>{{ complex }}</b><small>Раздел в доработке</small></span>
           <div class="workout-complex-actions">
-            <button type="button" class="create-complex-button" @click="emit('buildComplex', complex)">＋ Создать тренировку</button>
+            <button v-if="props.isAdmin" type="button" class="create-complex-button" @click="emit('buildComplex', complex)">＋ Создать тренировку</button>
             <button v-if="props.isAdmin" type="button" class="edit-complex-button" @click="emit('buildComplex', complex)">✎ Редактировать</button>
           </div>
         </article>
@@ -185,7 +186,7 @@ async function removeExercise(id: number) {
         <button v-for="group in exerciseGroups" :key="group" type="button" class="exercise-category-card" :class="{ active: exerciseGroup === group }" @click="exerciseGroup = group"><span><b>{{ group }}</b><small>Группа мышц</small></span><strong>{{ exercises.filter((item) => (item.muscle_group || 'Другое') === group).length }}</strong></button>
       </div>
       <div class="exercise-grid">
-        <article v-for="exercise in visibleExercises" :key="exercise.id" class="workout-tile exercise-card">
+        <article v-for="exercise in visibleExercises" :key="exercise.id" class="workout-tile exercise-card" tabindex="0" @click="emit('openExercise', exercise)" @keydown.enter.prevent="emit('openExercise', exercise)" @keydown.space.prevent="emit('openExercise', exercise)">
           <div class="workout-tile-head"><span class="workout-group">{{ exercise.muscle_group || 'Другое' }}</span><span class="exercise-code">{{ exercise.code }}</span></div>
           <h3>{{ exercise.name }}</h3>
           <p>{{ exercise.description || exercise.note || 'Описание упражнения пока не добавлено' }}</p>
@@ -194,9 +195,9 @@ async function removeExercise(id: number) {
             <span v-if="exercise.photos?.length">Фото: {{ exercise.photos.length }}</span>
             <span v-if="exercise.video">Видео</span>
           </div>
-          <div v-if="props.isAdmin" class="workout-tile-actions exercise-card-actions">
-            <button type="button" class="edit-workout" @click="emit('editExercise', exercise.id)">✎ Редактировать</button>
-            <button type="button" class="delete-workout" @click="removeExercise(exercise.id)">Удалить</button>
+          <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions exercise-card-actions">
+            <button type="button" class="edit-workout" @click.stop="emit('editExercise', exercise.id)">✎ Редактировать</button>
+            <button type="button" class="delete-workout" @click.stop="removeExercise(exercise.id)">Удалить</button>
           </div>
         </article>
         <div v-if="!visibleExercises.length" class="panel empty">Упражнений в этой группе пока нет</div>
@@ -204,7 +205,7 @@ async function removeExercise(id: number) {
     </section>
 
     <section v-else-if="section === 'archive'" class="workout-subsection">
-      <div class="subsection-heading"><p class="eyebrow">ИСТОРИЯ</p><h2>Архив тренировок</h2></div>
+      <div class="subsection-heading"><p class="eyebrow">ИСТОРИЯ</p><h2>История тренировок</h2></div>
       <div class="archive-group">
         <div class="archive-group-head"><div><p class="eyebrow">ЗАВЕРШЕНО</p><h3>Пройденные тренировки</h3></div><span class="subtle">{{ completedPlans.length }}</span></div>
         <div class="workout-grid archive-workout-grid">
@@ -522,6 +523,7 @@ async function removeExercise(id: number) {
 
 .exercise-card {
   min-height: 235px;
+  cursor: pointer;
 
   > p {
     min-height: 52px;

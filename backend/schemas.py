@@ -10,6 +10,10 @@ class AuthInput(BaseModel):
     password: str
 
 
+class FeedbackInput(BaseModel):
+    message: str = Field(min_length=1, max_length=500)
+
+
 class ProductMeasureInput(BaseModel):
     measure_name: str
     base_quantity: Any = None

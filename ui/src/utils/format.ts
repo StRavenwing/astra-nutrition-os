@@ -15,6 +15,10 @@ export function formatDate(value: string | null | undefined): string {
   return value ? new Date(value).toLocaleDateString('ru-RU') : '—';
 }
 
+export function formatDateTime(value: string | null | undefined): string {
+  return value ? new Date(value).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+}
+
 export function dayIso(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }

@@ -15,12 +15,13 @@ defineEmits<{
   navigate: [page: PageId];
   add: [];
   logout: [];
+  feedback: [];
 }>();
 </script>
 
 <template>
   <div class="app-shell">
-    <SideNav :current-page="currentPage" @navigate="$emit('navigate', $event)" />
+    <SideNav :current-page="currentPage" @navigate="$emit('navigate', $event)" @feedback="$emit('feedback')" />
     <main>
       <TopBar :title="title" :can-add="canAdd" :add-label="addLabel" :user="user" @add="$emit('add')" @logout="$emit('logout')" />
       <slot />
