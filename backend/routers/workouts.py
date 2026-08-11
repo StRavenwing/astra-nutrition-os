@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, status
 
 from backend.dependencies import get_current_user, require_admin
 from backend.models import User
-from backend.schemas import ExerciseInput, WorkoutInput, WorkoutPlanInput, dump_model
+from backend.schemas import ExerciseInput, WorkoutComplexInput, WorkoutInput, WorkoutPlanInput, dump_model
 from backend.services.workouts import (
     create_exercise,
     update_exercise,
@@ -20,6 +20,9 @@ from backend.services.workouts import (
     update_workout_plan,
     cancel_workout_plan as cancel_plan_service,
     delete_workout_plan,
+    create_workout_complex,
+    list_workout_complexes,
+    update_workout_complex,
 )
 
 
@@ -44,6 +47,21 @@ def remove_exercise(exercise_id: int, current_user: User = Depends(require_admin
 @router.put("/exercises/{exercise_id}")
 def put_exercise(exercise_id: int, payload: ExerciseInput, current_user: User = Depends(require_admin)) -> dict:
     return update_exercise(exercise_id, dump_model(payload))
+
+
+@router.get("/workout-complexes")
+def get_workout_complexes(current_user: User = Depends(get_current_user)) -> list[dict]:
+    return list_workout_complexes()
+
+
+@router.post("/workout-complexes", status_code=status.HTTP_201_CREATED)
+def post_workout_complex(payload: WorkoutComplexInput, current_user: User = Depends(require_admin)) -> dict:
+    return create_workout_complex(dump_model(payload))
+
+
+@router.put("/workout-complexes/{complex_id}")
+def put_workout_complex(complex_id: int, payload: WorkoutComplexInput, current_user: User = Depends(require_admin)) -> dict:
+    return update_workout_complex(complex_id, dump_model(payload))
 
 
 @router.get("/workouts")

@@ -10,6 +10,7 @@ def serialize_feedback(item: FeedbackMessage) -> dict:
         "email": item.user.email,
         "submitted_at": item.submitted_at,
         "message": item.message,
+        "is_read": bool(item.is_read),
     }
 
 
@@ -32,3 +33,11 @@ def list_feedback() -> list[dict]:
         .order_by(FeedbackMessage.submitted_at.desc(), FeedbackMessage.id.desc())
     )
     return [serialize_feedback(item) for item in query]
+
+
+def unread_feedback_count() -> int:
+    return FeedbackMessage.select().where(FeedbackMessage.is_read == False).count()
+
+
+def mark_feedback_read() -> None:
+    FeedbackMessage.update(is_read=True).where(FeedbackMessage.is_read == False).execute()

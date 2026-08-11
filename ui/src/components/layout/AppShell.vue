@@ -9,6 +9,7 @@ defineProps<{
   canAdd: boolean;
   addLabel?: string;
   user: AuthUser;
+  feedbackUnread: number;
 }>();
 
 defineEmits<{
@@ -21,7 +22,7 @@ defineEmits<{
 
 <template>
   <div class="app-shell">
-    <SideNav :current-page="currentPage" @navigate="$emit('navigate', $event)" @feedback="$emit('feedback')" />
+    <SideNav :current-page="currentPage" :feedback-unread="feedbackUnread" @navigate="$emit('navigate', $event)" @feedback="$emit('feedback')" />
     <main>
       <TopBar :title="title" :can-add="canAdd" :add-label="addLabel" :user="user" @add="$emit('add')" @logout="$emit('logout')" />
       <slot />

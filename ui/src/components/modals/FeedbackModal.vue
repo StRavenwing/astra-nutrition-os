@@ -6,7 +6,7 @@ import { formatDateTime } from '@/utils/format';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 
 const props = defineProps<{ open: boolean; isAdmin: boolean }>();
-const emit = defineEmits<{ close: []; sent: [] }>();
+const emit = defineEmits<{ close: []; sent: []; read: [] }>();
 
 const message = ref('');
 const feedback = ref<FeedbackMessage[]>([]);
@@ -20,6 +20,8 @@ async function loadFeedback() {
   error.value = '';
   try {
     feedback.value = await api.feedback();
+    await api.markFeedbackRead();
+    emit('read');
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {

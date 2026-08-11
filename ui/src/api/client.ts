@@ -13,6 +13,7 @@ import type {
   RecipeDetail,
   RecipeSummary,
   WorkoutEntry,
+  WorkoutComplex,
   WorkoutPlan
 } from '@/types';
 
@@ -101,11 +102,16 @@ export const api = {
   progress: () => request<ProgressEntry[]>('progress'),
   workouts: () => request<WorkoutEntry[]>('workouts'),
   workoutPlans: () => request<WorkoutPlan[]>('workout-plans'),
+  workoutComplexes: () => request<WorkoutComplex[]>('workout-complexes'),
+  createWorkoutComplex: (body: unknown) => write<WorkoutComplex>('POST', 'workout-complexes', body),
+  updateWorkoutComplex: (id: number, body: unknown) => write<WorkoutComplex>('PUT', `workout-complexes/${id}`, body),
   updateWorkoutPlan: (id: number, body: unknown) => write<WorkoutPlan>('PUT', `workout-plans/${id}`, body),
   completeWorkoutPlan: (id: number) => write<WorkoutPlan>('POST', `workout-plans/${id}/complete`),
   cancelWorkoutPlan: (id: number) => write<WorkoutPlan>('POST', `workout-plans/${id}/cancel`),
   exercises: () => request<Exercise[]>('exercises'),
   feedback: () => request<FeedbackMessage[]>('feedback'),
+  feedbackUnreadCount: () => request<{ count: number }>('feedback/unread-count'),
+  markFeedbackRead: () => write<{ ok: boolean }>('POST', 'feedback/read'),
   sendFeedback: (message: string) => write<FeedbackMessage>('POST', 'feedback', { message }),
   post: <T = { ok: boolean }>(path: string, body: unknown) => write<T>('POST', path, body),
   put: <T = { ok: boolean }>(path: string, body: unknown) => write<T>('PUT', path, body),

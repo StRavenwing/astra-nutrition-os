@@ -103,6 +103,7 @@ class FeedbackMessage(BaseModel):
     user = ForeignKeyField(User, backref="feedback_messages", on_delete="CASCADE")
     message = TextField()
     submitted_at = CharField(index=True)
+    is_read = BooleanField(default=False)
 
     class Meta:
         table_name = "feedback_messages"
@@ -358,6 +359,32 @@ class WorkoutPlanItem(BaseModel):
         indexes = ((('plan', 'id'), False),)
 
 
+class WorkoutComplex(BaseModel):
+    id = AutoField()
+    name = CharField()
+    comment = TextField(null=True)
+    photo_urls = TextField(null=True)
+    video_url = TextField(null=True)
+    created_at = CharField(index=True)
+
+    class Meta:
+        table_name = "workout_complexes"
+
+
+class WorkoutComplexItem(BaseModel):
+    id = AutoField()
+    complex = ForeignKeyField(WorkoutComplex, backref="items", on_delete="CASCADE")
+    exercise = ForeignKeyField(Exercise, backref="workout_complex_items")
+    working_weight = FloatField(null=True)
+    sets = IntegerField(null=True)
+    duration_minutes = IntegerField(null=True)
+    speed_kmh = FloatField(null=True)
+
+    class Meta:
+        table_name = "workout_complex_items"
+        indexes = ((('complex', 'id'), False),)
+
+
 MODELS = [
     AppMeta,
     IdSequence,
@@ -378,4 +405,6 @@ MODELS = [
     WorkoutLog,
     WorkoutPlan,
     WorkoutPlanItem,
+    WorkoutComplex,
+    WorkoutComplexItem,
 ]

@@ -164,6 +164,14 @@ class WorkoutPlanInput(BaseModel):
     items: list[WorkoutPlanItemInput]
 
 
+class WorkoutComplexInput(BaseModel):
+    name: str
+    comment: str | None = None
+    photos: list[str] = Field(default_factory=list, max_length=6)
+    video: str | None = None
+    items: list[WorkoutPlanItemInput] = Field(default_factory=list)
+
+
 class DeleteResponse(BaseModel):
     deleted: bool = True
     id: int

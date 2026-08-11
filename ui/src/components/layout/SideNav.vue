@@ -2,7 +2,7 @@
 import { pages } from '@/constants';
 import type { PageId } from '@/types';
 
-defineProps<{ currentPage: PageId }>();
+defineProps<{ currentPage: PageId; feedbackUnread: number }>();
 defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
 </script>
 
@@ -31,7 +31,8 @@ defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
 
     <button type="button" class="feedback-link" @click="$emit('feedback')">
       <span>✉</span>
-      Обратная связь
+      <span class="feedback-label">Обратная связь</span>
+      <strong v-if="feedbackUnread" class="feedback-count">{{ feedbackUnread > 99 ? '99+' : feedbackUnread }}</strong>
     </button>
 
     <div class="aside-note">
@@ -66,5 +67,17 @@ nav button {
   cursor: pointer;
 
   &:hover { color: var(--blue); }
+}
+
+.feedback-label { flex: 1; }
+.feedback-count {
+  min-width: 22px;
+  padding: 3px 6px;
+  border-radius: 99px;
+  background: #de350b;
+  color: #fff;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 850;
 }
 </style>

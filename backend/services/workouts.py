@@ -3,11 +3,31 @@ from __future__ import annotations
 import json
 from datetime import datetime
 
-from backend.models import Exercise, User, WorkoutLog, WorkoutPlan, WorkoutPlanItem, current_database
+from backend.models import (
+    Exercise,
+    User,
+    WorkoutComplex,
+    WorkoutComplexItem,
+    WorkoutLog,
+    WorkoutPlan,
+    WorkoutPlanItem,
+    current_database,
+)
 from backend.services.calculations import int_number, number
 from backend.services.codes import next_code
 from backend.services.errors import ConflictError, ForbiddenError, NotFoundError
 from backend.services.serialization import serialize_exercise, serialize_workout, serialize_workout_plan
+
+
+DEFAULT_WORKOUT_COMPLEXES = (
+    "Комплекс для рук",
+    "Комплекс для плеч",
+    "Комплекс на ягодицы",
+    "Круговая",
+    "День ног",
+    "Комплекс для спины",
+    "Пресс",
+)
 
 
 def list_exercises() -> list[dict]:
@@ -20,6 +40,115 @@ def get_exercise(exercise_id: int) -> Exercise:
     if exercise is None:
         raise NotFoundError("Упражнение не найдено")
     return exercise
+
+
+def _complex_media_values(data: dict) -> tuple[str | None, str | None]:
+    photos = data.get("photos") or []
+    if not isinstance(photos, list) or len(photos) > 6:
+        raise ValueError("Можно добавить не более 6 фотографий комплекса")
+    if any(not isinstance(item, str) or not item for item in photos):
+        raise ValueError("Некорректное изображение комплекса")
+    video = data.get("video")
+    if video is not None and not isinstance(video, str):
+        raise ValueError("Некорректное видео комплекса")
+    return json.dumps(photos, ensure_ascii=False) if photos else None, video or None
+
+
+def _replace_workout_complex_items(complex_item: WorkoutComplex, items: list[dict]) -> None:
+    WorkoutComplexItem.delete().where(WorkoutComplexItem.complex == complex_item).execute()
+    for item in items:
+        exercise = get_exercise(int(item["exercise_id"]))
+        WorkoutComplexItem.create(
+            complex=complex_item,
+            exercise=exercise,
+            working_weight=number(item.get("working_weight")),
+            sets=int_number(item.get("sets")),
+            duration_minutes=int_number(item.get("duration_minutes")),
+            speed_kmh=number(item.get("speed_kmh")),
+        )
+
+
+def serialize_workout_complex(complex_item: WorkoutComplex) -> dict:
+    try:
+        photos = json.loads(complex_item.photo_urls or "[]")
+    except json.JSONDecodeError:
+        photos = []
+    items = (
+        WorkoutComplexItem
+        .select(WorkoutComplexItem, Exercise)
+        .join(Exercise)
+        .where(WorkoutComplexItem.complex == complex_item)
+        .order_by(WorkoutComplexItem.id)
+    )
+    return {
+        "id": complex_item.id,
+        "name": complex_item.name,
+        "comment": complex_item.comment,
+        "photos": photos,
+        "video": complex_item.video_url,
+        "items": [
+            {
+                "id": item.id,
+                "exercise_id": item.exercise.id,
+                "exercise_code": item.exercise.code,
+                "name": item.exercise.name,
+                "muscle_group": item.exercise.muscle_group,
+                "default_unit": item.exercise.default_unit,
+                "working_weight": item.working_weight,
+                "sets": item.sets,
+                "duration_minutes": item.duration_minutes,
+                "speed_kmh": item.speed_kmh,
+            }
+            for item in items
+        ],
+    }
+
+
+def _ensure_default_workout_complexes() -> None:
+    for name in DEFAULT_WORKOUT_COMPLEXES:
+        if not WorkoutComplex.get_or_none(WorkoutComplex.name == name):
+            WorkoutComplex.create(name=name, created_at=datetime.utcnow().isoformat(timespec="seconds"))
+
+
+def list_workout_complexes() -> list[dict]:
+    _ensure_default_workout_complexes()
+    query = WorkoutComplex.select().order_by(WorkoutComplex.id)
+    return [serialize_workout_complex(item) for item in query]
+
+
+def create_workout_complex(data: dict) -> dict:
+    name = str(data.get("name") or "").strip()
+    if not name:
+        raise ValueError("Укажите название комплекса")
+    photo_urls, video_url = _complex_media_values(data)
+    with current_database().atomic():
+        complex_item = WorkoutComplex.create(
+            name=name,
+            comment=(data.get("comment") or "").strip() or None,
+            photo_urls=photo_urls,
+            video_url=video_url,
+            created_at=datetime.utcnow().isoformat(timespec="seconds"),
+        )
+        _replace_workout_complex_items(complex_item, data.get("items") or [])
+        return serialize_workout_complex(complex_item)
+
+
+def update_workout_complex(complex_id: int, data: dict) -> dict:
+    name = str(data.get("name") or "").strip()
+    if not name:
+        raise ValueError("Укажите название комплекса")
+    complex_item = WorkoutComplex.get_or_none(WorkoutComplex.id == complex_id)
+    if complex_item is None:
+        raise NotFoundError("Комплекс тренировок не найден")
+    photo_urls, video_url = _complex_media_values(data)
+    with current_database().atomic():
+        complex_item.name = name
+        complex_item.comment = (data.get("comment") or "").strip() or None
+        complex_item.photo_urls = photo_urls
+        complex_item.video_url = video_url
+        complex_item.save()
+        _replace_workout_complex_items(complex_item, data.get("items") or [])
+        return serialize_workout_complex(complex_item)
 
 
 def _media_values(data: dict) -> tuple[str | None, str | None]:

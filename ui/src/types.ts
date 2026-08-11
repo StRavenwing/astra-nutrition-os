@@ -206,6 +206,7 @@ export interface FeedbackMessage {
   email: string;
   submitted_at: string;
   message: string;
+  is_read: boolean;
 }
 
 export interface RegisteredUser extends AuthUser {
@@ -247,6 +248,15 @@ export interface WorkoutPlan {
   scheduled_at: string;
   status: 'planned' | 'archived' | string;
   completed_at: string | null;
+  items: WorkoutPlanItem[];
+}
+
+export interface WorkoutComplex {
+  id: number;
+  name: string;
+  comment: string | null;
+  photos: string[];
+  video: string | null;
   items: WorkoutPlanItem[];
 }
 

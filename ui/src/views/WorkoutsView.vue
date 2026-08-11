@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
-import type { Exercise, WorkoutPlan } from '@/types';
+import type { Exercise, WorkoutComplex, WorkoutPlan } from '@/types';
 import { formatDate, fmt } from '@/utils/format';
 
 const props = defineProps<{
@@ -17,13 +17,14 @@ const emit = defineEmits<{
   build: [];
   openPlan: [plan: WorkoutPlan];
   openExercise: [exercise: Exercise];
-  buildComplex: [name: string];
+  buildComplex: [payload: { complex: WorkoutComplex | null; mode: 'create' | 'edit' }];
   editPlan: [plan: WorkoutPlan];
   repeat: [plan: WorkoutPlan];
 }>();
 
 const plans = ref<WorkoutPlan[]>([]);
 const exercises = ref<Exercise[]>([]);
+const workoutComplexes = ref<WorkoutComplex[]>([]);
 const loading = ref(false);
 const error = ref('');
 const section = ref<'none' | 'workouts' | 'exercises' | 'archive'>('none');
@@ -33,9 +34,10 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [workoutPlans, exerciseList] = await Promise.all([api.workoutPlans(), api.exercises()]);
+    const [workoutPlans, exerciseList, complexList] = await Promise.all([api.workoutPlans(), api.exercises(), api.workoutComplexes()]);
     plans.value = workoutPlans;
     exercises.value = exerciseList.sort((a, b) => a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' }));
+    workoutComplexes.value = complexList;
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -50,18 +52,9 @@ const plannedPlans = computed(() => plans.value.filter((plan) => plan.status ===
 const archivedPlans = computed(() => plans.value.filter((plan) => plan.status === 'archived' || plan.status === 'canceled'));
 const completedPlans = computed(() => plans.value.filter((plan) => plan.status === 'archived'));
 const canceledPlans = computed(() => plans.value.filter((plan) => plan.status === 'canceled'));
+const workoutCount = computed(() => workoutComplexes.value.length + plans.value.length);
 const exerciseGroups = computed(() => [...new Set(exercises.value.map((exercise) => exercise.muscle_group || 'Другое'))].sort((a, b) => a.localeCompare(b, 'ru')));
 const visibleExercises = computed(() => exercises.value.filter((exercise) => exerciseGroup.value === 'all' || (exercise.muscle_group || 'Другое') === exerciseGroup.value));
-
-const workoutComplexes = [
-  'Комплекс для рук',
-  'Комплекс для плеч',
-  'Комплекс на ягодицы',
-  'Круговая',
-  'День ног',
-  'Комплекс для спины',
-  'Пресс'
-];
 
 function planSummary(plan: WorkoutPlan) {
   return plan.items.map((item) => item.name).join(' · ');
@@ -150,7 +143,7 @@ async function removeExercise(id: number) {
     <section class="workout-section-menu" aria-label="Разделы тренировок">
       <button type="button" class="workout-section-tile" :class="{ active: section === 'workouts' }" @click="section = 'workouts'">
         <span class="workout-section-icon">🏋️</span>
-        <span><b>Тренировки</b><small>Комплексы и программы</small></span><strong>{{ plannedPlans.length }}</strong>
+        <span><b>Тренировки</b><small>Комплексы и программы</small></span><strong>{{ workoutCount }}</strong>
       </button>
       <button type="button" class="workout-section-tile" :class="{ active: section === 'exercises' }" @click="section = 'exercises'">
         <span class="workout-section-icon">💪</span>
@@ -165,12 +158,12 @@ async function removeExercise(id: number) {
     <section v-if="section === 'workouts'" class="workout-subsection">
       <div class="subsection-heading"><p class="eyebrow">ТРЕНИРОВКИ</p><h2>Комплексы</h2></div>
       <div class="recipe-categories workout-complex-grid">
-        <article v-for="complex in workoutComplexes" :key="complex" class="category-card workout-complex-card">
+        <article v-for="complex in workoutComplexes" :key="complex.id" class="category-card workout-complex-card">
           <span class="workout-complex-photo">🏋️</span>
-          <span class="category-copy"><b>{{ complex }}</b><small>Раздел в доработке</small></span>
+          <span class="category-copy"><b>{{ complex.name }}</b><small>{{ complex.comment || 'Комплекс тренировок' }}</small></span>
           <div class="workout-complex-actions">
-            <button v-if="props.isAdmin" type="button" class="create-complex-button" @click="emit('buildComplex', complex)">＋ Создать тренировку</button>
-            <button v-if="props.isAdmin" type="button" class="edit-complex-button" @click="emit('buildComplex', complex)">✎ Редактировать</button>
+            <button v-if="props.isAdmin" type="button" class="create-complex-button" @click="emit('buildComplex', { complex: null, mode: 'create' })">＋ Создать тренировку</button>
+            <button v-if="props.isAdmin" type="button" class="edit-complex-button" @click="emit('buildComplex', { complex, mode: 'edit' })">✎ Редактировать</button>
           </div>
         </article>
       </div>
@@ -327,11 +320,7 @@ async function removeExercise(id: number) {
 }
 
 .planned-tile-actions {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-
-  button {
-    min-width: 0;
-  }
+  grid-template-columns: minmax(0, 1fr) 82px;
 }
 
 .planned-plan-tile {
@@ -340,11 +329,6 @@ async function removeExercise(id: number) {
 
 .workout-card-actions {
   min-height: 36px;
-
-  button {
-    width: 100%;
-    min-height: 36px;
-  }
 }
 
 .archive-plan-tile .workout-card-actions {
@@ -490,12 +474,15 @@ async function removeExercise(id: number) {
 .workout-complex-actions {
   display: grid;
   gap: 7px;
-  padding: 0 13px 13px;
+  margin-top: auto;
+  padding: 0 18px 18px;
 }
 
 .create-complex-button,
 .edit-complex-button {
   width: 100%;
+  height: 36px;
+  min-height: 36px;
   border-radius: 8px;
   padding: 9px 10px;
   font-size: 11px;
@@ -587,8 +574,7 @@ async function removeExercise(id: number) {
 }
 
 .exercise-card-actions {
-  grid-template-columns: 1fr auto;
-  margin-top: auto;
+  grid-template-columns: minmax(0, 1fr) 82px;
 }
 
 .exercise-code {

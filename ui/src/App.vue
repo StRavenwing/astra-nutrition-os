@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { api, clearAccessToken, getAccessToken, setUnauthorizedHandler } from '@/api/client';
 import { pages } from '@/constants';
-import type { AuthUser, Exercise, ModalState, PageId, WorkoutPlan } from '@/types';
+import type { AuthUser, Exercise, ModalState, PageId, WorkoutComplex, WorkoutPlan } from '@/types';
 import AuthView from '@/components/AuthView.vue';
 import AppShell from '@/components/layout/AppShell.vue';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
@@ -22,6 +22,7 @@ import ExerciseForm from '@/components/forms/ExerciseForm.vue';
 import RecipeDetailModal from '@/components/modals/RecipeDetailModal.vue';
 import ExerciseManagerModal from '@/components/modals/ExerciseManagerModal.vue';
 import WorkoutBuilderModal from '@/components/modals/WorkoutBuilderModal.vue';
+import WorkoutComplexModal from '@/components/modals/WorkoutComplexModal.vue';
 import WorkoutDetailModal from '@/components/modals/WorkoutDetailModal.vue';
 import ExerciseDetailModal from '@/components/modals/ExerciseDetailModal.vue';
 import FeedbackModal from '@/components/modals/FeedbackModal.vue';
@@ -46,6 +47,11 @@ const editPlan = ref<WorkoutPlan | null>(null);
 const workoutDetailPlan = ref<WorkoutPlan | null>(null);
 const exerciseDetail = ref<Exercise | null>(null);
 const feedbackOpen = ref(false);
+const feedbackUnread = ref(0);
+let feedbackTimer: ReturnType<typeof setInterval> | null = null;
+const complexEditorOpen = ref(false);
+const complexEditor = ref<WorkoutComplex | null>(null);
+const complexEditorMode = ref<'create' | 'edit'>('create');
 
 const title = computed(() => pages.find((page) => page.id === currentPage.value)?.title || 'Обзор');
 const isAdmin = computed(() => Boolean(currentUser.value?.is_admin));
@@ -103,6 +109,24 @@ function closeModal() {
 
 function refresh() {
   reloadKey.value += 1;
+  void loadFeedbackUnread();
+}
+
+async function loadFeedbackUnread() {
+  if (!isAdmin.value) {
+    feedbackUnread.value = 0;
+    return;
+  }
+  try {
+    feedbackUnread.value = (await api.feedbackUnreadCount()).count;
+  } catch {
+    feedbackUnread.value = 0;
+  }
+}
+
+function startFeedbackPolling() {
+  if (feedbackTimer) clearInterval(feedbackTimer);
+  feedbackTimer = setInterval(() => { void loadFeedbackUnread(); }, 30_000);
 }
 
 function saved(recipeId?: number) {
@@ -152,14 +176,15 @@ function editWorkoutFromDetail(plan: WorkoutPlan) {
   workoutBuilderOpen.value = true;
 }
 
-function buildWorkoutFromComplex() {
+function buildWorkoutFromComplex(payload: { complex: WorkoutComplex | null; mode: 'create' | 'edit' }) {
   if (!isAdmin.value) return;
   workoutDetailPlan.value = null;
   exerciseDetail.value = null;
-  feedbackOpen.value = false;
   repeatPlan.value = null;
   editPlan.value = null;
-  workoutBuilderOpen.value = true;
+  complexEditor.value = payload.complex;
+  complexEditorMode.value = payload.mode;
+  complexEditorOpen.value = true;
 }
 
 async function completeWorkoutFromDetail(plan: WorkoutPlan) {
@@ -186,6 +211,7 @@ async function cancelWorkoutFromDetail(plan: WorkoutPlan) {
 function authenticated(user: AuthUser) {
   currentUser.value = user;
   refresh();
+  startFeedbackPolling();
 }
 
 function clearSession() {
@@ -197,6 +223,12 @@ function clearSession() {
   workoutBuilderOpen.value = false;
   workoutDetailPlan.value = null;
   exerciseDetail.value = null;
+  feedbackOpen.value = false;
+  feedbackUnread.value = 0;
+  if (feedbackTimer) clearInterval(feedbackTimer);
+  feedbackTimer = null;
+  complexEditorOpen.value = false;
+  complexEditor.value = null;
   repeatPlan.value = null;
   editPlan.value = null;
 }
@@ -221,6 +253,8 @@ onMounted(async () => {
   }
   try {
     currentUser.value = await api.me();
+    await loadFeedbackUnread();
+    startFeedbackPolling();
   } catch {
     clearSession();
   } finally {
@@ -231,6 +265,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   setUnauthorizedHandler(null);
   window.removeEventListener('hashchange', onHashChange);
+  if (feedbackTimer) clearInterval(feedbackTimer);
 });
 </script>
 
@@ -246,6 +281,7 @@ onBeforeUnmount(() => {
     :can-add="canAdd"
     :add-label="addLabel"
     :user="activeUser"
+    :feedback-unread="feedbackUnread"
     @navigate="navigate"
     @add="openAdd"
     @logout="logout"
@@ -277,9 +313,10 @@ onBeforeUnmount(() => {
   <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
   <ExerciseManagerModal v-if="isAdmin" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @edit="editExercise" @changed="refresh" />
   <WorkoutBuilderModal :open="workoutBuilderOpen" :repeat-plan="repeatPlan" :edit-plan="editPlan" @close="workoutBuilderOpen = false; repeatPlan = null; editPlan = null" @saved="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; refresh()" />
+  <WorkoutComplexModal :open="complexEditorOpen" :complex="complexEditor" :mode="complexEditorMode" @close="complexEditorOpen = false" @saved="complexEditorOpen = false; complexEditor = null; refresh()" @open-exercise="openExerciseDetail" />
   <WorkoutDetailModal :plan="workoutDetailPlan" @close="workoutDetailPlan = null" @edit="editWorkoutFromDetail" @repeat="repeatPlan = $event; editPlan = null; workoutDetailPlan = null; workoutBuilderOpen = true" @complete="completeWorkoutFromDetail" @cancel="cancelWorkoutFromDetail" />
   <ExerciseDetailModal :exercise="exerciseDetail" @close="exerciseDetail = null" />
-  <FeedbackModal :open="feedbackOpen" :is-admin="isAdmin" @close="feedbackOpen = false" @sent="feedbackOpen = false" />
+  <FeedbackModal :open="feedbackOpen" :is-admin="isAdmin" @close="feedbackOpen = false" @sent="feedbackOpen = false" @read="loadFeedbackUnread" />
 
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">
     <ProductForm v-if="modal?.kind === 'products'" :product-id="modal.id" @saved="saved" @deleted="saved" @cancel="closeModal" />
@@ -894,7 +931,8 @@ dialog {
 .recipe-tile,
 .product-tile,
 .workout-tile,
-.progress-tile {
+.progress-tile,
+.current-progress-card {
   position: relative;
   display: flex;
   flex-direction: column;
@@ -1046,17 +1084,25 @@ dialog {
 .workout-tile-actions,
 .recipe-tile-actions,
 .progress-tile-actions,
-.exercise-card-actions {
+.exercise-card-actions,
+.diary-entry-actions {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) 82px;
   gap: 7px;
-  margin-top: 12px;
+  min-height: 36px;
+  margin-top: auto;
 
   button {
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 36px;
+    height: 36px;
     border-radius: 8px;
-    padding: 8px 10px;
+    padding: 0 10px;
     font-size: 11px;
     font-weight: 750;
+    line-height: 1;
+    white-space: nowrap;
     cursor: pointer;
   }
 }
@@ -1265,6 +1311,12 @@ dialog {
   text-align: left;
   box-shadow: 0 13px 35px #091e4220;
   overflow: hidden;
+}
+
+.current-progress-card {
+  display: flex;
+  flex-direction: column;
+  padding: 18px;
 }
 
 .current-day-card {
@@ -1649,17 +1701,12 @@ dialog {
 }
 
 .diary-entry-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 6px;
-  margin: -2px 0 9px;
+  margin: 0 0 9px;
 
   button {
-    border-radius: 7px;
-    padding: 6px 10px;
-    font-size: 10px;
+    border-radius: 8px;
+    font-size: 11px;
     font-weight: 800;
-    cursor: pointer;
   }
 }
 
@@ -1806,7 +1853,7 @@ dialog {
 
 .current-progress-actions {
   justify-content: flex-end;
-  margin-top: 15px;
+  margin-top: auto;
 }
 
 .current-badge {

@@ -66,6 +66,12 @@ def _ensure_exercise_columns(connection: sqlite3.Connection) -> None:
         connection.execute("UPDATE exercises SET description=note WHERE description IS NULL")
 
 
+def _ensure_feedback_columns(connection: sqlite3.Connection) -> None:
+    columns = _columns(connection, "feedback_messages")
+    if columns and "is_read" not in columns:
+        connection.execute("ALTER TABLE feedback_messages ADD COLUMN is_read INTEGER NOT NULL DEFAULT 0")
+
+
 def _row_value(row: sqlite3.Row, key: str, default: Any = None) -> Any:
     return row[key] if key in row.keys() else default
 
@@ -788,6 +794,7 @@ def ensure_database(settings: Settings) -> None:
         connection = _connect_raw(settings.db_path)
         try:
             _ensure_exercise_columns(connection)
+            _ensure_feedback_columns(connection)
             connection.commit()
         finally:
             connection.close()
