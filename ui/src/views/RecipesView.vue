@@ -8,7 +8,7 @@ import Toolbar from '@/components/shared/Toolbar.vue';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 
 const props = defineProps<{ refreshKey: number; isAdmin: boolean }>();
-const emit = defineEmits<{ openRecipe: [id: number]; edit: [id: number] }>();
+const emit = defineEmits<{ openRecipe: [id: number]; edit: [id: number]; addCategory: [] }>();
 
 const data = ref<RecipeSummary[]>([]);
 const loading = ref(false);
@@ -54,7 +54,12 @@ const counts = computed(() => collectionItems.value.reduce<Record<string, number
   return acc;
 }, {}));
 
-const visibleCategories = computed(() => recipeCategories.filter((item) => counts.value[item.key]));
+const visibleCategories = computed(() => [
+  ...recipeCategories.filter((item) => counts.value[item.key]),
+  ...Object.keys(counts.value)
+    .filter((key) => !recipeCategoryMap[key])
+    .map((key) => ({ key, label: key, prefix: 'M', x: 50, y: 50 }))
+]);
 const commonCount = computed(() => data.value.filter((item) => item.collection === 'common').length);
 const localCount = computed(() => data.value.filter((item) => item.collection === 'local').length);
 const reviewRecipes = computed(() => data.value.filter((item) => props.isAdmin ? item.moderation_status === 'pending' : ['pending', 'revision'].includes(item.moderation_status)));
@@ -183,6 +188,10 @@ async function removeRecipe(item: RecipeSummary) {
         <span class="category-photo all-photo"></span>
         <span class="category-copy"><b>Все рецепты</b><small>Полный каталог</small></span>
         <strong>{{ collectionItems.length }}</strong>
+      </button>
+      <button type="button" class="category-card add-category-card" @click="emit('addCategory')">
+        <span class="category-photo">＋</span>
+        <span class="category-copy"><b>Добавить категорию</b><small>{{ isAdmin ? 'Общая коллекция' : 'Личная коллекция' }}</small></span>
       </button>
       <button
         v-for="item in visibleCategories"

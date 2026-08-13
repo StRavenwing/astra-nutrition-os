@@ -16,6 +16,7 @@ type IngredientRow = {
 const loading = ref(false);
 const error = ref('');
 const products = ref<Product[]>([]);
+const extraCategories = ref<{ key: string; label: string; prefix: string; x: number; y: number }[]>([]);
 const measures = ref<ProductMeasure[]>([]);
 const original = ref<RecipeSummary | null>(null);
 const ingredients = ref<IngredientRow[]>([]);
@@ -36,6 +37,7 @@ const form = reactive<Record<string, string>>({
 });
 
 const isReady = computed(() => form.category === 'Ready');
+const categoryOptions = computed(() => [...recipeCategories, ...extraCategories.value]);
 const modalTitle = computed(() => (props.recipeId ? 'Редактировать рецепт' : 'Добавить рецепт'));
 
 function productById(productId: number) {
@@ -79,6 +81,9 @@ function productChanged(row: IngredientRow) {
 onMounted(async () => {
   loading.value = true;
   try {
+    extraCategories.value = (await api.categories('recipe'))
+      .filter((item) => !recipeCategoryMap[item.name])
+      .map((item) => ({ key: item.name, label: item.name, prefix: 'M', x: 50, y: 50 }));
     const productList = await api.products();
     products.value = [...productList].sort((a, b) => a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' }));
     measures.value = await api.productMeasures();
@@ -151,7 +156,7 @@ async function save() {
     <div v-if="loading" class="panel">Загрузка…</div>
     <template v-else>
       <div class="grid">
-        <div class="field"><label>Категория</label><select v-model="form.category"><option v-for="item in recipeCategories" :key="item.key" :value="item.key">{{ item.label }}</option></select></div>
+        <div class="field"><label>Категория</label><select v-model="form.category"><option v-for="item in categoryOptions" :key="item.key" :value="item.key">{{ item.label }}</option></select></div>
         <div class="field"><label>ID рецепта</label><input v-model="form.code" readonly tabindex="-1"></div>
         <div class="field"><label>Название</label><input v-model="form.name" required></div>
         <div class="field"><label>Подкатегория</label><input v-model="form.subcategory"></div>

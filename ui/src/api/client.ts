@@ -14,7 +14,10 @@ import type {
   RecipeSummary,
   WorkoutEntry,
   WorkoutComplex,
-  WorkoutPlan
+  WorkoutPlan,
+  ContentCategory,
+  Article,
+  ArticleSection
 } from '@/types';
 
 const TOKEN_KEY = 'astra_access_token';
@@ -110,9 +113,17 @@ export const api = {
   cancelWorkoutPlan: (id: number) => write<WorkoutPlan>('POST', `workout-plans/${id}/cancel`),
   exercises: () => request<Exercise[]>('exercises'),
   feedback: () => request<FeedbackMessage[]>('feedback'),
+  feedbackMine: () => request<FeedbackMessage[]>('feedback/mine'),
   feedbackUnreadCount: () => request<{ count: number }>('feedback/unread-count'),
-  markFeedbackRead: () => write<{ ok: boolean }>('POST', 'feedback/read'),
+  markFeedbackRead: (id: number) => write<{ ok: boolean }>('POST', `feedback/${id}/read`),
+  replyFeedback: (id: number, reply: string) => write<FeedbackMessage>('POST', `feedback/${id}/reply`, { reply }),
   sendFeedback: (message: string) => write<FeedbackMessage>('POST', 'feedback', { message }),
+  categories: (kind: 'product' | 'recipe') => request<ContentCategory[]>(`categories?kind=${kind}`),
+  createCategory: (body: unknown) => write<ContentCategory>('POST', 'categories', body),
+  articleSections: () => request<ArticleSection[]>('article-sections'),
+  createArticleSection: (name: string) => write<ArticleSection>('POST', 'article-sections', { name }),
+  articles: () => request<Article[]>('articles'),
+  createArticle: (body: unknown) => write<Article>('POST', 'articles', body),
   post: <T = { ok: boolean }>(path: string, body: unknown) => write<T>('POST', path, body),
   put: <T = { ok: boolean }>(path: string, body: unknown) => write<T>('PUT', path, body),
   delete: <T = { ok: boolean }>(path: string) => write<T>('DELETE', path)

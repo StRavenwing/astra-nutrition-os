@@ -19,6 +19,8 @@ import DiaryEntryForm from '@/components/forms/DiaryEntryForm.vue';
 import ProgressForm from '@/components/forms/ProgressForm.vue';
 import WorkoutForm from '@/components/forms/WorkoutForm.vue';
 import ExerciseForm from '@/components/forms/ExerciseForm.vue';
+import CategoryForm from '@/components/forms/CategoryForm.vue';
+import ArticleForm from '@/components/forms/ArticleForm.vue';
 import RecipeDetailModal from '@/components/modals/RecipeDetailModal.vue';
 import ExerciseManagerModal from '@/components/modals/ExerciseManagerModal.vue';
 import WorkoutBuilderModal from '@/components/modals/WorkoutBuilderModal.vue';
@@ -52,6 +54,9 @@ let feedbackTimer: ReturnType<typeof setInterval> | null = null;
 const complexEditorOpen = ref(false);
 const complexEditor = ref<WorkoutComplex | null>(null);
 const complexEditorMode = ref<'create' | 'edit'>('create');
+const categoryOpen = ref(false);
+const categoryKind = ref<'product' | 'recipe'>('product');
+const articleOpen = ref(false);
 
 const title = computed(() => pages.find((page) => page.id === currentPage.value)?.title || 'Обзор');
 const isAdmin = computed(() => Boolean(currentUser.value?.is_admin));
@@ -101,6 +106,11 @@ function openAdd() {
 
 function openFeedback() {
   feedbackOpen.value = true;
+}
+
+function openCategory(kind: 'product' | 'recipe') {
+  categoryKind.value = kind;
+  categoryOpen.value = true;
 }
 
 function closeModal() {
@@ -288,8 +298,8 @@ onBeforeUnmount(() => {
     @feedback="openFeedback"
   >
     <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" :is-admin="isAdmin" @navigate="navigate" @open-recipe="openRecipe" />
-    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" @edit="modal = { kind: 'products', id: $event }" />
-    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" @open-recipe="openRecipe" @edit="editRecipe" />
+    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" @edit="modal = { kind: 'products', id: $event }" @add-category="openCategory('product')" />
+    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" @open-recipe="openRecipe" @edit="editRecipe" @add-category="openCategory('recipe')" />
     <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" @edit="modal = { kind: 'diary', id: $event }" />
     <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" @edit="modal = { kind: 'progress', id: $event }" />
     <WorkoutsView
@@ -307,7 +317,7 @@ onBeforeUnmount(() => {
       @edit-plan="editPlan = $event; repeatPlan = null; workoutBuilderOpen = true"
       @repeat="repeatPlan = $event; editPlan = null; workoutBuilderOpen = true"
     />
-    <TheoryView v-else-if="currentPage === 'theory'" />
+    <TheoryView v-else-if="currentPage === 'theory'" :is-admin="isAdmin" :refresh-key="reloadKey" @add-article="articleOpen = true" />
   </AppShell>
 
   <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
@@ -317,6 +327,13 @@ onBeforeUnmount(() => {
   <WorkoutDetailModal :plan="workoutDetailPlan" @close="workoutDetailPlan = null" @edit="editWorkoutFromDetail" @repeat="repeatPlan = $event; editPlan = null; workoutDetailPlan = null; workoutBuilderOpen = true" @complete="completeWorkoutFromDetail" @cancel="cancelWorkoutFromDetail" />
   <ExerciseDetailModal :exercise="exerciseDetail" @close="exerciseDetail = null" />
   <FeedbackModal :open="feedbackOpen" :is-admin="isAdmin" @close="feedbackOpen = false" @sent="feedbackOpen = false" @read="loadFeedbackUnread" />
+
+  <ModalDialog :open="categoryOpen" :title="categoryKind === 'product' ? 'Добавить категорию продуктов' : 'Добавить категорию рецептов'" eyebrow="КАТЕГОРИЯ" @close="categoryOpen = false">
+    <CategoryForm :kind="categoryKind" :is-admin="isAdmin" @saved="categoryOpen = false; refresh()" @cancel="categoryOpen = false" />
+  </ModalDialog>
+  <ModalDialog :open="articleOpen" title="Добавить статью" eyebrow="ИНФОРМАЦИЯ" wide @close="articleOpen = false">
+    <ArticleForm @saved="articleOpen = false; refresh()" @cancel="articleOpen = false" />
+  </ModalDialog>
 
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">
     <ProductForm v-if="modal?.kind === 'products'" :product-id="modal.id" @saved="saved" @deleted="saved" @cancel="closeModal" />
@@ -1429,8 +1446,9 @@ dialog {
   small {
     margin-top: 3px;
     color: var(--muted);
-    font-size: 8px;
-    text-transform: uppercase;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: none;
   }
 
   .today-cost {
@@ -1707,6 +1725,15 @@ dialog {
     border-radius: 8px;
     font-size: 11px;
     font-weight: 800;
+  }
+
+  .goal-label {
+    color: inherit;
+  }
+
+  span:has(.goal-label) {
+    min-height: 104px;
+    box-shadow: 0 0 0 3px #0c66e433, 0 8px 18px #091e4220;
   }
 }
 

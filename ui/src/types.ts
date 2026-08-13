@@ -207,6 +207,8 @@ export interface FeedbackMessage {
   submitted_at: string;
   message: string;
   is_read: boolean;
+  reply: string | null;
+  replied_at: string | null;
 }
 
 export interface RegisteredUser extends AuthUser {
@@ -258,6 +260,33 @@ export interface WorkoutComplex {
   photos: string[];
   video: string | null;
   items: WorkoutPlanItem[];
+}
+
+export interface ContentCategory {
+  id: number;
+  kind: 'product' | 'recipe';
+  name: string;
+  collection: 'common' | 'local';
+  owner_id: number | null;
+}
+
+export interface ArticleSection {
+  id: number;
+  name: string;
+  article_count: number;
+}
+
+export interface Article {
+  id: number;
+  section_id: number;
+  section_name: string;
+  title: string;
+  body: string;
+  links: string | null;
+  photos: string[];
+  video: string | null;
+  created_at: string;
+  updated_at: string | null;
 }
 
 export type ModalKind = 'products' | 'recipes' | 'diary' | 'progress' | 'workouts' | 'exercises';

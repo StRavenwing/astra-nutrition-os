@@ -148,15 +148,15 @@ function editEntry(id: number) {
           <span :class="{ 'goal-met': proteinTarget && todayTotals.protein >= proteinTarget }">
             <b>{{ fmt(todayTotals.protein) }}</b>
             <small class="goal-label">
-              <template v-if="proteinTarget && todayTotals.protein < proteinTarget">{{ fmt(proteinTarget - todayTotals.protein) }} г осталось до нормы</template>
+              <template v-if="proteinTarget">{{ fmt(Math.max(proteinTarget - todayTotals.protein, 0)) }} г осталось до нормы</template>
               <template v-else>белки</template>
             </small>
           </span>
           <span :class="{ 'goal-exceeded': fatTarget && todayTotals.fat > fatTarget }">
             <b>{{ fmt(todayTotals.fat) }}</b>
             <small class="goal-label">
-              <template v-if="fatTarget && todayTotals.fat <= fatTarget">{{ fmt(fatTarget - todayTotals.fat) }} г осталось до нормы</template>
-              <template v-else-if="fatTarget">{{ fmt(todayTotals.fat - fatTarget) }} г выше нормы</template>
+              <template v-if="fatTarget && todayTotals.fat <= fatTarget">{{ fmt(fatTarget - todayTotals.fat) }} г осталось до максимума</template>
+              <template v-else-if="fatTarget">{{ fmt(todayTotals.fat - fatTarget) }} г выше максимума</template>
               <template v-else>жиры</template>
             </small>
           </span>

@@ -14,7 +14,7 @@ from backend.config import Settings, get_settings
 from backend.mcp.server import MCPRootProxy, create_mcp_app
 from backend.migrations import backup_database, ensure_database
 from backend.models import current_database, initialize_database
-from backend.routers import auth, dashboard, diary, feedback, health, oauth, products, progress, recipes, workouts
+from backend.routers import auth, content, dashboard, diary, feedback, health, oauth, products, progress, recipes, workouts
 from backend.services.auth import ensure_admin_user
 from backend.services.errors import DomainError
 
@@ -83,6 +83,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(progress.router)
     app.include_router(workouts.router)
     app.include_router(feedback.router)
+    app.include_router(content.router)
     mcp_app = create_mcp_app(settings)
 
     async def start_mcp():

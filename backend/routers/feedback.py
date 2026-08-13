@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, status
 
 from backend.dependencies import get_current_user, require_admin
 from backend.models import User
-from backend.schemas import FeedbackInput, dump_model
-from backend.services.feedback import create_feedback, list_feedback, mark_feedback_read, unread_feedback_count
+from backend.schemas import FeedbackInput, FeedbackReplyInput, dump_model
+from backend.services.feedback import create_feedback, list_feedback, mark_feedback_read, reply_feedback, unread_feedback_count
 
 
 router = APIRouter(prefix="/api/v1/feedback", tags=["feedback"])
@@ -21,10 +21,20 @@ def get_feedback(current_user: User = Depends(require_admin)) -> list[dict]:
     return list_feedback()
 
 
-@router.post("/read")
-def read_feedback(current_user: User = Depends(require_admin)) -> dict:
-    mark_feedback_read()
+@router.get("/mine")
+def get_my_feedback(current_user: User = Depends(get_current_user)) -> list[dict]:
+    return list_feedback(current_user)
+
+
+@router.post("/{message_id}/read")
+def read_feedback(message_id: int, current_user: User = Depends(require_admin)) -> dict:
+    mark_feedback_read(message_id)
     return {"ok": True}
+
+
+@router.post("/{message_id}/reply")
+def reply(message_id: int, payload: FeedbackReplyInput, current_user: User = Depends(require_admin)) -> dict:
+    return reply_feedback(message_id, payload.reply)
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)

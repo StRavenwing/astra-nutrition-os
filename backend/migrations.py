@@ -70,6 +70,11 @@ def _ensure_feedback_columns(connection: sqlite3.Connection) -> None:
     columns = _columns(connection, "feedback_messages")
     if columns and "is_read" not in columns:
         connection.execute("ALTER TABLE feedback_messages ADD COLUMN is_read INTEGER NOT NULL DEFAULT 0")
+    columns = _columns(connection, "feedback_messages")
+    if columns and "reply" not in columns:
+        connection.execute("ALTER TABLE feedback_messages ADD COLUMN reply TEXT")
+    if columns and "replied_at" not in columns:
+        connection.execute("ALTER TABLE feedback_messages ADD COLUMN replied_at VARCHAR(255)")
 
 
 def _row_value(row: sqlite3.Row, key: str, default: Any = None) -> Any:
@@ -735,6 +740,7 @@ def migrate_v2_database(settings: Settings, backup_existing: bool) -> None:
         _create_oauth_tables(connection)
         _add_recipe_ownership(connection)
         _ensure_exercise_columns(connection)
+        _ensure_feedback_columns(connection)
         connection.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
         connection.commit()
     except Exception:
@@ -754,6 +760,7 @@ def migrate_v3_database(settings: Settings, backup_existing: bool) -> None:
         _ensure_exercise_columns(connection)
         _create_oauth_tables(connection)
         _add_recipe_ownership(connection)
+        _ensure_feedback_columns(connection)
         connection.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
         connection.commit()
     except Exception:
@@ -771,6 +778,7 @@ def migrate_v4_database(settings: Settings, backup_existing: bool) -> None:
     try:
         _ensure_exercise_columns(connection)
         _add_recipe_ownership(connection)
+        _ensure_feedback_columns(connection)
         connection.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,))
         connection.commit()
     except Exception:

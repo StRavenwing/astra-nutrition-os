@@ -43,9 +43,7 @@ def get_recipe_detail(recipe_id: int, current_user: User) -> dict:
 
 def _recipe_prefix(category: str) -> str:
     prefix = RECIPE_PREFIXES.get(category)
-    if not prefix:
-        raise ValueError("Неизвестная категория рецепта")
-    return prefix
+    return prefix or "M"
 
 
 def _write_recipe_ingredients(recipe: Recipe, ingredients: list[dict]) -> None:

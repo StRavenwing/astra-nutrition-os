@@ -52,7 +52,7 @@ const plannedPlans = computed(() => plans.value.filter((plan) => plan.status ===
 const archivedPlans = computed(() => plans.value.filter((plan) => plan.status === 'archived' || plan.status === 'canceled'));
 const completedPlans = computed(() => plans.value.filter((plan) => plan.status === 'archived'));
 const canceledPlans = computed(() => plans.value.filter((plan) => plan.status === 'canceled'));
-const workoutCount = computed(() => workoutComplexes.value.length + plans.value.length);
+const workoutCount = computed(() => workoutComplexes.value.length);
 const exerciseGroups = computed(() => [...new Set(exercises.value.map((exercise) => exercise.muscle_group || 'Другое'))].sort((a, b) => a.localeCompare(b, 'ru')));
 const visibleExercises = computed(() => exercises.value.filter((exercise) => exerciseGroup.value === 'all' || (exercise.muscle_group || 'Другое') === exerciseGroup.value));
 

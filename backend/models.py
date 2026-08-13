@@ -104,6 +104,8 @@ class FeedbackMessage(BaseModel):
     message = TextField()
     submitted_at = CharField(index=True)
     is_read = BooleanField(default=False)
+    reply = TextField(null=True)
+    replied_at = CharField(null=True)
 
     class Meta:
         table_name = "feedback_messages"
@@ -200,6 +202,43 @@ class Product(BaseModel):
 
     class Meta:
         table_name = "products"
+
+
+class ContentCategory(BaseModel):
+    id = AutoField()
+    kind = CharField()  # product or recipe
+    name = CharField()
+    owner = ForeignKeyField(User, backref="content_categories", null=True, on_delete="CASCADE")
+    created_at = CharField()
+
+    class Meta:
+        table_name = "content_categories"
+        indexes = ((('kind', 'name', 'owner'), True),)
+
+
+class ArticleSection(BaseModel):
+    id = AutoField()
+    name = CharField(unique=True)
+    created_at = CharField()
+
+    class Meta:
+        table_name = "article_sections"
+
+
+class Article(BaseModel):
+    id = AutoField()
+    section = ForeignKeyField(ArticleSection, backref="articles", on_delete="CASCADE")
+    title = CharField()
+    body = TextField()
+    links = TextField(null=True)
+    photo_urls = TextField(null=True)
+    video_url = TextField(null=True)
+    created_at = CharField(index=True)
+    updated_at = CharField(null=True)
+
+    class Meta:
+        table_name = "articles"
+        indexes = ((('section',), False),)
 
 
 class ProductMeasure(BaseModel):
@@ -391,6 +430,9 @@ MODELS = [
     Changelog,
     User,
     FeedbackMessage,
+    ContentCategory,
+    ArticleSection,
+    Article,
     OAuthClient,
     OAuthPendingAuthorization,
     OAuthAuthorizationCode,

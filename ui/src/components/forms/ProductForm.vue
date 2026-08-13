@@ -14,6 +14,7 @@ const scanMessage = ref('');
 const scanError = ref('');
 const scanInput = ref<HTMLInputElement | null>(null);
 const measures = ref<ProductMeasure[]>([]);
+const categories = ref<string[]>([]);
 const form = reactive<Record<string, string>>({
   code: 'Автоматически: P-…',
   name: '',
@@ -33,6 +34,7 @@ const form = reactive<Record<string, string>>({
 });
 
 const measureSupported = computed(() => form.unit === 'г' || form.unit === 'мл');
+const categoryOptions = computed(() => [...new Set([...productCategoryOptions, ...categories.value])]);
 const cupName = computed(() => `стакан (200 ${form.unit})`);
 const title = computed(() => (props.productId ? 'Редактировать продукт' : 'Добавить продукт'));
 
@@ -92,6 +94,7 @@ watch(() => form.unit, () => {
 onMounted(async () => {
   loading.value = true;
   try {
+    categories.value = (await api.categories('product')).map((item) => item.name);
     if (props.productId) {
       const products = await api.products();
       const product = products.find((item) => item.id === props.productId);
@@ -211,7 +214,7 @@ async function remove() {
       <div class="grid">
         <div class="field"><label>ID продукта</label><input v-model="form.code" readonly tabindex="-1"></div>
         <div class="field"><label>Название</label><input v-model="form.name" required></div>
-        <div class="field"><label>Категория</label><select v-model="form.category"><option v-for="item in productCategoryOptions" :key="item">{{ item }}</option></select></div>
+        <div class="field"><label>Категория</label><select v-model="form.category"><option v-for="item in categoryOptions" :key="item">{{ item }}</option></select></div>
         <div class="field"><label>Единица</label><select v-model="form.unit"><option v-for="item in productUnitOptions" :key="item">{{ item }}</option></select></div>
         <div class="field"><label>Цена упаковки</label><input v-model="form.package_price_rsd" type="number" min="0" step="0.01"></div>
         <div class="field"><label>Размер упаковки</label><input v-model="form.package_size" type="number" min="0.01" step="0.01"></div>

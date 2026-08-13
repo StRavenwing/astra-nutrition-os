@@ -14,6 +14,29 @@ class FeedbackInput(BaseModel):
     message: str = Field(min_length=1, max_length=500)
 
 
+class FeedbackReplyInput(BaseModel):
+    reply: str = Field(min_length=1, max_length=2000)
+
+
+class CategoryInput(BaseModel):
+    kind: str
+    name: str = Field(min_length=1, max_length=120)
+    collection: str = "local"
+
+
+class ArticleSectionInput(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
+class ArticleInput(BaseModel):
+    section_id: int
+    title: str = Field(min_length=1, max_length=240)
+    body: str = Field(min_length=1)
+    links: str | list[str] | None = None
+    photos: list[str] = Field(default_factory=list, max_length=6)
+    video: str | None = None
+
+
 class ProductMeasureInput(BaseModel):
     measure_name: str
     base_quantity: Any = None

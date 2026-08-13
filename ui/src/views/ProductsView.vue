@@ -10,7 +10,7 @@ const props = defineProps<{
   refreshKey: number;
   isAdmin: boolean;
 }>();
-const emit = defineEmits<{ edit: [id: number] }>();
+const emit = defineEmits<{ edit: [id: number]; addCategory: [] }>();
 
 const data = ref<Product[]>([]);
 const loading = ref(false);
@@ -96,6 +96,10 @@ function productSpriteStyle(item: string) {
         <span class="product-category-photo all-products-photo"></span>
         <span class="product-category-copy"><b>Все продукты</b><small>Полный каталог</small></span>
         <strong>{{ data.length }}</strong>
+      </button>
+      <button type="button" class="product-category-card add-category-card" @click="emit('addCategory')">
+        <span class="product-category-photo">＋</span>
+        <span class="product-category-copy"><b>Добавить категорию</b><small>{{ props.isAdmin ? 'Общая коллекция' : 'Личная коллекция' }}</small></span>
       </button>
       <button
         v-for="item in categories"

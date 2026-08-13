@@ -4,10 +4,10 @@ export const pages: PageInfo[] = [
   { id: 'dashboard', icon: '⌂', title: 'Обзор' },
   { id: 'products', icon: '◫', title: 'Продукты' },
   { id: 'recipes', icon: '◇', title: 'Рецепты' },
-  { id: 'diary', icon: '☷', title: 'Дневник' },
+  { id: 'diary', icon: '☷', title: 'Дневник питания' },
   { id: 'progress', icon: '↗', title: 'Прогресс' },
   { id: 'workouts', icon: '⚡', title: 'Тренировки' },
-  { id: 'theory', icon: '◈', title: 'Теория' }
+  { id: 'theory', icon: '◈', title: 'Информация' }
 ];
 
 export const productCategoryOptions = [
