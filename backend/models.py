@@ -233,6 +233,8 @@ class Article(BaseModel):
     links = TextField(null=True)
     photo_urls = TextField(null=True)
     video_url = TextField(null=True)
+    is_pinned = BooleanField(default=False)
+    is_hidden = BooleanField(default=False)
     created_at = CharField(index=True)
     updated_at = CharField(null=True)
 

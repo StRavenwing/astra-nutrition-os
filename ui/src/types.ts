@@ -276,15 +276,22 @@ export interface ArticleSection {
   article_count: number;
 }
 
+export interface ArticleLink {
+  title: string;
+  url: string;
+}
+
 export interface Article {
   id: number;
   section_id: number;
   section_name: string;
   title: string;
   body: string;
-  links: string | null;
+  links: ArticleLink[];
   photos: string[];
   video: string | null;
+  is_pinned: boolean;
+  is_hidden: boolean;
   created_at: string;
   updated_at: string | null;
 }

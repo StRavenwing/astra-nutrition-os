@@ -28,13 +28,23 @@ class ArticleSectionInput(BaseModel):
     name: str = Field(min_length=1, max_length=120)
 
 
+class ArticleLinkInput(BaseModel):
+    title: str = Field(min_length=1, max_length=240)
+    url: str = Field(min_length=1, max_length=2000)
+
+
 class ArticleInput(BaseModel):
     section_id: int
     title: str = Field(min_length=1, max_length=240)
     body: str = Field(min_length=1)
-    links: str | list[str] | None = None
+    links: str | list[str] | list[ArticleLinkInput] | None = None
     photos: list[str] = Field(default_factory=list, max_length=6)
     video: str | None = None
+
+
+class ArticleFlagsInput(BaseModel):
+    is_pinned: bool | None = None
+    is_hidden: bool | None = None
 
 
 class ProductMeasureInput(BaseModel):

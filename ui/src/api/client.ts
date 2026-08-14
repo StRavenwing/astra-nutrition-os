@@ -124,6 +124,8 @@ export const api = {
   createArticleSection: (name: string) => write<ArticleSection>('POST', 'article-sections', { name }),
   articles: () => request<Article[]>('articles'),
   createArticle: (body: unknown) => write<Article>('POST', 'articles', body),
+  updateArticle: (id: number, body: unknown) => write<Article>('PUT', `articles/${id}`, body),
+  updateArticleFlags: (id: number, body: unknown) => request<Article>(`articles/${id}/flags`, { method: 'PATCH', body: JSON.stringify(body) }),
   post: <T = { ok: boolean }>(path: string, body: unknown) => write<T>('POST', path, body),
   put: <T = { ok: boolean }>(path: string, body: unknown) => write<T>('PUT', path, body),
   delete: <T = { ok: boolean }>(path: string) => write<T>('DELETE', path)

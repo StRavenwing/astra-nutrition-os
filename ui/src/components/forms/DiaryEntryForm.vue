@@ -168,22 +168,18 @@ async function remove() {
         <span>Приём пищи</span>
         <span>Блюдо или ингредиент</span>
         <span>Количество</span>
+        <span>Единица</span>
         <span>Комментарий</span>
+        <span></span>
       </div>
 
       <div id="diary-items">
-        <div v-for="(row, index) in rows" :key="index" class="diary-form-row" :class="{ 'diary-product-row': row.kind === 'product' }">
+        <div v-for="(row, index) in rows" :key="index" class="diary-form-row">
           <select v-model="row.meal_type" class="dm"><option v-for="meal in mealOrder" :key="meal">{{ meal }}</option></select>
           <select v-if="row.kind === 'recipe'" v-model="row.recipe_id" class="dr"><option v-for="recipe in recipes" :key="recipe.id" :value="recipe.id">{{ recipe.name }}</option></select>
           <select v-else v-model="row.product_id" class="dp" @change="productChanged(row)"><option v-for="product in products" :key="product.id" :value="product.id">{{ product.name }}</option></select>
-          <input v-if="row.kind === 'recipe'" v-model="row.servings" class="ds" type="number" min="0.25" step="0.25" aria-label="Порций" required>
-          <label v-else class="diary-quantity">
-            <input v-model="row.quantity" class="dq" type="number" min="0.01" step="0.01" aria-label="Количество" required>
-            <span class="du">{{ row.measurement_name }}</span>
-          </label>
-          <select v-if="row.kind === 'product'" v-model="row.measurement_name" class="dmu">
-            <option v-for="measure in measureOptions(row)" :key="measure.measure_name" :value="measure.measure_name">{{ measure.measure_name }}</option>
-          </select>
+          <div class="diary-quantity"><input v-if="row.kind === 'recipe'" v-model="row.servings" class="ds" type="number" min="0.25" step="0.25" aria-label="Порций" required><input v-else v-model="row.quantity" class="dq" type="number" min="0.01" step="0.01" aria-label="Количество" required><span v-if="row.kind === 'recipe'">порции</span></div>
+          <div class="diary-unit"><select v-if="row.kind === 'product'" v-model="row.measurement_name" class="dmu"><option v-for="measure in measureOptions(row)" :key="measure.measure_name" :value="measure.measure_name">{{ measure.measure_name }}</option></select><span v-else>порция</span></div>
           <input v-model="row.comment" class="dc" placeholder="Комментарий">
           <button type="button" class="remove-diary-row" aria-label="Удалить строку" @click="removeRow(index)">×</button>
         </div>

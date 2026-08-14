@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { api, clearAccessToken, getAccessToken, setUnauthorizedHandler } from '@/api/client';
 import { pages } from '@/constants';
-import type { AuthUser, Exercise, ModalState, PageId, WorkoutComplex, WorkoutPlan } from '@/types';
+import type { Article, AuthUser, Exercise, ModalState, PageId, WorkoutComplex, WorkoutPlan } from '@/types';
 import AuthView from '@/components/AuthView.vue';
 import AppShell from '@/components/layout/AppShell.vue';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
@@ -57,6 +57,8 @@ const complexEditorMode = ref<'create' | 'edit'>('create');
 const categoryOpen = ref(false);
 const categoryKind = ref<'product' | 'recipe'>('product');
 const articleOpen = ref(false);
+const articleEditor = ref<Article | null>(null);
+const articleFormKey = ref(0);
 
 const title = computed(() => pages.find((page) => page.id === currentPage.value)?.title || 'Обзор');
 const isAdmin = computed(() => Boolean(currentUser.value?.is_admin));
@@ -67,6 +69,7 @@ const canAdd = computed(() => {
   if (currentPage.value === 'products') return isAdmin.value;
   return true;
 });
+const articleModalTitle = computed(() => articleEditor.value ? 'Редактировать статью' : 'Добавить статью');
 const addLabel = computed(() => currentPage.value === 'workouts' ? 'Собрать тренировку' : 'Добавить');
 const modalTitle = computed(() => {
   if (!modal.value) return '';
@@ -111,6 +114,18 @@ function openFeedback() {
 function openCategory(kind: 'product' | 'recipe') {
   categoryKind.value = kind;
   categoryOpen.value = true;
+}
+
+function openArticleEditor(article: Article | null = null) {
+  if (!isAdmin.value) return;
+  articleFormKey.value += 1;
+  articleEditor.value = article;
+  articleOpen.value = true;
+}
+
+function closeArticleEditor() {
+  articleOpen.value = false;
+  articleEditor.value = null;
 }
 
 function closeModal() {
@@ -317,7 +332,7 @@ onBeforeUnmount(() => {
       @edit-plan="editPlan = $event; repeatPlan = null; workoutBuilderOpen = true"
       @repeat="repeatPlan = $event; editPlan = null; workoutBuilderOpen = true"
     />
-    <TheoryView v-else-if="currentPage === 'theory'" :is-admin="isAdmin" :refresh-key="reloadKey" @add-article="articleOpen = true" />
+    <TheoryView v-else-if="currentPage === 'theory'" :is-admin="isAdmin" :refresh-key="reloadKey" @add-article="openArticleEditor()" @edit-article="openArticleEditor" />
   </AppShell>
 
   <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
@@ -331,8 +346,8 @@ onBeforeUnmount(() => {
   <ModalDialog :open="categoryOpen" :title="categoryKind === 'product' ? 'Добавить категорию продуктов' : 'Добавить категорию рецептов'" eyebrow="КАТЕГОРИЯ" @close="categoryOpen = false">
     <CategoryForm :kind="categoryKind" :is-admin="isAdmin" @saved="categoryOpen = false; refresh()" @cancel="categoryOpen = false" />
   </ModalDialog>
-  <ModalDialog :open="articleOpen" title="Добавить статью" eyebrow="ИНФОРМАЦИЯ" wide @close="articleOpen = false">
-    <ArticleForm @saved="articleOpen = false; refresh()" @cancel="articleOpen = false" />
+  <ModalDialog :open="articleOpen" :title="articleModalTitle" eyebrow="ИНФОРМАЦИЯ" wide @close="closeArticleEditor">
+    <ArticleForm :key="articleFormKey" :article="articleEditor" @saved="closeArticleEditor(); refresh()" @cancel="closeArticleEditor" />
   </ModalDialog>
 
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">
@@ -1787,7 +1802,7 @@ dialog {
 .diary-form-labels,
 .diary-form-row {
   display: grid;
-  grid-template-columns: 145px minmax(180px, 1fr) 85px minmax(130px, 1fr) 36px;
+  grid-template-columns: 145px minmax(180px, 1fr) 95px 110px minmax(130px, 1fr) 36px;
   gap: 7px;
   align-items: center;
 }
@@ -1802,6 +1817,10 @@ dialog {
 
 .diary-form-row {
   margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
 
   select,
   input {
@@ -1811,9 +1830,39 @@ dialog {
 }
 
 .diary-product-row {
-  grid-template-columns: 145px minmax(150px, 1fr) 85px 120px minmax(130px, 1fr) 36px;
-  background: #f7fcf9;
-  border-radius: 9px;
+  background: #fff;
+}
+
+.diary-quantity,
+.diary-unit {
+  min-width: 0;
+}
+
+.diary-quantity {
+  display: flex;
+  align-items: center;
+  border: 1px solid #b7c0d1;
+  border-radius: 7px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.diary-quantity input {
+  min-width: 0;
+  border: 0;
+}
+
+.diary-quantity span,
+.diary-unit > span {
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.diary-unit select {
+  width: 100%;
 }
 
 .diary-quantity,
@@ -1865,11 +1914,6 @@ dialog {
     cursor: pointer;
   }
 
-  #add-diary-product {
-    border-color: #7bc8a4;
-    background: #e7f6ee;
-    color: #216e4e;
-  }
 }
 
 .current-progress-head > div:last-child {
@@ -2256,19 +2300,19 @@ dialog {
   }
 
   .diary-form-row {
-    grid-template-columns: 1fr 1fr 70px 36px;
+    grid-template-columns: 1fr 1fr 90px 36px;
 
     .dc {
       grid-column: 1 / -1;
     }
+
+    .diary-unit {
+      grid-column: 1 / 3;
+    }
   }
 
   .diary-product-row {
-    grid-template-columns: 1fr 1fr 70px 36px;
-
-    .dmu {
-      grid-column: 1 / 3;
-    }
+    grid-template-columns: 1fr 1fr 90px 36px;
   }
 
   .day-total > div {
