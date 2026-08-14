@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status
 from backend.dependencies import get_current_user, require_admin
 from backend.models import User
 from backend.schemas import ArticleFlagsInput, ArticleInput, ArticleSectionInput, CategoryInput, dump_model
-from backend.services.articles import create_article, create_section, list_articles, list_sections, update_article, update_article_flags
+from backend.services.articles import create_article, create_section, delete_article as remove_article, list_articles, list_sections, update_article, update_article_flags
 from backend.services.categories import create_category, list_categories
 
 
@@ -50,3 +50,8 @@ def put_article(article_id: int, payload: ArticleInput, current_user: User = Dep
 @router.patch("/articles/{article_id}/flags")
 def patch_article_flags(article_id: int, payload: ArticleFlagsInput, current_user: User = Depends(require_admin)) -> dict:
     return update_article_flags(article_id, dump_model(payload), current_user)
+
+
+@router.delete("/articles/{article_id}")
+def delete_article_route(article_id: int, current_user: User = Depends(require_admin)) -> dict:
+    return remove_article(article_id, current_user)

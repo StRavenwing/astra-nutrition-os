@@ -4,7 +4,7 @@ import { api } from '@/api/client';
 import type { Article, ArticleLink, ArticleSection } from '@/types';
 
 const props = defineProps<{ article?: Article | null }>();
-const emit = defineEmits<{ saved: []; cancel: [] }>();
+const emit = defineEmits<{ saved: []; deleted: []; cancel: [] }>();
 const sections = ref<ArticleSection[]>([]);
 const error = ref('');
 const saving = ref(false);
@@ -16,6 +16,14 @@ const emojiOpen = ref(false);
 const form = reactive({ section_id: 0, title: '', body: '', tags: '', video: '' });
 const links = ref<ArticleLink[]>([{ title: '', url: '' }]);
 const editing = computed(() => Boolean(props.article));
+const generatedTags = computed(() => {
+  const source = `${form.title} ${new DOMParser().parseFromString(form.body || '', 'text/html').body.textContent || ''}`;
+  const stopwords = new Set(['этот', 'этого', 'статья', 'статьи', 'когда', 'чтобы', 'который', 'которая', 'главный', 'главная', 'для', 'или', 'при', 'как', 'the', 'this', 'with']);
+  const tags: string[] = [];
+  (source.match(/#[\p{L}\p{N}_-]+/gu) || []).forEach((value) => { const tag = value.toLocaleLowerCase(); if (!tags.includes(tag)) tags.push(tag); });
+  (form.title.toLocaleLowerCase().match(/[\p{L}\p{N}]{4,}/gu) || []).forEach((value) => { const tag = `#${value}`; if (!stopwords.has(value) && !tags.includes(tag) && tags.length < 6) tags.push(tag); });
+  return tags.slice(0, 6).join(' ');
+});
 
 onMounted(async () => {
   try {
@@ -31,7 +39,6 @@ function loadArticle() {
   form.section_id = article?.section_id || sections.value[0]?.id || 0;
   form.title = article?.title || '';
   form.body = article?.body || '';
-  form.tags = article?.tags || '';
   form.video = article?.video || '';
   links.value = article?.links?.length ? article.links.map((link) => ({ ...link })) : [{ title: '', url: '' }];
   photos.value = article?.photos?.length ? [...article.photos] : [''];
@@ -132,7 +139,7 @@ async function save() {
   try {
     const payload = {
       ...form,
-      tags: form.tags.trim(),
+      tags: generatedTags.value,
       links: links.value.map((link) => ({ title: link.title.trim(), url: link.url.trim() })).filter((link) => link.title && link.url),
       photos: photos.value.map((item) => item.trim()).filter(Boolean)
     };
@@ -142,6 +149,20 @@ async function save() {
   } catch (err) { error.value = err instanceof Error ? err.message : String(err); }
   finally { saving.value = false; }
 }
+async function removeArticle() {
+  if (!props.article || saving.value || !confirm("Удалить статью? Это действие нельзя отменить.")) return;
+
+  saving.value = true;
+  error.value = '';
+  try {
+    await api.deleteArticle(props.article.id);
+    emit('deleted');
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    saving.value = false;
+  }
+}
 </script>
 
 <template>
@@ -149,7 +170,7 @@ async function save() {
     <div class="grid">
       <div class="field"><label>Раздел</label><select v-model="form.section_id" required><option v-for="item in sections" :key="item.id" :value="item.id">{{ item.name }}</option></select></div>
       <div class="field"><label>Заголовок</label><input v-model="form.title" required maxlength="240"></div>
-      <div class="field full"><label>Хэштеги</label><input v-model="form.tags" placeholder="#питание #здоровье #тренировки"><small class="field-hint">Разделяйте хэштеги пробелами</small></div>
+      <div class="field full"><label>Хэштеги</label><input :value="generatedTags" readonly placeholder="Будут созданы автоматически"><small class="field-hint">Формируются автоматически из заголовка и текста статьи</small></div>
       <div class="field full"><label>Статья</label>
         <div class="rich-editor">
           <div class="editor-toolbar" aria-label="Форматирование текста">
@@ -181,12 +202,17 @@ async function save() {
       <div class="field full"><label>Видео (до 1 шт.)</label><input v-model="form.video" type="url" placeholder="Ссылка на видео"><label class="file-button">Выбрать видео<input type="file" accept="video/*" @change="chooseVideo"></label></div>
     </section>
     <p v-if="error" class="form-error">{{ error }}</p>
+    <div v-if="editing" class="article-delete-row">
+      <button type="button" class="danger-button article-delete-button" :disabled="saving" @click="removeArticle">Удалить статью</button>
+    </div>
     <div class="actions"><button type="button" @click="$emit('cancel')">Отмена</button><button class="primary" type="submit" :disabled="saving || !form.section_id">{{ editing ? 'Сохранить изменения' : 'Сохранить статью' }}</button></div>
   </form>
 </template>
 
 <style scoped lang="scss">
 .article-form { display: grid; gap: 16px; }
+.article-delete-row { display: flex; justify-content: flex-start; }
+.article-delete-button { min-height: 36px; }
 .field-hint { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
 .rich-editor { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 7px; border-bottom: 1px solid var(--line); background: #f7f8fa; }

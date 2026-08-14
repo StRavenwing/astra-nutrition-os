@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 
 from backend.models import Article, ArticleSection, User, current_database
@@ -13,6 +14,26 @@ DEFAULT_SECTIONS = ("Питание", "Тренировки", "Анатомия"
 def ensure_default_sections() -> None:
     for name in DEFAULT_SECTIONS:
         ArticleSection.get_or_create(name=name, defaults={"created_at": datetime.utcnow().isoformat(timespec="seconds")})
+
+
+ARTICLE_TAG_STOPWORDS = {"этот", "этого", "статья", "статьи", "когда", "чтобы", "который", "которая", "главный", "главная", "для", "или", "при", "как", "the", "this", "with"}
+
+
+def generate_article_tags(title: str, body: str) -> str | None:
+    plain_body = re.sub(r"<[^>]+>", " ", body or "")
+    source = f"{title or ''} {plain_body}"
+    tags: list[str] = []
+    for value in re.findall(r"#[\w-]+", source, flags=re.UNICODE):
+        tag = value.lower()
+        if tag not in tags:
+            tags.append(tag)
+    for value in re.findall(r"[^\W_]{4,}", title or "", flags=re.UNICODE):
+        tag = f"#{value.lower()}"
+        if value.lower() not in ARTICLE_TAG_STOPWORDS and tag not in tags:
+            tags.append(tag)
+        if len(tags) >= 6:
+            break
+    return " ".join(tags[:6]) or None
 
 
 def serialize_section(item: ArticleSection, user: User) -> dict:
@@ -120,7 +141,7 @@ def create_article(data: dict, user: User) -> dict:
             section=section,
             title=str(data.get("title") or "").strip(),
             body=str(data.get("body") or "").strip(),
-            tags=str(data.get("tags") or "").strip() or None,
+            tags=generate_article_tags(str(data.get("title") or "").strip(), str(data.get("body") or "").strip()),
             links=normalize_links(data.get("links")),
             photo_urls=json.dumps(photos, ensure_ascii=False) if photos else None,
             video_url=(video or "").strip() or None,
@@ -156,10 +177,19 @@ def update_article(article_id: int, data: dict, user: User) -> dict:
     item.section = section
     item.title = str(data.get("title") or "").strip()
     item.body = str(data.get("body") or "").strip()
-    item.tags = str(data.get("tags") or "").strip() or None
+    item.tags = generate_article_tags(item.title, item.body)
     item.links = normalize_links(data.get("links"))
     item.photo_urls = json.dumps(photos, ensure_ascii=False) if photos else None
     item.video_url = video
     item.updated_at = datetime.utcnow().isoformat(timespec="seconds")
     item.save()
     return serialize_article(item)
+
+
+def delete_article(article_id: int, user: User) -> dict:
+    item = Article.get_or_none(Article.id == article_id)
+    if item is None:
+        raise NotFoundError("Статья не найдена")
+
+    item.delete_instance()
+    return {"deleted": True, "id": article_id}

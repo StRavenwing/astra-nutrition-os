@@ -347,7 +347,7 @@ onBeforeUnmount(() => {
     <CategoryForm :kind="categoryKind" :is-admin="isAdmin" @saved="categoryOpen = false; refresh()" @cancel="categoryOpen = false" />
   </ModalDialog>
   <ModalDialog :open="articleOpen" :title="articleModalTitle" eyebrow="ИНФОРМАЦИЯ" wide @close="closeArticleEditor">
-    <ArticleForm :key="articleFormKey" :article="articleEditor" @saved="closeArticleEditor(); refresh()" @cancel="closeArticleEditor" />
+    <ArticleForm :key="articleFormKey" :article="articleEditor" @saved="closeArticleEditor(); refresh()" @deleted="closeArticleEditor(); refresh()" @cancel="closeArticleEditor" />
   </ModalDialog>
 
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">

@@ -126,6 +126,7 @@ export const api = {
   createArticle: (body: unknown) => write<Article>('POST', 'articles', body),
   updateArticle: (id: number, body: unknown) => write<Article>('PUT', `articles/${id}`, body),
   updateArticleFlags: (id: number, body: unknown) => request<Article>(`articles/${id}/flags`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteArticle: (id: number) => write<{ deleted: boolean; id: number }>('DELETE', `articles/${id}`),
   post: <T = { ok: boolean }>(path: string, body: unknown) => write<T>('POST', path, body),
   put: <T = { ok: boolean }>(path: string, body: unknown) => write<T>('PUT', path, body),
   delete: <T = { ok: boolean }>(path: string) => write<T>('DELETE', path)
