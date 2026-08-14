@@ -10,8 +10,10 @@ const error = ref('');
 const saving = ref(false);
 const photos = ref<string[]>(['']);
 const bodyEditor = ref<HTMLElement | null>(null);
+const imageInput = ref<HTMLInputElement | null>(null);
+let savedSelection: Range | null = null;
 const emojiOpen = ref(false);
-const form = reactive({ section_id: 0, title: '', body: '', video: '' });
+const form = reactive({ section_id: 0, title: '', body: '', tags: '', video: '' });
 const links = ref<ArticleLink[]>([{ title: '', url: '' }]);
 const editing = computed(() => Boolean(props.article));
 
@@ -29,10 +31,11 @@ function loadArticle() {
   form.section_id = article?.section_id || sections.value[0]?.id || 0;
   form.title = article?.title || '';
   form.body = article?.body || '';
+  form.tags = article?.tags || '';
   form.video = article?.video || '';
   links.value = article?.links?.length ? article.links.map((link) => ({ ...link })) : [{ title: '', url: '' }];
   photos.value = article?.photos?.length ? [...article.photos] : [''];
-  void nextTick(() => { if (bodyEditor.value) bodyEditor.value.innerHTML = form.body; });
+  void nextTick(() => { if (bodyEditor.value) { bodyEditor.value.innerHTML = form.body; normalizeFontTags(); } });
 }
 
 function addPhoto() { if (photos.value.length < 6) photos.value.push(''); }
@@ -51,6 +54,40 @@ async function chooseVideo(event: Event) {
 }
 
 function syncBody() { form.body = bodyEditor.value?.innerHTML || ''; }
+
+function rememberSelection() {
+  const selection = window.getSelection();
+  if (!selection?.rangeCount || !bodyEditor.value) return;
+  const range = selection.getRangeAt(0);
+  if (bodyEditor.value.contains(range.commonAncestorContainer)) savedSelection = range.cloneRange();
+}
+
+function openImagePicker() {
+  rememberSelection();
+  imageInput.value?.click();
+}
+
+function restoreSelection() {
+  if (!savedSelection) return;
+  const selection = window.getSelection();
+  selection?.removeAllRanges();
+  selection?.addRange(savedSelection);
+}
+
+async function insertImage(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  (event.target as HTMLInputElement).value = '';
+  if (!file || !file.type.startsWith('image/')) return;
+  try {
+    const src = await readFile(file);
+    bodyEditor.value?.focus();
+    restoreSelection();
+    const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    const alt = file.name.replace(/[&<>"']/g, (char) => entities[char] || char);
+    document.execCommand('insertHTML', false, `<img src="${src}" alt="${alt}">`);
+    syncBody();
+  } catch (err) { error.value = err instanceof Error ? err.message : 'Не удалось вставить фото'; }
+}
 
 function normalizeFontTags() {
   bodyEditor.value?.querySelectorAll('font[size]').forEach((node) => {
@@ -87,7 +124,7 @@ function insertEmoji(emoji: string) {
 const emojis = ['🙂', '😊', '🥗', '🍎', '🥑', '💪', '🔥', '✅', '⭐', '❤️', '💡', '👏'];
 
 async function save() {
-  syncBody();
+  normalizeFontTags();
   const bodyText = bodyEditor.value?.innerText.trim() || '';
   if (!form.section_id || !form.title.trim() || !bodyText || saving.value) return;
   saving.value = true;
@@ -95,6 +132,7 @@ async function save() {
   try {
     const payload = {
       ...form,
+      tags: form.tags.trim(),
       links: links.value.map((link) => ({ title: link.title.trim(), url: link.url.trim() })).filter((link) => link.title && link.url),
       photos: photos.value.map((item) => item.trim()).filter(Boolean)
     };
@@ -111,6 +149,7 @@ async function save() {
     <div class="grid">
       <div class="field"><label>Раздел</label><select v-model="form.section_id" required><option v-for="item in sections" :key="item.id" :value="item.id">{{ item.name }}</option></select></div>
       <div class="field"><label>Заголовок</label><input v-model="form.title" required maxlength="240"></div>
+      <div class="field full"><label>Хэштеги</label><input v-model="form.tags" placeholder="#питание #здоровье #тренировки"><small class="field-hint">Разделяйте хэштеги пробелами</small></div>
       <div class="field full"><label>Статья</label>
         <div class="rich-editor">
           <div class="editor-toolbar" aria-label="Форматирование текста">
@@ -119,6 +158,8 @@ async function save() {
             <select aria-label="Размер шрифта" @change="setFontSize"><option value="">Размер</option><option value="2">Маленький</option><option value="3">Обычный</option><option value="5">Крупный</option><option value="7">Очень крупный</option></select>
             <button type="button" title="Маркированный список" @mousedown.prevent @click="format('insertUnorderedList')">• Список</button>
             <button type="button" title="Нумерованный список" @mousedown.prevent @click="format('insertOrderedList')">1. Список</button>
+            <button type="button" title="Вставить фото" @mousedown.prevent="rememberSelection" @click="openImagePicker">▧ Фото</button>
+            <input ref="imageInput" class="hidden-file-input" type="file" accept="image/png,image/jpeg,image/gif,image/webp" @change="insertImage">
             <div class="emoji-control">
               <button type="button" title="Вставить эмодзи" @click="emojiOpen = !emojiOpen">😊</button>
               <div v-if="emojiOpen" class="emoji-picker"><button v-for="emoji in emojis" :key="emoji" type="button" @click="insertEmoji(emoji)">{{ emoji }}</button></div>
@@ -146,6 +187,7 @@ async function save() {
 
 <style scoped lang="scss">
 .article-form { display: grid; gap: 16px; }
+.field-hint { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
 .rich-editor { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
 .editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; padding: 7px; border-bottom: 1px solid var(--line); background: #f7f8fa; }
 .editor-toolbar button, .editor-toolbar select { min-height: 31px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); cursor: pointer; }
@@ -154,6 +196,8 @@ async function save() {
 .editor-content { min-height: 220px; padding: 13px; outline: none; line-height: 1.6; }
 .editor-content:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
 .editor-content :deep(ul), .editor-content :deep(ol) { padding-left: 24px; }
+.editor-content :deep(img) { display: block; max-width: 100%; height: auto; margin: 10px 0; border-radius: 8px; }
+.hidden-file-input { display: none; }
 .emoji-control { position: relative; }
 .emoji-picker { position: absolute; z-index: 2; top: calc(100% + 5px); left: 0; display: grid; grid-template-columns: repeat(4, 1fr); width: 152px; padding: 6px; border: 1px solid var(--line); border-radius: 8px; background: #fff; box-shadow: 0 8px 22px #091e4226; }
 .emoji-picker button { border: 0; font-size: 19px; }

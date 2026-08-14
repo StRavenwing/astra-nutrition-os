@@ -79,6 +79,8 @@ def _ensure_feedback_columns(connection: sqlite3.Connection) -> None:
 
 def _ensure_article_columns(connection: sqlite3.Connection) -> None:
     columns = _columns(connection, "articles")
+    if columns and "tags" not in columns:
+        connection.execute("ALTER TABLE articles ADD COLUMN tags TEXT")
     if columns and "is_pinned" not in columns:
         connection.execute("ALTER TABLE articles ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0")
     if columns and "is_hidden" not in columns:

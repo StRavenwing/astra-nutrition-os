@@ -33,6 +33,7 @@ def serialize_article(item: Article) -> dict:
         "section_name": item.section.name,
         "title": item.title,
         "body": item.body,
+        "tags": item.tags,
         "links": deserialize_links(item.links),
         "photos": photos if isinstance(photos, list) else [],
         "video": item.video_url,
@@ -119,6 +120,7 @@ def create_article(data: dict, user: User) -> dict:
             section=section,
             title=str(data.get("title") or "").strip(),
             body=str(data.get("body") or "").strip(),
+            tags=str(data.get("tags") or "").strip() or None,
             links=normalize_links(data.get("links")),
             photo_urls=json.dumps(photos, ensure_ascii=False) if photos else None,
             video_url=(video or "").strip() or None,
@@ -154,6 +156,7 @@ def update_article(article_id: int, data: dict, user: User) -> dict:
     item.section = section
     item.title = str(data.get("title") or "").strip()
     item.body = str(data.get("body") or "").strip()
+    item.tags = str(data.get("tags") or "").strip() or None
     item.links = normalize_links(data.get("links"))
     item.photo_urls = json.dumps(photos, ensure_ascii=False) if photos else None
     item.video_url = video

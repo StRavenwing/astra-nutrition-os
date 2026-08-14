@@ -230,6 +230,7 @@ class Article(BaseModel):
     section = ForeignKeyField(ArticleSection, backref="articles", on_delete="CASCADE")
     title = CharField()
     body = TextField()
+    tags = TextField(null=True)
     links = TextField(null=True)
     photo_urls = TextField(null=True)
     video_url = TextField(null=True)

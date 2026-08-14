@@ -287,6 +287,7 @@ export interface Article {
   section_name: string;
   title: string;
   body: string;
+  tags: string | null;
   links: ArticleLink[];
   photos: string[];
   video: string | null;

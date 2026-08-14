@@ -37,6 +37,7 @@ class ArticleInput(BaseModel):
     section_id: int
     title: str = Field(min_length=1, max_length=240)
     body: str = Field(min_length=1)
+    tags: str | None = None
     links: str | list[str] | list[ArticleLinkInput] | None = None
     photos: list[str] = Field(default_factory=list, max_length=6)
     video: str | None = None
