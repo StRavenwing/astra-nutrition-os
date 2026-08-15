@@ -28,6 +28,10 @@ class ArticleSectionInput(BaseModel):
     name: str = Field(min_length=1, max_length=120)
 
 
+class ArticleSectionInfoInput(BaseModel):
+    description: str | None = None
+
+
 class ArticleLinkInput(BaseModel):
     title: str = Field(min_length=1, max_length=240)
     url: str = Field(min_length=1, max_length=2000)

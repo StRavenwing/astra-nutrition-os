@@ -40,7 +40,7 @@ def serialize_section(item: ArticleSection, user: User) -> dict:
     query = item.articles
     if not user.is_admin:
         query = query.where(Article.is_hidden == False)
-    return {"id": item.id, "name": item.name, "article_count": query.count()}
+    return {"id": item.id, "name": item.name, "description": item.description, "article_count": query.count()}
 
 
 def serialize_article(item: Article) -> dict:
@@ -74,7 +74,18 @@ def create_section(data: dict, user: User) -> dict:
     name = str(data.get("name") or "").strip()
     if not name:
         raise ValueError("Название раздела не может быть пустым")
-    item = ArticleSection.create(name=name, created_at=datetime.utcnow().isoformat(timespec="seconds"))
+    description = str(data.get("description") or "").strip() or None
+    item = ArticleSection.create(name=name, description=description, created_at=datetime.utcnow().isoformat(timespec="seconds"))
+    return serialize_section(item, user)
+
+
+def update_section_info(section_id: int, data: dict, user: User) -> dict:
+    item = ArticleSection.get_or_none(ArticleSection.id == section_id)
+    if item is None:
+        raise NotFoundError("Раздел статей не найден")
+
+    item.description = str(data.get("description") or "").strip() or None
+    item.save(only=[ArticleSection.description])
     return serialize_section(item, user)
 
 

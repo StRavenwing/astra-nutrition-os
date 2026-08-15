@@ -122,6 +122,7 @@ export const api = {
   createCategory: (body: unknown) => write<ContentCategory>('POST', 'categories', body),
   articleSections: () => request<ArticleSection[]>('article-sections'),
   createArticleSection: (name: string) => write<ArticleSection>('POST', 'article-sections', { name }),
+  updateArticleSection: (id: number, body: { description: string | null }) => write<ArticleSection>('PUT', `article-sections/${id}`, body),
   articles: () => request<Article[]>('articles'),
   createArticle: (body: unknown) => write<Article>('POST', 'articles', body),
   updateArticle: (id: number, body: unknown) => write<Article>('PUT', `articles/${id}`, body),

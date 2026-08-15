@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
 import type { Article, ArticleSection } from '@/types';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
+import ArticleSectionInfoForm from '@/components/forms/ArticleSectionInfoForm.vue';
 
 const props = defineProps<{ isAdmin: boolean; refreshKey: number }>();
 const emit = defineEmits<{ addArticle: []; editArticle: [article: Article] }>();
@@ -10,15 +11,24 @@ const sections = ref<ArticleSection[]>([]);
 const articles = ref<Article[]>([]);
 const activeSection = ref<number | null>(null);
 const activeTag = ref<string | null>(null);
+const sortOrder = ref<'asc' | 'desc'>('asc');
 const selectedArticle = ref<Article | null>(null);
 const sectionOpen = ref(false);
+const sectionInfoOpen = ref(false);
 const sectionName = ref('');
 const error = ref('');
 
-const popularArticles = computed(() => articles.value.filter((article) => article.is_pinned));
-const sectionArticleList = computed(() => activeSection.value === null ? [] : articles.value.filter((article) => article.section_id === activeSection.value));
-const tagArticleList = computed(() => activeTag.value ? articles.value.filter((article) => articleTags(article).includes(activeTag.value as string)) : []);
+function sortArticles(list: Article[]) {
+  return [...list].sort((left, right) => {
+    const result = left.title.localeCompare(right.title, 'ru', { sensitivity: 'base' });
+    return sortOrder.value === 'asc' ? result : -result;
+  });
+}
+const popularArticles = computed(() => sortArticles(articles.value.filter((article) => article.is_pinned)));
+const sectionArticleList = computed(() => sortArticles(activeSection.value === null ? [] : articles.value.filter((article) => article.section_id === activeSection.value)));
+const tagArticleList = computed(() => sortArticles(activeTag.value ? articles.value.filter((article) => articleTags(article).includes(activeTag.value as string)) : []));
 const activeSectionName = computed(() => sections.value.find((section) => section.id === activeSection.value)?.name || '');
+const activeSectionItem = computed(() => sections.value.find((section) => section.id === activeSection.value) || null);
 
 async function load() {
   try {
@@ -34,6 +44,17 @@ function articleTags(article: Article) {
 }
 function filterByTag(tag: string) { activeTag.value = tag; activeSection.value = null; }
 function clearTagFilter() { activeTag.value = null; }
+function openSectionInfoEditor() { if (props.isAdmin && activeSectionItem.value) sectionInfoOpen.value = true; }
+function replaceSection(updated: ArticleSection) {
+  const index = sections.value.findIndex((section) => section.id === updated.id);
+  if (index >= 0) sections.value[index] = updated;
+  sectionInfoOpen.value = false;
+}
+function hasSectionInfo(section: ArticleSection | null) {
+  if (!section?.description?.trim()) return false;
+  const parsed = new DOMParser().parseFromString(section.description, 'text/html');
+  return Boolean(parsed.body.textContent?.trim() || parsed.body.querySelector('img'));
+}
 function escapeHtml(value: string) {
   const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
   return value.replace(/[&<>"']/g, (char) => entities[char] || char);
@@ -109,6 +130,9 @@ async function createSection() {
     <div class="theory-head"><div><p class="eyebrow">ИНФОРМАЦИЯ</p><h2>Статьи и полезные материалы</h2></div><button v-if="props.isAdmin" type="button" class="primary" @click="emit('addArticle')">＋ Добавить статью</button></div>
     <div v-if="error" class="panel empty">{{ error }}</div>
 
+    <div class="article-sort-row">
+      <label class="article-sort-control"><span>Сортировка</span><select v-model="sortOrder"><option value="asc">От А до Я</option><option value="desc">От Я до А</option></select></label>
+    </div>
     <section class="popular-articles">
       <div class="content-block-head"><div><p class="eyebrow">ПОПУЛЯРНОЕ</p><h3>Популярные статьи</h3></div><small v-if="props.isAdmin">Закрепляйте статьи, которые должны быть видны сверху</small></div>
       <div v-if="popularArticles.length" class="article-grid">
@@ -134,6 +158,11 @@ async function createSection() {
     <section v-if="activeSection !== null || activeTag" class="selected-section" :class="{ 'tag-filter-active': activeTag }">
       <div v-if="activeTag" class="content-block-head tag-filter-head"><div><p class="eyebrow">ХЭШТЕГ</p><h3>{{ activeTag }}</h3></div><button type="button" class="clear-filter" @click="clearTagFilter">Сбросить фильтр</button></div>
       <div class="content-block-head"><div><p class="eyebrow">РАЗДЕЛ</p><h3>{{ activeSectionName }}</h3></div></div>
+      <div v-if="hasSectionInfo(activeSectionItem) || props.isAdmin" class="article-section-info">
+        <div class="section-info-head"><div><p class="eyebrow">ИНФОРМАЦИЯ О РАЗДЕЛЕ</p><h4>{{ activeSectionName }}</h4></div><button v-if="props.isAdmin" type="button" class="section-info-edit" @click="openSectionInfoEditor">{{ hasSectionInfo(activeSectionItem) ? 'Редактировать' : 'Добавить информацию' }}</button></div>
+        <div v-if="hasSectionInfo(activeSectionItem)" class="article-section-info-body" v-html="articleHtml(activeSectionItem?.description || '')"></div>
+        <p v-else class="article-section-info-empty">Информация о разделе пока не добавлена.</p>
+      </div>
       <div v-if="(activeTag ? tagArticleList : sectionArticleList).length" class="article-grid">
         <article v-for="item in (activeTag ? tagArticleList : sectionArticleList)" :key="item.id" class="article-card" :class="{ hidden: item.is_hidden, 'has-pin-action': props.isAdmin }" tabindex="0" @click="openArticle(item)" @keydown.enter.prevent="openArticle(item)">
           <button v-if="props.isAdmin" type="button" class="article-pin-action" :class="{ pinned: item.is_pinned }" @click.stop="toggleFlag(item, 'is_pinned')">{{ item.is_pinned ? 'Открепить' : 'Закрепить' }}</button>
@@ -160,17 +189,23 @@ async function createSection() {
     </article>
   </ModalDialog>
 
+  <ModalDialog :open="sectionInfoOpen" :title="`Информация: ${activeSectionName}`" eyebrow="РАЗДЕЛ" wide @close="sectionInfoOpen = false">
+    <ArticleSectionInfoForm v-if="activeSectionItem" :section="activeSectionItem" @saved="replaceSection" @cancel="sectionInfoOpen = false" />
+  </ModalDialog>
+
   <ModalDialog :open="sectionOpen" title="Создать раздел" eyebrow="СТАТЬИ" @close="sectionOpen = false"><form class="section-form" @submit.prevent="createSection"><div class="field full"><label>Название раздела</label><input v-model="sectionName" required maxlength="120" autofocus></div><div class="actions"><button type="button" @click="sectionOpen = false">Отмена</button><button class="primary" type="submit">Создать</button></div></form></ModalDialog>
 </template>
 
 <style scoped lang="scss">
 .theory-head, .content-block-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
+.article-sort-row { display: flex; justify-content: flex-end; margin: -8px 0 14px; }.article-sort-control { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; font-weight: 750; }.article-sort-control select { min-height: 34px; padding: 0 9px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-size: 11px; font-weight: 750; cursor: pointer; }
 .theory-head { margin-bottom: 20px; }.theory-head h2, .content-block-head h3 { margin: 0; }.content-block-head { margin-bottom: 12px; }.content-block-head small { color: var(--muted); font-size: 11px; }
 .popular-articles, .article-sections-block, .selected-section { margin-bottom: 24px; }.popular-articles { padding: 18px; border: 1px solid #9f8fef; border-radius: 16px; background: linear-gradient(135deg, #fff, #f5f2ff); }
 .article-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
 .article-section-card { display: flex; align-items: flex-start; justify-content: space-between; min-height: 92px; padding: 15px; border: 1px solid var(--line); border-radius: 13px; background: #fff; color: var(--ink); text-align: left; cursor: pointer; }.article-section-card.active { border-color: var(--blue); box-shadow: 0 0 0 2px #0c66e426; }.article-section-card b, .article-section-card small { display: block; }.article-section-card small { margin-top: 5px; color: var(--muted); }.article-section-card strong { padding: 4px 8px; border-radius: 99px; background: #e9f2ff; color: var(--blue); }.add-section-card { border-style: dashed; }
 .article-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; }.article-card { position: relative; overflow: hidden; min-height: 230px; padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: #fff; box-shadow: 0 4px 14px #091e4210; cursor: pointer; transition: transform .15s ease, box-shadow .15s ease; }.article-card:hover, .article-card:focus-visible { transform: translateY(-2px); box-shadow: 0 9px 22px #091e4220; outline: none; }.article-card.hidden { border-style: dashed; opacity: .82; }.article-card img { width: calc(100% + 36px); height: 145px; margin: -18px -18px 15px; object-fit: cover; }.article-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.article-card-head .eyebrow { margin: 0; }.article-card h3 { margin: 5px 0 8px; font-size: 19px; }.article-excerpt { display: -webkit-box; overflow: hidden; margin: 0; color: var(--muted); line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }.hidden-badge { padding: 3px 7px; border-radius: 99px; background: #ffebe6; color: #ae2a19; font-size: 10px; font-weight: 800; }.article-card-actions, .article-detail-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 15px; }.article-card-actions button, .article-detail-actions button { padding: 7px 9px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); font-size: 11px; font-weight: 750; cursor: pointer; }.article-card-actions button:hover, .article-detail-actions button:hover { border-color: var(--blue); color: var(--blue); }
-.article-detail { max-width: 840px; }.article-detail-photo { width: 100%; max-height: 360px; margin-bottom: 15px; border-radius: 12px; object-fit: cover; }.article-detail-body { line-height: 1.75; }.article-detail-body :deep(ul), .article-detail-body :deep(ol) { padding-left: 24px; }.article-detail-body :deep(p) { margin: 0 0 12px; }.article-detail-body :deep(img) { display: block; max-width: 100%; height: auto; margin: 14px 0; border-radius: 9px; }.article-detail-actions { padding-top: 14px; border-top: 1px solid var(--line); }.article-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }.article-links a { color: var(--blue); font-weight: 750; }.section-form { display: grid; gap: 12px; }
+.article-detail { max-width: 840px; }.article-detail-photo { width: 100%; max-height: 360px; margin-bottom: 15px; border-radius: 12px; object-fit: cover; }.article-detail-body { line-height: 1.75; }.article-detail-body :deep(ul), .article-detail-body :deep(ol) { padding-left: 24px; }.article-detail-body :deep(p) { margin: 0 0 12px; }.article-detail-body :deep(img) { display: block; max-width: 100%; height: auto; margin: 14px 0; border-radius: 9px; }.article-detail-actions { padding-top: 14px; border-top: 1px solid var(--line); }.article-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }.article-links a { color: var(--blue); font-weight: 750; }
+.article-section-info { margin-bottom: 16px; padding: 16px; border: 1px solid #c8d8f7; border-radius: 14px; background: linear-gradient(135deg, #fff, #f7faff); }.section-info-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }.section-info-head h4 { margin: 0; font-size: 16px; }.section-info-edit { min-height: 34px; padding: 0 11px; border: 1px solid #85b8ff; border-radius: 8px; background: #e9f2ff; color: var(--blue); font-size: 11px; font-weight: 750; cursor: pointer; }.section-info-edit:hover { border-color: var(--blue); }.article-section-info-body { margin-top: 12px; line-height: 1.7; }.article-section-info-body :deep(p) { margin: 0 0 10px; }.article-section-info-body :deep(ul), .article-section-info-body :deep(ol) { padding-left: 24px; }.article-section-info-body :deep(img) { display: block; max-width: 100%; height: auto; margin: 12px 0; border-radius: 9px; }.article-section-info-empty { margin: 12px 0 0; color: var(--muted); font-size: 12px; }.section-form { display: grid; gap: 12px; }
 .article-detail-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 18px; }.article-detail-tags button { padding: 5px 9px; border: 0; border-radius: 99px; background: #f3f0ff; color: var(--purple); font-size: 11px; font-weight: 800; cursor: pointer; }.article-detail-tags button:hover { background: #e9ddff; }
 .tag-filter-active > .content-block-head:not(.tag-filter-head) { display: none; }.clear-filter { min-height: 36px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font-size: 11px; font-weight: 750; cursor: pointer; }
 .article-grid { grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 15px; }.article-card { display: flex; flex-direction: column; min-height: 255px; padding: 18px; border-radius: 15px; box-shadow: 0 2px 5px #091e4214; }.article-card::before { content: ''; position: absolute; inset: 0 0 auto; height: 4px; background: linear-gradient(90deg, var(--blue), var(--purple), var(--green)); }.article-card:hover, .article-card:focus-visible { border-color: #85b8ff; box-shadow: 0 12px 30px #091e421f; }.article-card img { height: 108px; }.article-title { margin: 6px 0 10px !important; min-height: 2.4em; font-size: 22px !important; line-height: 1.2 !important; }.article-lead { display: flex; align-items: flex-start; gap: 8px; min-height: 48px; color: var(--muted); line-height: 1.5; }.article-lead p { margin: 0; }.article-excerpt { display: block; max-height: 82px; overflow: hidden; margin: 0; color: var(--muted); line-height: 1.5; }.article-excerpt :deep(p) { margin: 0 0 8px; }.article-excerpt :deep(ul), .article-excerpt :deep(ol) { margin: 0; padding-left: 20px; }.article-open-icon { display: grid; flex: 0 0 24px; place-items: center; width: 24px; height: 24px; border-radius: 8px; background: #e9f2ff; color: var(--blue); font-size: 17px; font-weight: 850; }.article-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; padding-top: 12px; }.article-tags button { padding: 4px 8px; border: 0; border-radius: 99px; background: #f3f0ff; color: var(--purple); font-size: 10px; font-weight: 800; cursor: pointer; }.article-tags button:hover { background: #e9ddff; }.article-card-actions, .article-detail-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 12px; }.article-card-actions button, .article-detail-actions button { box-sizing: border-box; width: 100%; min-height: 36px; height: 36px; padding: 0 8px; border-radius: 8px; font-size: 10px; font-weight: 750; line-height: 1; white-space: nowrap; cursor: pointer; }.article-pin-button, .edit-article-button { border: 1px solid #85b8ff; background: #e9f2ff; color: var(--blue); }.article-visibility-button { border: 1px solid #f5a79b; background: #ffebe6; color: #ae2a19; }.article-return-button { border-color: #7bc8a4; background: #e7f6ee; color: #216e4e; }

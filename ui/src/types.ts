@@ -273,6 +273,7 @@ export interface ContentCategory {
 export interface ArticleSection {
   id: number;
   name: string;
+  description: string | null;
   article_count: number;
 }
 

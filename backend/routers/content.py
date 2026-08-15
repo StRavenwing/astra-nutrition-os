@@ -4,8 +4,8 @@ from fastapi import APIRouter, Depends, status
 
 from backend.dependencies import get_current_user, require_admin
 from backend.models import User
-from backend.schemas import ArticleFlagsInput, ArticleInput, ArticleSectionInput, CategoryInput, dump_model
-from backend.services.articles import create_article, create_section, delete_article as remove_article, list_articles, list_sections, update_article, update_article_flags
+from backend.schemas import ArticleFlagsInput, ArticleInput, ArticleSectionInfoInput, ArticleSectionInput, CategoryInput, dump_model
+from backend.services.articles import create_article, create_section, delete_article as remove_article, list_articles, list_sections, update_article, update_article_flags, update_section_info
 from backend.services.categories import create_category, list_categories
 
 
@@ -30,6 +30,11 @@ def get_article_sections(current_user: User = Depends(get_current_user)) -> list
 @router.post("/article-sections", status_code=status.HTTP_201_CREATED)
 def post_article_section(payload: ArticleSectionInput, current_user: User = Depends(require_admin)) -> dict:
     return create_section(dump_model(payload), current_user)
+
+
+@router.put("/article-sections/{section_id}")
+def put_article_section_info(section_id: int, payload: ArticleSectionInfoInput, current_user: User = Depends(require_admin)) -> dict:
+    return update_section_info(section_id, dump_model(payload), current_user)
 
 
 @router.get("/articles")

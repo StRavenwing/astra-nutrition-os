@@ -1802,7 +1802,7 @@ dialog {
 .diary-form-labels,
 .diary-form-row {
   display: grid;
-  grid-template-columns: 145px minmax(180px, 1fr) 95px 110px minmax(130px, 1fr) 36px;
+  grid-template-columns: minmax(130px, 1.05fr) minmax(180px, 1.5fr) minmax(115px, .8fr) minmax(90px, .8fr) 36px;
   gap: 7px;
   align-items: center;
 }
@@ -1914,6 +1914,20 @@ dialog {
     cursor: pointer;
   }
 
+}
+
+.diary-form-labels span:nth-child(5),
+.diary-form-row .dc {
+  display: none;
+}
+
+.diary-quantity > span {
+  display: none;
+}
+
+.diary-quantity input {
+  flex: 1 1 auto;
+  width: 100%;
 }
 
 .current-progress-head > div:last-child {
@@ -2300,14 +2314,15 @@ dialog {
   }
 
   .diary-form-row {
-    grid-template-columns: 1fr 1fr 90px 36px;
-
-    .dc {
-      grid-column: 1 / -1;
-    }
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(105px, .8fr) 36px;
 
     .diary-unit {
       grid-column: 1 / 3;
+    }
+
+    .remove-diary-row {
+      grid-column: 4;
+      grid-row: 2;
     }
   }
 

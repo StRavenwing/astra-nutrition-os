@@ -219,6 +219,7 @@ class ContentCategory(BaseModel):
 class ArticleSection(BaseModel):
     id = AutoField()
     name = CharField(unique=True)
+    description = TextField(null=True)
     created_at = CharField()
 
     class Meta:
