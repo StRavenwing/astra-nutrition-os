@@ -112,9 +112,13 @@ function normalizeFontTags() {
   syncBody();
 }
 
-function format(command: 'bold' | 'italic' | 'insertUnorderedList' | 'insertOrderedList') {
+function format(command: 'bold' | 'italic' | 'insertUnorderedList' | 'insertOrderedList' | 'indent' | 'outdent') {
+  rememberSelection();
   bodyEditor.value?.focus();
+  restoreSelection();
+  if (command === 'bold' || command === 'italic') document.execCommand('styleWithCSS', false, 'true');
   document.execCommand(command, false);
+  if (command === 'bold' || command === 'italic') document.execCommand('styleWithCSS', false, 'false');
   syncBody();
 }
 
@@ -180,11 +184,13 @@ async function removeArticle() {
       <div class="field full"><label>Статья</label>
         <div class="rich-editor">
           <div class="editor-toolbar" aria-label="Форматирование текста">
-            <button type="button" title="Жирный" @mousedown.prevent @click="format('bold')"><b>B</b></button>
-            <button type="button" title="Курсив" @mousedown.prevent @click="format('italic')"><i>I</i></button>
+            <button type="button" title="Жирный" @mousedown.prevent="rememberSelection" @click="format('bold')"><b>B</b></button>
+            <button type="button" title="Курсив" @mousedown.prevent="rememberSelection" @click="format('italic')"><i>I</i></button>
             <select aria-label="Размер шрифта" @change="setFontSize"><option value="">Размер</option><option value="2">Маленький</option><option value="3">Обычный</option><option value="5">Крупный</option><option value="7">Очень крупный</option></select>
-            <button type="button" title="Маркированный список" @mousedown.prevent @click="format('insertUnorderedList')">• Список</button>
-            <button type="button" title="Нумерованный список" @mousedown.prevent @click="format('insertOrderedList')">1. Список</button>
+            <button type="button" title="Маркированный список" @mousedown.prevent="rememberSelection" @click="format('insertUnorderedList')">• Список</button>
+            <button type="button" title="Нумерованный список" @mousedown.prevent="rememberSelection" @click="format('insertOrderedList')">1. Список</button>
+            <button type="button" title="Увеличить отступ" @mousedown.prevent="rememberSelection" @click="format('indent')">↦ Отступ</button>
+            <button type="button" title="Уменьшить отступ" @mousedown.prevent="rememberSelection" @click="format('outdent')">↤ Убрать</button>
             <button type="button" title="Вставить фото" @mousedown.prevent="rememberSelection" @click="openImagePicker">▧ Фото</button>
             <input ref="imageInput" class="hidden-file-input" type="file" accept="image/png,image/jpeg,image/gif,image/webp" @change="insertImage">
             <div class="emoji-control">
@@ -228,6 +234,7 @@ async function removeArticle() {
 .editor-content { min-height: 220px; padding: 13px; outline: none; line-height: 1.6; }
 .editor-content:empty::before { content: attr(data-placeholder); color: var(--muted); pointer-events: none; }
 .editor-content :deep(ul), .editor-content :deep(ol) { padding-left: 24px; }
+.editor-content :deep(blockquote) { margin: 12px 0 12px 32px; padding-left: 12px; border-left: 3px solid #c8d8f7; }
 .editor-content :deep(img) { display: block; max-width: 100%; height: auto; margin: 10px 0; border-radius: 8px; }
 .hidden-file-input { display: none; }
 .emoji-control { position: relative; }

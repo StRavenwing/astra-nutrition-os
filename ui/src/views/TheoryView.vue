@@ -62,7 +62,7 @@ function escapeHtml(value: string) {
 function articleHtml(body: string) {
   if (!/<[a-z][\s\S]*>/i.test(body)) return escapeHtml(body).replace(/\n/g, '<br>');
   const source = new DOMParser().parseFromString(body, 'text/html');
-  const allowed = new Set(['P', 'DIV', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'A', 'SPAN', 'FONT', 'IMG', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD', 'CAPTION', 'COLGROUP', 'COL']);
+  const allowed = new Set(['P', 'DIV', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'BLOCKQUOTE', 'A', 'SPAN', 'FONT', 'IMG', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD', 'CAPTION', 'COLGROUP', 'COL']);
   const fontSizes: Record<string, string> = { '1': '12px', '2': '14px', '3': '16px', '4': '18px', '5': '22px', '6': '26px', '7': '30px' };
   source.body.querySelectorAll('*').forEach((node) => {
     if (node.tagName === 'FONT') {
@@ -82,6 +82,16 @@ function articleHtml(body: string) {
       if (node.tagName === 'IMG' && attribute.name === 'src' && /^(https?:\/\/|data:image\/(png|jpeg|gif|webp);base64,)/i.test(attribute.value)) return;
       if (node.tagName === 'IMG' && (attribute.name === 'alt' || attribute.name === 'title')) return;
       if (['TABLE', 'TH', 'TD'].includes(node.tagName) && ['colspan', 'rowspan', 'scope'].includes(attribute.name)) return;
+      if (['P', 'DIV', 'LI', 'BLOCKQUOTE'].includes(node.tagName) && attribute.name === 'style') {
+        const styles: string[] = [];
+        const indent = attribute.value.match(/text-indent:\s*(-?\d+(?:\.\d+)?(?:px|pt|em|rem|%))/i)?.[1];
+        const marginLeft = attribute.value.match(/margin-left:\s*(-?\d+(?:\.\d+)?(?:px|pt|em|rem|%))/i)?.[1];
+        const paddingLeft = attribute.value.match(/padding-left:\s*(-?\d+(?:\.\d+)?(?:px|pt|em|rem|%))/i)?.[1];
+        if (indent) styles.push(`text-indent: ${indent}`);
+        if (marginLeft) styles.push(`margin-left: ${marginLeft}`);
+        if (paddingLeft) styles.push(`padding-left: ${paddingLeft}`);
+        if (styles.length) { node.setAttribute('style', styles.join('; ')); return; }
+      }
       if (['SPAN', 'B', 'STRONG', 'I', 'EM'].includes(node.tagName) && attribute.name === 'style') {
         const styles: string[] = [];
         const size = attribute.value.match(/font-size:\s*(12|14|16|18|22|26|30)px/i)?.[1];
@@ -217,6 +227,7 @@ async function createSection() {
 .article-card.has-pin-action { padding-top: 56px; }.article-pin-action { position: absolute; top: 15px; right: 15px; z-index: 1; min-width: 100px; min-height: 32px; padding: 7px 9px; border: 0; border-radius: 8px; background: var(--green); color: #fff; font-size: 10px; font-weight: 800; line-height: 1.1; cursor: pointer; }.article-pin-action:hover { filter: brightness(.95); }.article-pin-action.pinned { border: 1px solid #7bc8a4; background: #e3fcef; color: #216e4e; }.article-card-actions { grid-template-columns: minmax(0, 1fr) 82px; }.article-card-actions .article-pin-button { display: none; }.article-card-actions .edit-article-button { order: -1; }
 .article-card-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; }.article-card-actions button { min-width: 0; min-height: 36px; height: auto; padding: 8px 5px; white-space: normal; overflow-wrap: anywhere; text-align: center; }.article-card-actions .article-open-button { order: 1; border: 1px solid #85b8ff; background: #e9f2ff; color: var(--blue); }.article-card-actions .article-visibility-button { order: 2; border: 1px solid #f5a79b; background: #ffebe6; color: #ae2a19; }.article-card-actions .edit-article-button { order: 3; border: 1px solid #85b8ff; background: #e9f2ff; color: var(--blue); }
 .article-detail-body :deep(table), .article-section-info-body :deep(table) { width: 100%; margin: 16px 0; border-collapse: collapse; table-layout: auto; }.article-detail-body :deep(th), .article-detail-body :deep(td), .article-section-info-body :deep(th), .article-section-info-body :deep(td) { padding: 8px 10px; border: 1px solid #d7deea; vertical-align: top; text-align: left; }.article-detail-body :deep(th), .article-section-info-body :deep(th) { background: #f4f7fb; font-weight: 800; }.article-detail-body :deep(strong), .article-detail-body :deep(b), .article-section-info-body :deep(strong), .article-section-info-body :deep(b) { font-weight: 700; }
+.article-detail-body :deep(blockquote), .article-section-info-body :deep(blockquote) { margin: 12px 0 12px 32px; padding-left: 12px; border-left: 3px solid #c8d8f7; }
 @media (max-width: 600px) { .theory-head, .content-block-head { align-items: flex-start; flex-direction: column; }.popular-articles { padding: 14px; } }
 .article-title { font-size: 19px !important; }
 </style>
