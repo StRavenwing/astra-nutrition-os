@@ -62,13 +62,16 @@ function escapeHtml(value: string) {
 function articleHtml(body: string) {
   if (!/<[a-z][\s\S]*>/i.test(body)) return escapeHtml(body).replace(/\n/g, '<br>');
   const source = new DOMParser().parseFromString(body, 'text/html');
-  const allowed = new Set(['P', 'DIV', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'A', 'SPAN', 'FONT', 'IMG']);
+  const allowed = new Set(['P', 'DIV', 'BR', 'STRONG', 'B', 'EM', 'I', 'U', 'UL', 'OL', 'LI', 'A', 'SPAN', 'FONT', 'IMG', 'TABLE', 'THEAD', 'TBODY', 'TFOOT', 'TR', 'TH', 'TD', 'CAPTION', 'COLGROUP', 'COL']);
   const fontSizes: Record<string, string> = { '1': '12px', '2': '14px', '3': '16px', '4': '18px', '5': '22px', '6': '26px', '7': '30px' };
   source.body.querySelectorAll('*').forEach((node) => {
     if (node.tagName === 'FONT') {
       const span = source.createElement('span');
-      const size = fontSizes[node.getAttribute('size') || ''] || node.getAttribute('style')?.match(/font-size:\s*([^;]+)/i)?.[1];
+      const inlineStyle = node.getAttribute('style') || '';
+      const size = fontSizes[node.getAttribute('size') || ''] || inlineStyle.match(/font-size:\s*([^;]+)/i)?.[1];
       if (size && /^(12|14|16|18|22|26|30)px$/i.test(size.trim())) span.style.fontSize = size.trim();
+      if (/font-weight:\s*(bold|bolder|[6-9]00)/i.test(inlineStyle)) span.style.fontWeight = 'bold';
+      if (/font-style:\s*(italic|oblique)/i.test(inlineStyle)) span.style.fontStyle = 'italic';
       span.innerHTML = node.innerHTML;
       node.replaceWith(span);
       return;
@@ -78,6 +81,7 @@ function articleHtml(body: string) {
       if (node.tagName === 'A' && attribute.name === 'href' && /^(https?:|mailto:)/i.test(attribute.value)) return;
       if (node.tagName === 'IMG' && attribute.name === 'src' && /^(https?:\/\/|data:image\/(png|jpeg|gif|webp);base64,)/i.test(attribute.value)) return;
       if (node.tagName === 'IMG' && (attribute.name === 'alt' || attribute.name === 'title')) return;
+      if (['TABLE', 'TH', 'TD'].includes(node.tagName) && ['colspan', 'rowspan', 'scope'].includes(attribute.name)) return;
       if (['SPAN', 'B', 'STRONG', 'I', 'EM'].includes(node.tagName) && attribute.name === 'style') {
         const styles: string[] = [];
         const size = attribute.value.match(/font-size:\s*(12|14|16|18|22|26|30)px/i)?.[1];
@@ -212,6 +216,7 @@ async function createSection() {
 .article-card-actions button, .article-detail-actions button { height: auto; min-width: 0; min-height: 36px; padding: 8px 6px; white-space: normal; overflow-wrap: anywhere; text-align: center; }.article-card-actions .article-pin-button, .article-detail-actions .article-pin-button { border: 1px solid #85b8ff; background: #e9f2ff; color: var(--blue); }.article-card-actions .edit-article-button, .article-detail-actions .edit-article-button { border: 1px solid #85b8ff; background: #e9f2ff; color: var(--blue); }.article-card-actions .article-visibility-button, .article-detail-actions .article-visibility-button { border: 1px solid #f5a79b; background: #ffebe6; color: #ae2a19; }.article-card-actions .article-return-button, .article-detail-actions .article-return-button { border-color: #7bc8a4; background: #e7f6ee; color: #216e4e; }
 .article-card.has-pin-action { padding-top: 56px; }.article-pin-action { position: absolute; top: 15px; right: 15px; z-index: 1; min-width: 100px; min-height: 32px; padding: 7px 9px; border: 0; border-radius: 8px; background: var(--green); color: #fff; font-size: 10px; font-weight: 800; line-height: 1.1; cursor: pointer; }.article-pin-action:hover { filter: brightness(.95); }.article-pin-action.pinned { border: 1px solid #7bc8a4; background: #e3fcef; color: #216e4e; }.article-card-actions { grid-template-columns: minmax(0, 1fr) 82px; }.article-card-actions .article-pin-button { display: none; }.article-card-actions .edit-article-button { order: -1; }
 .article-card-actions { grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: stretch; }.article-card-actions button { min-width: 0; min-height: 36px; height: auto; padding: 8px 5px; white-space: normal; overflow-wrap: anywhere; text-align: center; }.article-card-actions .article-open-button { order: 1; border: 1px solid #85b8ff; background: #e9f2ff; color: var(--blue); }.article-card-actions .article-visibility-button { order: 2; border: 1px solid #f5a79b; background: #ffebe6; color: #ae2a19; }.article-card-actions .edit-article-button { order: 3; border: 1px solid #85b8ff; background: #e9f2ff; color: var(--blue); }
+.article-detail-body :deep(table), .article-section-info-body :deep(table) { width: 100%; margin: 16px 0; border-collapse: collapse; table-layout: auto; }.article-detail-body :deep(th), .article-detail-body :deep(td), .article-section-info-body :deep(th), .article-section-info-body :deep(td) { padding: 8px 10px; border: 1px solid #d7deea; vertical-align: top; text-align: left; }.article-detail-body :deep(th), .article-section-info-body :deep(th) { background: #f4f7fb; font-weight: 800; }.article-detail-body :deep(strong), .article-detail-body :deep(b), .article-section-info-body :deep(strong), .article-section-info-body :deep(b) { font-weight: 700; }
 @media (max-width: 600px) { .theory-head, .content-block-head { align-items: flex-start; flex-direction: column; }.popular-articles { padding: 14px; } }
 .article-title { font-size: 19px !important; }
 </style>

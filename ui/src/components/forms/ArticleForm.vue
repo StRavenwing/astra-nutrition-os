@@ -97,11 +97,17 @@ async function insertImage(event: Event) {
 }
 
 function normalizeFontTags() {
-  bodyEditor.value?.querySelectorAll('font[size]').forEach((node) => {
+  bodyEditor.value?.querySelectorAll('font').forEach((node) => {
     const font = node as HTMLElement;
     const sizes: Record<string, string> = { '1': '12px', '2': '14px', '3': '16px', '4': '18px', '5': '22px', '6': '26px', '7': '30px' };
-    font.style.fontSize = sizes[font.getAttribute('size') || '3'] || '16px';
-    font.removeAttribute('size');
+    const span = document.createElement('span');
+    const size = sizes[font.getAttribute('size') || ''] || font.style.fontSize;
+    if (size) span.style.fontSize = size;
+    if (font.style.fontWeight) span.style.fontWeight = font.style.fontWeight;
+    if (font.style.fontStyle) span.style.fontStyle = font.style.fontStyle;
+    if (font.style.textDecoration) span.style.textDecoration = font.style.textDecoration;
+    span.innerHTML = font.innerHTML;
+    font.replaceWith(span);
   });
   syncBody();
 }
