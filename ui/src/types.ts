@@ -273,6 +273,14 @@ export interface WorkoutComplex {
   items: WorkoutPlanItem[];
 }
 
+export interface WorkoutEquipment {
+  id: number;
+  kind: 'machine' | 'equipment';
+  name: string;
+  description: string | null;
+  photo: string | null;
+}
+
 export interface ContentCategory {
   id: number;
   kind: 'product' | 'recipe';
@@ -309,7 +317,7 @@ export interface Article {
   updated_at: string | null;
 }
 
-export type ModalKind = 'products' | 'recipes' | 'diary' | 'progress' | 'workouts' | 'exercises';
+export type ModalKind = 'products' | 'recipes' | 'diary' | 'progress' | 'workouts' | 'exercises' | 'equipment';
 
 export interface ModalState {
   kind: ModalKind;

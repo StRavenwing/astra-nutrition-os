@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
-import { exerciseEquipmentOptions, exerciseMachineOptions } from '@/constants';
-import type { Exercise, WorkoutComplex, WorkoutPlan } from '@/types';
+import type { Exercise, WorkoutComplex, WorkoutEquipment, WorkoutPlan } from '@/types';
 import { formatDate, fmt } from '@/utils/format';
 
 const props = defineProps<{
@@ -13,6 +12,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   edit: [id: number];
   editExercise: [id: number];
+  addEquipment: [kind: 'machine' | 'equipment'];
+  editEquipment: [id: number];
   addExercise: [];
   manageExercises: [];
   build: [];
@@ -26,6 +27,7 @@ const emit = defineEmits<{
 const plans = ref<WorkoutPlan[]>([]);
 const exercises = ref<Exercise[]>([]);
 const workoutComplexes = ref<WorkoutComplex[]>([]);
+const equipment = ref<WorkoutEquipment[]>([]);
 const loading = ref(false);
 const error = ref('');
 const section = ref<'none' | 'workouts' | 'exercises' | 'equipment' | 'archive'>('none');
@@ -35,10 +37,11 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [workoutPlans, exerciseList, complexList] = await Promise.all([api.workoutPlans(), api.exercises(), api.workoutComplexes()]);
+    const [workoutPlans, exerciseList, complexList, equipmentList] = await Promise.all([api.workoutPlans(), api.exercises(), api.workoutComplexes(), api.workoutEquipment()]);
     plans.value = workoutPlans;
     exercises.value = exerciseList.sort((a, b) => a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' }));
     workoutComplexes.value = complexList;
+    equipment.value = equipmentList.sort((a, b) => a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' }));
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -56,8 +59,8 @@ const canceledPlans = computed(() => plans.value.filter((plan) => plan.status ==
 const workoutCount = computed(() => workoutComplexes.value.length);
 const exerciseGroups = computed(() => [...new Set(exercises.value.map((exercise) => exercise.muscle_group || 'Другое'))].sort((a, b) => a.localeCompare(b, 'ru')));
 const visibleExercises = computed(() => exercises.value.filter((exercise) => exerciseGroup.value === 'all' || (exercise.muscle_group || 'Другое') === exerciseGroup.value));
-const machineCards = computed(() => exerciseMachineOptions.filter((item) => item !== 'Без тренажёра'));
-const equipmentCards = computed(() => exerciseEquipmentOptions.filter((item) => item !== 'Без инвентаря'));
+const machineCards = computed(() => equipment.value.filter((item) => item.kind === 'machine'));
+const equipmentCards = computed(() => equipment.value.filter((item) => item.kind === 'equipment'));
 
 function planSummary(plan: WorkoutPlan) {
   return plan.items.map((item) => item.name).join(' · ');
@@ -154,7 +157,7 @@ async function removeExercise(id: number) {
       </button>
       <button type="button" class="workout-section-tile equipment" :class="{ active: section === 'equipment' }" @click="section = 'equipment'">
         <span class="workout-section-icon">⚙️</span>
-        <span><b>Тренажёры и инвентарь</b><small>Оборудование для упражнений</small></span><strong>{{ machineCards.length + equipmentCards.length }}</strong>
+        <span><b>Тренажёры и инвентарь</b><small>Оборудование для упражнений</small></span><strong>{{ equipment.length }}</strong>
       </button>
       <button type="button" class="workout-section-tile archive" :class="{ active: section === 'archive' }" @click="section = 'archive'">
         <span class="workout-section-icon">📦</span>
@@ -205,26 +208,30 @@ async function removeExercise(id: number) {
     </section>
 
     <section v-else-if="section === 'equipment'" class="workout-subsection">
-      <div class="subsection-heading"><div><p class="eyebrow">СПРАВОЧНИК</p><h2>Тренажёры и инвентарь</h2></div></div>
+      <div class="subsection-heading"><div><p class="eyebrow">СПРАВОЧНИК</p><h2>Тренажёры и инвентарь</h2></div><div v-if="props.isAdmin" class="exercise-actions"><button type="button" class="secondary-button" @click="emit('addEquipment', 'machine')">＋ Добавить тренажёр</button><button type="button" class="secondary-button" @click="emit('addEquipment', 'equipment')">＋ Добавить инвентарь</button></div></div>
       <div class="equipment-group">
         <div class="equipment-group-head"><div><p class="eyebrow">ТРЕНАЖЁРЫ</p><h3>Тренажёры</h3></div><span class="subtle">{{ machineCards.length }}</span></div>
         <div class="exercise-grid equipment-grid">
-          <article v-for="(machine, index) in machineCards" :key="machine" class="workout-tile exercise-card equipment-card">
+          <article v-for="(machine, index) in machineCards" :key="machine.id" class="workout-tile exercise-card equipment-card">
             <div class="workout-tile-head"><span class="workout-group">ТРЕНАЖЁР</span><span class="exercise-code">Т-{{ String(index + 1).padStart(2, '0') }}</span></div>
-            <h3>{{ machine }}</h3>
-            <p>Оборудование для выполнения упражнений и настройки нагрузки.</p>
-            <div class="equipment-card-mark">⚙️</div>
+            <img v-if="machine.photo" :src="machine.photo" :alt="machine.name" class="equipment-card-photo">
+            <h3>{{ machine.name }}</h3>
+            <p>{{ machine.description || 'Оборудование для выполнения упражнений и настройки нагрузки.' }}</p>
+            <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="edit-workout" @click.stop="emit('editEquipment', machine.id)">✎ Редактировать</button></div>
+            <div v-if="!machine.photo" class="equipment-card-mark">⚙️</div>
           </article>
         </div>
       </div>
       <div class="equipment-group">
         <div class="equipment-group-head"><div><p class="eyebrow">ИНВЕНТАРЬ</p><h3>Инвентарь</h3></div><span class="subtle">{{ equipmentCards.length }}</span></div>
         <div class="exercise-grid equipment-grid">
-          <article v-for="(equipment, index) in equipmentCards" :key="equipment" class="workout-tile exercise-card equipment-card">
+          <article v-for="(equipmentItem, index) in equipmentCards" :key="equipmentItem.id" class="workout-tile exercise-card equipment-card">
             <div class="workout-tile-head"><span class="workout-group equipment-badge">ИНВЕНТАРЬ</span><span class="exercise-code">И-{{ String(index + 1).padStart(2, '0') }}</span></div>
-            <h3>{{ equipment }}</h3>
-            <p>Инвентарь для выполнения упражнений, усложнения или разнообразия тренировки.</p>
-            <div class="equipment-card-mark">🏋️</div>
+            <img v-if="equipmentItem.photo" :src="equipmentItem.photo" :alt="equipmentItem.name" class="equipment-card-photo">
+            <h3>{{ equipmentItem.name }}</h3>
+            <p>{{ equipmentItem.description || 'Инвентарь для выполнения упражнений, усложнения или разнообразия тренировки.' }}</p>
+            <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="edit-workout" @click.stop="emit('editEquipment', equipmentItem.id)">✎ Редактировать</button></div>
+            <div v-if="!equipmentItem.photo" class="equipment-card-mark">🏋️</div>
           </article>
         </div>
       </div>
@@ -645,6 +652,19 @@ async function removeExercise(id: number) {
   > p {
     min-height: 52px;
   }
+}
+
+.equipment-card-photo {
+  width: 100%;
+  height: 92px;
+  border-radius: 10px;
+  object-fit: cover;
+  background: #eef1f5;
+}
+
+.equipment-card-actions {
+  grid-template-columns: 1fr;
+  margin-top: auto;
 }
 
 .equipment-card-mark {

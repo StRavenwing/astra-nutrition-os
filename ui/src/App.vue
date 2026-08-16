@@ -19,6 +19,7 @@ import DiaryEntryForm from '@/components/forms/DiaryEntryForm.vue';
 import ProgressForm from '@/components/forms/ProgressForm.vue';
 import WorkoutForm from '@/components/forms/WorkoutForm.vue';
 import ExerciseForm from '@/components/forms/ExerciseForm.vue';
+import EquipmentForm from '@/components/forms/EquipmentForm.vue';
 import CategoryForm from '@/components/forms/CategoryForm.vue';
 import ArticleForm from '@/components/forms/ArticleForm.vue';
 import RecipeDetailModal from '@/components/modals/RecipeDetailModal.vue';
@@ -48,6 +49,7 @@ const repeatPlan = ref<WorkoutPlan | null>(null);
 const editPlan = ref<WorkoutPlan | null>(null);
 const workoutDetailPlan = ref<WorkoutPlan | null>(null);
 const exerciseDetail = ref<Exercise | null>(null);
+const equipmentKind = ref<'machine' | 'equipment'>('machine');
 const feedbackOpen = ref(false);
 const feedbackUnread = ref(0);
 let feedbackTimer: ReturnType<typeof setInterval> | null = null;
@@ -80,7 +82,8 @@ const modalTitle = computed(() => {
     diary: editing ? 'Редактировать запись дневника' : 'Добавить в дневник',
     progress: editing ? 'Редактировать показатели' : 'Добавить показатели',
     workouts: editing ? 'Редактировать тренировку' : 'Добавить тренировку',
-    exercises: 'Добавить упражнение'
+    exercises: 'Добавить упражнение',
+    equipment: editing ? 'Редактировать оборудование' : 'Добавить оборудование'
   };
   return labels[modal.value.kind];
 });
@@ -183,6 +186,17 @@ function editExercise(id: number) {
   if (!isAdmin.value) return;
   exerciseManagerOpen.value = false;
   modal.value = { kind: 'exercises', id };
+}
+
+function openEquipmentAdd(kind: 'machine' | 'equipment') {
+  if (!isAdmin.value) return;
+  equipmentKind.value = kind;
+  modal.value = { kind: 'equipment' };
+}
+
+function editEquipment(id: number) {
+  if (!isAdmin.value) return;
+  modal.value = { kind: 'equipment', id };
 }
 
 function openWorkoutDetail(plan: WorkoutPlan) {
@@ -324,6 +338,8 @@ onBeforeUnmount(() => {
       @edit="modal = { kind: 'workouts', id: $event }"
       @add-exercise="openExerciseAdd"
       @edit-exercise="editExercise"
+      @add-equipment="openEquipmentAdd"
+      @edit-equipment="editEquipment"
       @open-plan="openWorkoutDetail"
       @open-exercise="openExerciseDetail"
       @build-complex="buildWorkoutFromComplex"
@@ -357,6 +373,7 @@ onBeforeUnmount(() => {
     <ProgressForm v-else-if="modal?.kind === 'progress'" :progress-id="modal.id as number | undefined" @saved="saved" @cancel="closeModal" />
     <WorkoutForm v-else-if="modal?.kind === 'workouts'" :workout-log-id="modal.id as number | undefined" @saved="saved" @deleted="saved" @cancel="closeModal" />
     <ExerciseForm v-else-if="modal?.kind === 'exercises'" :exercise-id="modal.id" @saved="saved" @cancel="closeModal" />
+    <EquipmentForm v-else-if="modal?.kind === 'equipment'" :key="`${equipmentKind}-${modal.id || 'new'}`" :equipment-id="modal.id" :kind="equipmentKind" @saved="saved" @cancel="closeModal" />
   </ModalDialog>
   <PwaUpdateToast />
 </template>

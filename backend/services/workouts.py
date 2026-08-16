@@ -7,6 +7,7 @@ from backend.models import (
     Exercise,
     ExerciseVariant,
     User,
+    WorkoutEquipment,
     WorkoutComplex,
     WorkoutComplexItem,
     WorkoutLog,
@@ -30,6 +31,18 @@ DEFAULT_WORKOUT_COMPLEXES = (
     "Пресс",
 )
 
+DEFAULT_WORKOUT_EQUIPMENT = {
+    "machine": (
+        "Блочный тренажёр", "Кроссовер", "Смит-машина", "Силовая рама", "Скамья",
+        "Тренажёр для жима ногами", "Тренажёр для разгибания ног", "Тренажёр для сгибания ног",
+        "Тренажёр для сведения/разведения ног", "Тренажёр для ягодиц", "Гиперэкстензия", "Кардио-тренажёр",
+    ),
+    "equipment": (
+        "Гантели", "Штанга", "Диски", "Гиря", "Резиновая лента", "Эспандер", "Фитбол",
+        "Медбол", "Степ-платформа", "Турник", "Петли TRX", "Коврик",
+    ),
+}
+
 
 def list_exercises() -> list[dict]:
     query = Exercise.select().order_by(Exercise.muscle_group, Exercise.name)
@@ -41,6 +54,76 @@ def get_exercise(exercise_id: int) -> Exercise:
     if exercise is None:
         raise NotFoundError("Упражнение не найдено")
     return exercise
+
+
+def _ensure_default_workout_equipment() -> None:
+    for kind, names in DEFAULT_WORKOUT_EQUIPMENT.items():
+        for name in names:
+            WorkoutEquipment.get_or_create(kind=kind, name=name)
+
+
+def serialize_workout_equipment(item: WorkoutEquipment) -> dict:
+    return {
+        "id": item.id,
+        "kind": item.kind,
+        "name": item.name,
+        "description": item.description,
+        "photo": item.photo_url,
+    }
+
+
+def list_workout_equipment() -> list[dict]:
+    _ensure_default_workout_equipment()
+    query = WorkoutEquipment.select().order_by(WorkoutEquipment.kind, WorkoutEquipment.name)
+    return [serialize_workout_equipment(item) for item in query]
+
+
+def get_workout_equipment(equipment_id: int) -> WorkoutEquipment:
+    item = WorkoutEquipment.get_or_none(WorkoutEquipment.id == equipment_id)
+    if item is None:
+        raise NotFoundError("Оборудование не найдено")
+    return item
+
+
+def _validate_workout_equipment(data: dict) -> tuple[str, str, str | None, str | None]:
+    kind = str(data.get("kind") or "").strip()
+    if kind not in DEFAULT_WORKOUT_EQUIPMENT:
+        raise ValueError("Укажите тип оборудования")
+    name = str(data.get("name") or "").strip()
+    if not name:
+        raise ValueError("Укажите название оборудования")
+    description = str(data.get("description") or "").strip() or None
+    photo = data.get("photo")
+    if photo is not None and (not isinstance(photo, str) or not photo.strip()):
+        raise ValueError("Некорректное фото оборудования")
+    return kind, name, description, photo.strip() if isinstance(photo, str) else None
+
+
+def create_workout_equipment(data: dict) -> dict:
+    kind, name, description, photo = _validate_workout_equipment(data)
+    if WorkoutEquipment.get_or_none((WorkoutEquipment.kind == kind) & (WorkoutEquipment.name == name)) is not None:
+        raise ConflictError("Оборудование с таким названием уже существует")
+    with current_database().atomic():
+        item = WorkoutEquipment.create(kind=kind, name=name, description=description, photo_url=photo)
+        return serialize_workout_equipment(item)
+
+
+def update_workout_equipment(equipment_id: int, data: dict) -> dict:
+    kind, name, description, photo = _validate_workout_equipment(data)
+    item = get_workout_equipment(equipment_id)
+    duplicate = WorkoutEquipment.get_or_none(
+        (WorkoutEquipment.kind == kind)
+        & (WorkoutEquipment.name == name)
+        & (WorkoutEquipment.id != equipment_id)
+    )
+    if duplicate is not None:
+        raise ConflictError("Оборудование с таким названием уже существует")
+    item.kind = kind
+    item.name = name
+    item.description = description
+    item.photo_url = photo
+    item.save()
+    return serialize_workout_equipment(item)
 
 
 def _complex_media_values(data: dict) -> tuple[str | None, str | None]:

@@ -13,6 +13,8 @@ const photos = ref<string[]>([]);
 const video = ref<string | null>(null);
 const photoInput = ref<HTMLInputElement | null>(null);
 const videoInput = ref<HTMLInputElement | null>(null);
+const machineOptions = ref([...exerciseMachineOptions]);
+const equipmentOptions = ref([...exerciseEquipmentOptions]);
 type ExerciseVariantDraft = Omit<ExerciseVariant, 'id' | 'position'>;
 const emptyVariant = (): ExerciseVariantDraft => ({ machine: '', equipment: '', description: '', technique: '', tips: '' });
 const variants = ref<ExerciseVariantDraft[]>([emptyVariant()]);
@@ -96,6 +98,15 @@ async function save() {
 }
 
 onMounted(async () => {
+  try {
+    const equipment = await api.workoutEquipment();
+    const machines = equipment.filter((item) => item.kind === 'machine').map((item) => item.name);
+    const inventory = equipment.filter((item) => item.kind === 'equipment').map((item) => item.name);
+    if (machines.length) machineOptions.value = machines;
+    if (inventory.length) equipmentOptions.value = inventory;
+  } catch {
+    // Keep the built-in options if the equipment catalogue is unavailable.
+  }
   if (!props.exerciseId) return;
   loading.value = true;
   try {
@@ -145,8 +156,8 @@ onMounted(async () => {
         <div v-for="(variant, index) in variants" :key="index" class="exercise-variant-card">
           <div class="exercise-variant-head"><strong>Вариант {{ index + 1 }}</strong><button v-if="variants.length > 1" type="button" class="remove-variant" @click="removeVariant(index)">Удалить вариант</button></div>
           <div class="grid">
-            <div class="field"><label>Тренажёр</label><select v-model="variant.machine"><option value="">Не выбран</option><option v-for="option in exerciseMachineOptions" :key="option" :value="option">{{ option }}</option></select></div>
-            <div class="field"><label>Инвентарь</label><select v-model="variant.equipment"><option value="">Не выбран</option><option v-for="option in exerciseEquipmentOptions" :key="option" :value="option">{{ option }}</option></select></div>
+            <div class="field"><label>Тренажёр</label><select v-model="variant.machine"><option value="">Не выбран</option><option v-for="option in machineOptions" :key="option" :value="option">{{ option }}</option></select></div>
+            <div class="field"><label>Инвентарь</label><select v-model="variant.equipment"><option value="">Не выбран</option><option v-for="option in equipmentOptions" :key="option" :value="option">{{ option }}</option></select></div>
             <div class="field full"><label>Описание</label><textarea v-model="variant.description" rows="3" placeholder="Краткое описание упражнения"></textarea></div>
             <div class="field full"><label>Техника выполнения</label><textarea v-model="variant.technique" rows="4" placeholder="Опишите технику выполнения"></textarea></div>
             <div class="field full"><label>Полезные советы</label><textarea v-model="variant.tips" rows="4" placeholder="Добавьте полезные советы"></textarea></div>

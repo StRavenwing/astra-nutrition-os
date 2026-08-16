@@ -80,6 +80,21 @@ def _ensure_exercise_columns(connection: sqlite3.Connection) -> None:
     )
 
 
+def _ensure_workout_equipment_table(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS workout_equipment (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            kind VARCHAR(255) NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            description TEXT,
+            photo_url TEXT,
+            UNIQUE(kind, name)
+        )
+        """
+    )
+
+
 def _ensure_feedback_columns(connection: sqlite3.Connection) -> None:
     columns = _columns(connection, "feedback_messages")
     if columns and "is_read" not in columns:
@@ -832,6 +847,7 @@ def ensure_database(settings: Settings) -> None:
         connection = _connect_raw(settings.db_path)
         try:
             _ensure_exercise_columns(connection)
+            _ensure_workout_equipment_table(connection)
             _ensure_feedback_columns(connection)
             _ensure_article_columns(connection)
             connection.commit()

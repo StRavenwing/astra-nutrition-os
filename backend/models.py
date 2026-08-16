@@ -375,6 +375,18 @@ class ExerciseVariant(BaseModel):
         indexes = ((('exercise', 'position'), False),)
 
 
+class WorkoutEquipment(BaseModel):
+    id = AutoField()
+    kind = CharField()
+    name = CharField()
+    description = TextField(null=True)
+    photo_url = TextField(null=True)
+
+    class Meta:
+        table_name = "workout_equipment"
+        indexes = ((('kind', 'name'), True),)
+
+
 class WorkoutLog(BaseModel):
     id = AutoField()
     user = ForeignKeyField(User, backref="workout_logs", on_delete="CASCADE")
@@ -460,6 +472,7 @@ MODELS = [
     Recipe,
     Exercise,
     ExerciseVariant,
+    WorkoutEquipment,
     ProductMeasure,
     RecipeIngredient,
     DiaryEntry,

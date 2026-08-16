@@ -184,6 +184,13 @@ class ExerciseInput(BaseModel):
     variants: list[ExerciseVariantInput] = Field(default_factory=list)
 
 
+class WorkoutEquipmentInput(BaseModel):
+    kind: str
+    name: str = Field(min_length=1, max_length=160)
+    description: str | None = Field(default=None, max_length=2000)
+    photo: str | None = None
+
+
 class WorkoutInput(BaseModel):
     performed_at: str
     exercise_id: int | None = None
