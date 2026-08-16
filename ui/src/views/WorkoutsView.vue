@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
+import { exerciseEquipmentOptions, exerciseMachineOptions } from '@/constants';
 import type { Exercise, WorkoutComplex, WorkoutPlan } from '@/types';
 import { formatDate, fmt } from '@/utils/format';
 
@@ -27,7 +28,7 @@ const exercises = ref<Exercise[]>([]);
 const workoutComplexes = ref<WorkoutComplex[]>([]);
 const loading = ref(false);
 const error = ref('');
-const section = ref<'none' | 'workouts' | 'exercises' | 'archive'>('none');
+const section = ref<'none' | 'workouts' | 'exercises' | 'equipment' | 'archive'>('none');
 const exerciseGroup = ref('all');
 
 async function load() {
@@ -55,6 +56,8 @@ const canceledPlans = computed(() => plans.value.filter((plan) => plan.status ==
 const workoutCount = computed(() => workoutComplexes.value.length);
 const exerciseGroups = computed(() => [...new Set(exercises.value.map((exercise) => exercise.muscle_group || 'Другое'))].sort((a, b) => a.localeCompare(b, 'ru')));
 const visibleExercises = computed(() => exercises.value.filter((exercise) => exerciseGroup.value === 'all' || (exercise.muscle_group || 'Другое') === exerciseGroup.value));
+const machineCards = computed(() => exerciseMachineOptions.filter((item) => item !== 'Без тренажёра'));
+const equipmentCards = computed(() => exerciseEquipmentOptions.filter((item) => item !== 'Без инвентаря'));
 
 function planSummary(plan: WorkoutPlan) {
   return plan.items.map((item) => item.name).join(' · ');
@@ -149,6 +152,10 @@ async function removeExercise(id: number) {
         <span class="workout-section-icon">💪</span>
         <span><b>Упражнения</b><small>Справочник упражнений</small></span><strong>{{ exercises.length }}</strong>
       </button>
+      <button type="button" class="workout-section-tile equipment" :class="{ active: section === 'equipment' }" @click="section = 'equipment'">
+        <span class="workout-section-icon">⚙️</span>
+        <span><b>Тренажёры и инвентарь</b><small>Оборудование для упражнений</small></span><strong>{{ machineCards.length + equipmentCards.length }}</strong>
+      </button>
       <button type="button" class="workout-section-tile archive" :class="{ active: section === 'archive' }" @click="section = 'archive'">
         <span class="workout-section-icon">📦</span>
         <span><b>История тренировок</b><small>Пройденные и отменённые</small></span><strong>{{ archivedPlans.length }}</strong>
@@ -194,6 +201,32 @@ async function removeExercise(id: number) {
           </div>
         </article>
         <div v-if="!visibleExercises.length" class="panel empty">Упражнений в этой группе пока нет</div>
+      </div>
+    </section>
+
+    <section v-else-if="section === 'equipment'" class="workout-subsection">
+      <div class="subsection-heading"><div><p class="eyebrow">СПРАВОЧНИК</p><h2>Тренажёры и инвентарь</h2></div></div>
+      <div class="equipment-group">
+        <div class="equipment-group-head"><div><p class="eyebrow">ТРЕНАЖЁРЫ</p><h3>Тренажёры</h3></div><span class="subtle">{{ machineCards.length }}</span></div>
+        <div class="exercise-grid equipment-grid">
+          <article v-for="(machine, index) in machineCards" :key="machine" class="workout-tile exercise-card equipment-card">
+            <div class="workout-tile-head"><span class="workout-group">ТРЕНАЖЁР</span><span class="exercise-code">Т-{{ String(index + 1).padStart(2, '0') }}</span></div>
+            <h3>{{ machine }}</h3>
+            <p>Оборудование для выполнения упражнений и настройки нагрузки.</p>
+            <div class="equipment-card-mark">⚙️</div>
+          </article>
+        </div>
+      </div>
+      <div class="equipment-group">
+        <div class="equipment-group-head"><div><p class="eyebrow">ИНВЕНТАРЬ</p><h3>Инвентарь</h3></div><span class="subtle">{{ equipmentCards.length }}</span></div>
+        <div class="exercise-grid equipment-grid">
+          <article v-for="(equipment, index) in equipmentCards" :key="equipment" class="workout-tile exercise-card equipment-card">
+            <div class="workout-tile-head"><span class="workout-group equipment-badge">ИНВЕНТАРЬ</span><span class="exercise-code">И-{{ String(index + 1).padStart(2, '0') }}</span></div>
+            <h3>{{ equipment }}</h3>
+            <p>Инвентарь для выполнения упражнений, усложнения или разнообразия тренировки.</p>
+            <div class="equipment-card-mark">🏋️</div>
+          </article>
+        </div>
       </div>
     </section>
 
@@ -370,7 +403,7 @@ async function removeExercise(id: number) {
 
 .workout-section-menu {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 13px;
   margin-bottom: 23px;
 }
@@ -405,6 +438,16 @@ async function removeExercise(id: number) {
     &.active {
       border-color: var(--blue);
       box-shadow: 0 0 0 2px #0c66e426, 0 9px 24px #091e4218;
+    }
+  }
+
+  &.equipment {
+    background: linear-gradient(145deg, #fff, #eefaf7);
+
+    &:hover,
+    &.active {
+      border-color: var(--green);
+      box-shadow: 0 0 0 2px #2f9e7a26, 0 9px 24px #091e4218;
     }
   }
 
@@ -575,6 +618,49 @@ async function removeExercise(id: number) {
 
 .exercise-card-actions {
   grid-template-columns: minmax(0, 1fr) 82px;
+}
+
+.equipment-group + .equipment-group {
+  margin-top: 24px;
+}
+
+.equipment-group-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  h3 {
+    margin: 0;
+    font-size: 18px;
+  }
+}
+
+.equipment-card {
+  position: relative;
+  min-height: 220px;
+  cursor: default;
+
+  > p {
+    min-height: 52px;
+  }
+}
+
+.equipment-card-mark {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  margin-top: auto;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e3fcef, #d9e7fd);
+  font-size: 21px;
+}
+
+.equipment-badge {
+  background: #e3fcef;
+  color: #216e4e;
 }
 
 .exercise-code {

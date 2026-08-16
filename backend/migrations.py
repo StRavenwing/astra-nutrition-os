@@ -64,6 +64,20 @@ def _ensure_exercise_columns(connection: sqlite3.Connection) -> None:
             connection.execute(f"ALTER TABLE exercises ADD COLUMN {column} {column_type}")
     if "description" not in columns:
         connection.execute("UPDATE exercises SET description=note WHERE description IS NULL")
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS exercise_variants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            exercise_id INTEGER NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
+            position INTEGER NOT NULL DEFAULT 1,
+            machine TEXT,
+            equipment TEXT,
+            description TEXT,
+            technique TEXT,
+            tips TEXT
+        )
+        """
+    )
 
 
 def _ensure_feedback_columns(connection: sqlite3.Connection) -> None:

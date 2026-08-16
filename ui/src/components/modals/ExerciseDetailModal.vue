@@ -20,8 +20,17 @@ defineEmits<{ close: [] }>();
       </section>
 
       <section class="exercise-detail-section">
-        <h3>Техника и вариации</h3>
-        <p class="exercise-detail-placeholder">Техника и вариации будут добавлены в следующих обновлениях.</p>
+        <h3>Техника и варианты</h3>
+        <div v-if="exercise.variants?.length" class="exercise-variant-details">
+          <article v-for="(variant, index) in exercise.variants" :key="variant.id || index" class="exercise-variant-detail">
+            <h4>Вариант {{ index + 1 }}</h4>
+            <p v-if="variant.machine || variant.equipment" class="exercise-variant-equipment">{{ [variant.machine, variant.equipment].filter(Boolean).join(' · ') }}</p>
+            <p v-if="variant.description"><b>Описание:</b> {{ variant.description }}</p>
+            <p v-if="variant.technique"><b>Техника выполнения:</b> {{ variant.technique }}</p>
+            <p v-if="variant.tips"><b>Полезные советы:</b> {{ variant.tips }}</p>
+          </article>
+        </div>
+        <p v-else class="exercise-detail-placeholder">Техника и варианты упражнения пока не добавлены.</p>
       </section>
 
       <section v-if="exercise.photos?.length" class="exercise-detail-section">
@@ -46,6 +55,7 @@ defineEmits<{ close: [] }>();
 .exercise-detail-section h3 { margin: 0 0 7px; font-size: 15px; }
 .exercise-detail-section p { margin: 0; color: var(--muted); line-height: 1.6; }
 .exercise-detail-placeholder { padding: 12px; border-radius: 9px; background: #f7f8fa; font-size: 12px; }
+.exercise-variant-details { display: grid; gap: 10px; }.exercise-variant-detail { padding: 12px; border: 1px solid var(--line); border-radius: 9px; background: #fafbfc; }.exercise-variant-detail h4 { margin: 0 0 6px; font-size: 14px; }.exercise-variant-detail p { margin: 5px 0 0; }.exercise-variant-equipment { color: var(--blue) !important; font-size: 12px; font-weight: 750; }
 .exercise-detail-photos { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
 .exercise-detail-photos img { width: 100%; aspect-ratio: 1; border-radius: 9px; object-fit: cover; background: #f1f2f4; }
 .exercise-detail-section video { display: block; width: min(100%, 560px); max-height: 330px; border-radius: 10px; background: #172b4d; }

@@ -186,6 +186,16 @@ export interface ProgressEntry {
   [key: string]: unknown;
 }
 
+export interface ExerciseVariant {
+  id?: number;
+  position?: number;
+  machine: string | null;
+  equipment: string | null;
+  description: string | null;
+  technique: string | null;
+  tips: string | null;
+}
+
 export interface Exercise {
   id: number;
   code: string;
@@ -199,6 +209,7 @@ export interface Exercise {
   description: string | null;
   photos: string[];
   video: string | null;
+  variants: ExerciseVariant[];
 }
 
 export interface FeedbackMessage {

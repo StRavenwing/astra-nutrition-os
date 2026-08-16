@@ -5,6 +5,7 @@ from datetime import datetime
 
 from backend.models import (
     Exercise,
+    ExerciseVariant,
     User,
     WorkoutComplex,
     WorkoutComplexItem,
@@ -163,6 +164,24 @@ def _media_values(data: dict) -> tuple[str | None, str | None]:
     return json.dumps(photos, ensure_ascii=False) if photos else None, video or None
 
 
+def _replace_exercise_variants(exercise: Exercise, variants: object) -> None:
+    ExerciseVariant.delete().where(ExerciseVariant.exercise == exercise).execute()
+    if not isinstance(variants, list):
+        return
+    for position, item in enumerate(variants, start=1):
+        if not isinstance(item, dict):
+            continue
+        ExerciseVariant.create(
+            exercise=exercise,
+            position=position,
+            machine=str(item.get("machine") or "").strip() or None,
+            equipment=str(item.get("equipment") or "").strip() or None,
+            description=str(item.get("description") or "").strip() or None,
+            technique=str(item.get("technique") or "").strip() or None,
+            tips=str(item.get("tips") or "").strip() or None,
+        )
+
+
 def create_exercise(data: dict) -> dict:
     with current_database().atomic():
         photo_urls, video_url = _media_values(data)
@@ -179,6 +198,7 @@ def create_exercise(data: dict) -> dict:
             photo_urls=photo_urls,
             video_url=video_url,
         )
+        _replace_exercise_variants(exercise, data.get("variants"))
         return serialize_exercise(exercise)
 
 
@@ -197,6 +217,7 @@ def update_exercise(exercise_id: int, data: dict) -> dict:
         exercise.photo_urls = photo_urls
         exercise.video_url = video_url
         exercise.save()
+        _replace_exercise_variants(exercise, data.get("variants"))
         return serialize_exercise(exercise)
 
 

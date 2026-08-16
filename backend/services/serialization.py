@@ -5,6 +5,7 @@ import json
 from backend.models import (
     DiaryEntry,
     Exercise,
+    ExerciseVariant,
     Product,
     ProductMeasure,
     ProgressEntry,
@@ -263,6 +264,18 @@ def serialize_exercise(exercise: Exercise) -> dict:
         photos = []
     if not isinstance(photos, list):
         photos = []
+    variants = [
+        {
+            "id": variant.id,
+            "position": variant.position,
+            "machine": variant.machine,
+            "equipment": variant.equipment,
+            "description": variant.description,
+            "technique": variant.technique,
+            "tips": variant.tips,
+        }
+        for variant in exercise.variants.order_by(ExerciseVariant.position, ExerciseVariant.id)
+    ]
     return {
         "id": exercise.id,
         "code": exercise.code,
@@ -276,6 +289,7 @@ def serialize_exercise(exercise: Exercise) -> dict:
         "description": exercise.description or exercise.note,
         "photos": photos,
         "video": exercise.video_url,
+        "variants": variants,
     }
 
 

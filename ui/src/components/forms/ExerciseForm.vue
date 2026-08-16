@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue';
 import { api } from '@/api/client';
-import type { Exercise } from '@/types';
+import { exerciseEquipmentOptions, exerciseMachineOptions } from '@/constants';
+import type { Exercise, ExerciseVariant } from '@/types';
 
 const props = defineProps<{ exerciseId?: number }>();
 const emit = defineEmits<{ saved: []; cancel: [] }>();
@@ -12,6 +13,9 @@ const photos = ref<string[]>([]);
 const video = ref<string | null>(null);
 const photoInput = ref<HTMLInputElement | null>(null);
 const videoInput = ref<HTMLInputElement | null>(null);
+type ExerciseVariantDraft = Omit<ExerciseVariant, 'id' | 'position'>;
+const emptyVariant = (): ExerciseVariantDraft => ({ machine: '', equipment: '', description: '', technique: '', tips: '' });
+const variants = ref<ExerciseVariantDraft[]>([emptyVariant()]);
 const form = reactive({
   name: '',
   muscle_group: '',
@@ -59,10 +63,30 @@ function removePhoto(index: number) {
   photos.value.splice(index, 1);
 }
 
+function addVariant() {
+  variants.value.push(emptyVariant());
+}
+
+function removeVariant(index: number) {
+  if (variants.value.length > 1) variants.value.splice(index, 1);
+}
+
 async function save() {
   error.value = '';
   try {
-    const payload = { ...form, photos: photos.value, video: video.value };
+    const payload = {
+      ...form,
+      description: variants.value[0]?.description?.trim() || form.description,
+      variants: variants.value.map((variant) => ({
+        machine: variant.machine || null,
+        equipment: variant.equipment || null,
+        description: variant.description || null,
+        technique: variant.technique || null,
+        tips: variant.tips || null
+      })),
+      photos: photos.value,
+      video: video.value
+    };
     if (props.exerciseId) await api.put(`exercises/${props.exerciseId}`, payload);
     else await api.post('exercises', payload);
     emit('saved');
@@ -83,7 +107,17 @@ onMounted(async () => {
       form.default_sets = exercise.default_sets == null ? '' : String(exercise.default_sets);
       form.default_reps = exercise.default_reps == null ? '' : String(exercise.default_reps);
       form.target_rir = exercise.target_rir || '';
-      form.description = exercise.description || exercise.note || '';
+      const existingVariants = exercise.variants || [];
+      variants.value = existingVariants.length
+        ? existingVariants.map((variant) => ({
+            machine: variant.machine || '',
+            equipment: variant.equipment || '',
+            description: variant.description || '',
+            technique: variant.technique || '',
+            tips: variant.tips || ''
+          }))
+        : [{ ...emptyVariant(), description: exercise.description || exercise.note || '' }];
+      form.description = variants.value[0]?.description || exercise.description || exercise.note || '';
       photos.value = [...(exercise.photos || [])];
       video.value = exercise.video || null;
     }
@@ -96,16 +130,29 @@ onMounted(async () => {
 </script>
 
 <template>
-  <form class="modal-form-body" @submit.prevent="save">
+  <form class="modal-form-body exercise-form" @submit.prevent="save">
     <div v-if="loading" class="panel">Загрузка…</div>
     <template v-else>
       <div class="grid">
         <div class="field"><label>Название</label><input v-model="form.name" required></div>
         <div class="field"><label>Группа мышц</label><input v-model="form.muscle_group" required></div>
-        <div class="field full"><label>Описание</label><textarea v-model="form.description" rows="4" placeholder="Техника, важные подсказки и ограничения"></textarea></div>
         <div class="field"><label>Единица по умолчанию</label><select v-model="form.default_unit"><option>кг</option><option>уровень</option><option>без веса</option></select></div>
         <div class="field"><label>Целевой RIR</label><input v-model="form.target_rir"></div>
       </div>
+
+      <section class="exercise-variants">
+        <div class="exercise-variants-head"><div><p class="eyebrow">ВАРИАНТЫ</p><h3>Варианты упражнения</h3></div><small>Добавьте разные способы выполнения упражнения</small></div>
+        <div v-for="(variant, index) in variants" :key="index" class="exercise-variant-card">
+          <div class="exercise-variant-head"><strong>Вариант {{ index + 1 }}</strong><button v-if="variants.length > 1" type="button" class="remove-variant" @click="removeVariant(index)">Удалить вариант</button></div>
+          <div class="grid">
+            <div class="field"><label>Тренажёр</label><select v-model="variant.machine"><option value="">Не выбран</option><option v-for="option in exerciseMachineOptions" :key="option" :value="option">{{ option }}</option></select></div>
+            <div class="field"><label>Инвентарь</label><select v-model="variant.equipment"><option value="">Не выбран</option><option v-for="option in exerciseEquipmentOptions" :key="option" :value="option">{{ option }}</option></select></div>
+            <div class="field full"><label>Описание</label><textarea v-model="variant.description" rows="3" placeholder="Краткое описание упражнения"></textarea></div>
+            <div class="field full"><label>Техника выполнения</label><textarea v-model="variant.technique" rows="4" placeholder="Опишите технику выполнения"></textarea></div>
+            <div class="field full"><label>Полезные советы</label><textarea v-model="variant.tips" rows="4" placeholder="Добавьте полезные советы"></textarea></div>
+          </div>
+        </div>
+      </section>
 
       <section class="exercise-media-fields">
         <div class="exercise-media-head">
@@ -128,6 +175,7 @@ onMounted(async () => {
           <button type="button" class="delete-exercise-media" @click="video = null">Удалить видео</button>
         </div>
       </section>
+      <button type="button" class="add-exercise-variant" @click="addVariant">＋ Добавить вариант</button>
     </template>
     <p id="form-error">{{ error }}</p>
     <div class="actions">
@@ -139,6 +187,11 @@ onMounted(async () => {
 
 <style lang="scss">
 .modal-form-body { width: 100%; }
+.exercise-variants { display: grid; gap: 12px; margin-top: 18px; padding: 16px; border: 1px solid #c8d8f7; border-radius: 13px; background: #f8fbff; }
+.exercise-variants-head, .exercise-variant-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.exercise-variants-head h3 { margin: 0; font-size: 15px; }.exercise-variants-head small { color: var(--muted); font-size: 11px; }
+.exercise-variant-card { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 11px; background: #fff; }.exercise-variant-head { padding-bottom: 8px; border-bottom: 1px solid var(--line); }.exercise-variant-head strong { color: var(--blue); font-size: 13px; }
+.remove-variant { border: 1px solid #f5a79b; border-radius: 7px; padding: 6px 9px; background: #ffebe6; color: #ae2a19; font-size: 10px; font-weight: 750; cursor: pointer; }.add-exercise-variant { width: fit-content; border: 1px dashed #85b8ff; border-radius: 8px; padding: 9px 12px; background: #e9f2ff; color: var(--blue); font-weight: 750; cursor: pointer; }
 .exercise-file-input { display: none; }
 .exercise-media-fields { margin-top: 18px; padding: 16px; border: 1px solid var(--line); border-radius: 13px; background: #fafbfc; }
 .exercise-media-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -152,6 +205,8 @@ onMounted(async () => {
 .exercise-video-preview video { width: 150px; max-height: 100px; border-radius: 8px; background: #172b4d; }
 .delete-exercise-media { border: 1px solid #f5a79b; border-radius: 7px; padding: 7px 10px; background: #ffebe6; color: #ae2a19; font-size: 10px; font-weight: 800; cursor: pointer; }
 @media (max-width: 600px) {
+  .exercise-variants-head { align-items: flex-start; flex-direction: column; }
+  .exercise-variant-head { align-items: flex-start; flex-direction: column; }
   .exercise-media-head { align-items: flex-start; flex-direction: column; }
   .exercise-photo-preview { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }

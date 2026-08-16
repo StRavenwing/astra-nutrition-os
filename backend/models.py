@@ -360,6 +360,21 @@ class Exercise(BaseModel):
         table_name = "exercises"
 
 
+class ExerciseVariant(BaseModel):
+    id = AutoField()
+    exercise = ForeignKeyField(Exercise, backref="variants", on_delete="CASCADE")
+    position = IntegerField(default=1)
+    machine = CharField(null=True)
+    equipment = CharField(null=True)
+    description = TextField(null=True)
+    technique = TextField(null=True)
+    tips = TextField(null=True)
+
+    class Meta:
+        table_name = "exercise_variants"
+        indexes = ((('exercise', 'position'), False),)
+
+
 class WorkoutLog(BaseModel):
     id = AutoField()
     user = ForeignKeyField(User, backref="workout_logs", on_delete="CASCADE")
@@ -444,6 +459,7 @@ MODELS = [
     Product,
     Recipe,
     Exercise,
+    ExerciseVariant,
     ProductMeasure,
     RecipeIngredient,
     DiaryEntry,

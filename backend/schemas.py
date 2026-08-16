@@ -162,6 +162,14 @@ class ProgressInput(BaseModel):
     comment: str | None = None
 
 
+class ExerciseVariantInput(BaseModel):
+    machine: str | None = None
+    equipment: str | None = None
+    description: str | None = None
+    technique: str | None = None
+    tips: str | None = None
+
+
 class ExerciseInput(BaseModel):
     name: str
     muscle_group: str | None = None
@@ -173,6 +181,7 @@ class ExerciseInput(BaseModel):
     description: str | None = None
     photos: list[str] = Field(default_factory=list, max_length=6)
     video: str | None = None
+    variants: list[ExerciseVariantInput] = Field(default_factory=list)
 
 
 class WorkoutInput(BaseModel):
