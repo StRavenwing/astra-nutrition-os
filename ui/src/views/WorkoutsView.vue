@@ -178,6 +178,11 @@ async function removeExercise(id: number) {
             <button v-if="props.isAdmin" type="button" class="edit-complex-button" @click="emit('buildComplex', { complex, mode: 'edit' })">✎ Редактировать</button>
           </div>
         </article>
+        <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card workout-complex-card" tabindex="0" role="button" @click="emit('buildComplex', { complex: null, mode: 'create' })" @keydown.enter.prevent="emit('buildComplex', { complex: null, mode: 'create' })">
+          <span class="workout-create-icon">＋</span>
+          <div class="workout-create-copy"><p class="eyebrow">НОВЫЙ ПЛАН</p><h3>Создать комплекс тренировок</h3><p>Соберите программу из упражнений и задайте расписание</p></div>
+          <button type="button" class="primary" @click.stop="emit('buildComplex', { complex: null, mode: 'create' })">＋ Начать сборку</button>
+        </article>
       </div>
     </section>
 
@@ -205,6 +210,11 @@ async function removeExercise(id: number) {
             <button type="button" class="delete-workout" @click.stop="removeExercise(exercise.id)">Удалить</button>
           </div>
         </article>
+        <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card exercise-card add-exercise-card" tabindex="0" role="button" @click="emit('addExercise')" @keydown.enter.prevent="emit('addExercise')">
+          <span class="workout-create-icon">＋</span>
+          <div class="workout-create-copy"><h3>Добавить упражнение</h3><p>Создайте карточку для нового упражнения</p></div>
+          <button type="button" class="primary" @click.stop="emit('addExercise')">＋ Новое упражнение</button>
+        </article>
         <div v-if="!visibleExercises.length" class="panel empty">Упражнений в этой группе пока нет</div>
       </div>
     </section>
@@ -222,6 +232,9 @@ async function removeExercise(id: number) {
             <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="edit-workout" @click.stop="emit('editEquipment', machine.id)">✎ Редактировать</button></div>
             <div v-if="!machine.photo" class="equipment-card-mark">⚙️</div>
           </article>
+          <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'machine')" @keydown.enter.prevent="emit('addEquipment', 'machine')">
+            <span class="workout-create-icon">＋</span><div class="workout-create-copy"><h3>Добавить тренажёр</h3><p>или свободный инвентарь</p></div><button type="button" class="primary" @click.stop="emit('addEquipment', 'machine')">＋ Добавить элемент</button>
+          </article>
         </div>
       </div>
       <div class="equipment-group">
@@ -234,6 +247,9 @@ async function removeExercise(id: number) {
             <p>{{ equipmentItem.description || 'Инвентарь для выполнения упражнений, усложнения или разнообразия тренировки.' }}</p>
             <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="edit-workout" @click.stop="emit('editEquipment', equipmentItem.id)">✎ Редактировать</button></div>
             <div v-if="!equipmentItem.photo" class="equipment-card-mark">🏋️</div>
+          </article>
+          <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'equipment')" @keydown.enter.prevent="emit('addEquipment', 'equipment')">
+            <span class="workout-create-icon">＋</span><div class="workout-create-copy"><h3>Добавить инвентарь</h3><p>Свободный вес и аксессуары</p></div><button type="button" class="primary" @click.stop="emit('addEquipment', 'equipment')">＋ Добавить элемент</button>
           </article>
         </div>
       </div>

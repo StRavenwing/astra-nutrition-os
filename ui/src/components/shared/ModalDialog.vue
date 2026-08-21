@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 
 const props = withDefaults(
   defineProps<{
@@ -23,6 +23,30 @@ const emit = defineEmits<{
 
 const dialog = ref<HTMLDialogElement | null>(null);
 
+const popupVariant = computed(() => {
+  const value = `${props.eyebrow} ${props.title}`.toLowerCase();
+  if (value.includes('стать')) return 'article';
+  if (value.includes('рецепт') || value.includes('recipe')) return 'recipe';
+  if (value.includes('продукт')) return 'product';
+  if (value.includes('инвентар') || value.includes('тренаж')) return 'equipment';
+  if (value.includes('упражнен') || value.includes('exercise')) return 'exercise';
+  if (value.includes('дневник') || value.includes('запис')) return 'diary';
+  if (value.includes('food calendar') || value.includes('день')) return 'food-day';
+  if (value.includes('прогресс') || value.includes('замер')) return 'progress';
+  if (value.includes('комплекс')) return 'complex';
+  if (value.includes('трениров') || value.includes('workout')) return 'workout';
+  return 'default';
+});
+
+const popupMode = computed(() => {
+  const value = `${props.eyebrow} ${props.title}`.toLowerCase();
+  if (value.includes('удал')) return 'delete';
+  if (value.includes('действ')) return 'actions';
+  if (value.includes('подтверж') || value.includes('confirm')) return 'confirm';
+  if (props.form || value.includes('добав') || value.includes('редакт') || value.includes('созда') || value.includes('собрать')) return 'form';
+  return 'view';
+});
+
 watch(
   () => props.open,
   async (open) => {
@@ -45,7 +69,7 @@ function closeOnBackdrop(event: MouseEvent) {
 </script>
 
 <template>
-  <dialog ref="dialog" :class="{ 'recipe-dialog': wide }" @cancel="onCancel" @click="closeOnBackdrop">
+  <dialog ref="dialog" :class="[`popup-${popupVariant}`, `popup-${popupMode}`, { 'recipe-dialog': wide, 'popup-form': form }]" @cancel="onCancel" @click="closeOnBackdrop">
     <form v-if="form" method="dialog" @submit.prevent="$emit('submit')">
       <div class="modal-head">
         <div>

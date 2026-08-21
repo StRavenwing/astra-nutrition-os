@@ -75,7 +75,7 @@ const canAdd = computed(() => {
   return true;
 });
 const articleModalTitle = computed(() => articleEditor.value ? 'Редактировать статью' : 'Добавить статью');
-const addLabel = computed(() => currentPage.value === 'workouts' ? 'Собрать тренировку' : 'Добавить');
+const addLabel = computed(() => currentPage.value === 'workouts' ? 'Собрать тренировку' : currentPage.value === 'progress' ? 'Добавить показатели' : 'Добавить');
 const modalTitle = computed(() => {
   if (!modal.value) return '';
   const editing = modal.value.id != null;
@@ -354,10 +354,10 @@ onBeforeUnmount(() => {
     @login="openLogin"
   >
     <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" :is-admin="isAdmin" @navigate="navigate" @open-recipe="openRecipe" />
-    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @add-category="openCategory('product')" />
-    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" :read-only="isGuest" @open-recipe="openRecipe" @edit="editRecipe" @add-category="openCategory('recipe')" />
-    <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" @edit="modal = { kind: 'diary', id: $event }" />
-    <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" @edit="modal = { kind: 'progress', id: $event }" />
+    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @add="openAdd" @add-category="openCategory('product')" />
+    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" :read-only="isGuest" @open-recipe="openRecipe" @edit="editRecipe" @add="openAdd" @add-category="openCategory('recipe')" />
+    <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" :read-only="isGuest" @edit="modal = { kind: 'diary', id: $event }" @add="openAdd" />
+    <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" :read-only="isGuest" @edit="modal = { kind: 'progress', id: $event }" @add="openAdd" />
     <WorkoutsView
       v-else-if="currentPage === 'workouts'"
       :refresh-key="reloadKey"
@@ -2473,6 +2473,162 @@ dialog {
 </style>
 
 <style lang="scss">
+/* Astra button system: shared across pages, cards and popups. */
+body button {
+  box-sizing: border-box;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transition: background-color .16s ease, border-color .16s ease, color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+body button:disabled { transform: none !important; }
+
+body .primary,
+body .mint-button,
+body .complete-plan,
+body .create-complex-button {
+  min-height: 48px;
+  height: 48px;
+  border: 0;
+  border-radius: 12px;
+  padding: 0 18px;
+  background: #172033;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+body .mint-button,
+body .complete-plan,
+body .create-complex-button { background: #bdf2d3; color: #172033; }
+body .primary:hover,
+body .complete-plan:hover,
+body .create-complex-button:hover { background: #26364a; color: #fff; transform: translateY(-1px); }
+body .mint-button:hover { background: #d1f8df; color: #172033; transform: translateY(-1px); }
+
+body .secondary-button,
+body .login-button,
+body .reset-sort,
+body .change-month,
+body .clear-filter,
+body .section-info-edit,
+body .edit-workout,
+body .edit-product,
+body .edit-recipe,
+body .edit-exercise,
+body .edit-equipment,
+body .edit-progress-tile,
+body .edit-diary-entry,
+body .edit-article-button,
+body .edit-complex-button,
+body .article-open-button,
+body .cancel-submission,
+body .month-choice {
+  min-height: 44px;
+  height: 44px;
+  border: 1px solid #dde3ec;
+  border-radius: 11px;
+  padding: 0 15px;
+  background: #f6f8fc;
+  color: #7d879b;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+body .secondary-button:hover,
+body .login-button:hover,
+body .reset-sort:hover,
+body .change-month:hover,
+body .clear-filter:hover,
+body .section-info-edit:hover,
+body .edit-workout:hover,
+body .edit-product:hover,
+body .edit-recipe:hover,
+body .edit-exercise:hover,
+body .edit-equipment:hover,
+body .edit-progress-tile:hover,
+body .edit-diary-entry:hover,
+body .edit-article-button:hover,
+body .edit-complex-button:hover,
+body .article-open-button:hover,
+body .cancel-submission:hover,
+body .month-choice:hover { border-color: #6f82ff; background: #eaf2ff; color: #6f82ff; transform: translateY(-1px); }
+
+body .danger-button,
+body .delete-product,
+body .delete-recipe,
+body .delete-workout,
+body .delete-exercise,
+body .delete-progress-tile,
+body .delete-diary-entry,
+body .row-delete,
+body .article-visibility-button {
+  min-height: 44px;
+  height: 44px;
+  border: 1px solid #f3a59a !important;
+  border-radius: 11px;
+  padding: 0 15px;
+  background: #fff0ed !important;
+  color: #d56666 !important;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+body .danger-button:hover,
+body .delete-product:hover,
+body .delete-recipe:hover,
+body .delete-workout:hover,
+body .delete-exercise:hover,
+body .delete-progress-tile:hover,
+body .delete-diary-entry:hover,
+body .row-delete:hover,
+body .article-visibility-button:hover { border-color: #d56666 !important; background: #ffe4df !important; transform: translateY(-1px); }
+body dialog .actions .danger-button,
+body dialog .actions .delete-button { border-color: #d56666 !important; background: #d56666 !important; color: #fff !important; }
+
+body .icon {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  min-height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: #f6f8fc;
+  color: #7d879b;
+}
+body .icon:hover { background: #eaf2ff; color: #6f82ff; transform: translateY(-1px); }
+body .article-pin-action,
+body .article-pin-button,
+body .article-card-actions button,
+body .article-detail-actions button,
+body .workout-card-actions button,
+body .recipe-tile-actions button,
+body .product-tile-actions button,
+body .progress-tile-actions button {
+  min-height: 38px;
+  height: 38px;
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+}
+body .article-pin-action,
+body .article-pin-button { border: 1px solid #dde3ec; background: #eaf2ff; color: #6f82ff; }
+body .article-pin-action:hover,
+body .article-pin-button:hover { border-color: #6f82ff; background: #dce8ff; }
+body .article-card-actions button,
+body .article-detail-actions button { background: #f6f8fc; color: #7d879b; }
+body .article-card-actions .article-open-button,
+body .article-detail-actions .article-open-button { background: #172033; color: #fff; }
+body .article-card-actions .article-open-button:hover,
+body .article-detail-actions .article-open-button:hover { background: #26364a; color: #fff; }
+body .actions button:not(.primary),
+body .toolbar button:not(.primary) { min-height: 44px; height: 44px; border-radius: 11px; }
+body .actions button:hover { transform: translateY(-1px); }
+</style>
+
+<style lang="scss">
 :root {
   --ink: #172033;
   --blue: #6f82ff;
@@ -2914,5 +3070,727 @@ dialog .field.full { grid-column: 1 / -1; }
   body .product-catalog-layout .product-grid { overflow-x: auto; }
   body .product-table-head, body .product-tile { min-width: 720px; }
   dialog > form, dialog > .dialog-panel { padding: 22px; }
+}
+
+/* Workouts v2: featured plan, compact plan rows and action hierarchy. */
+body .scheduled-grid { grid-template-columns: 1fr; gap: 12px; }
+body .scheduled-grid .planned-plan-tile {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.25fr) minmax(220px, 1fr) auto;
+  grid-template-rows: auto auto;
+  min-height: 92px;
+  padding: 16px 24px;
+  padding-right: 250px;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 4px 16px #1720330d;
+}
+body .scheduled-grid .planned-plan-tile > .workout-tile-head { grid-column: 1; grid-row: 1; min-height: 0; }
+body .scheduled-grid .planned-plan-tile > h3 { grid-column: 1; grid-row: 2; min-height: 0; margin: 3px 0 0; font-size: 16px; }
+body .scheduled-grid .planned-plan-tile > p { grid-column: 2; grid-row: 1 / 3; align-self: center; min-height: 0; margin: 0; }
+body .scheduled-grid .planned-plan-items { display: none; }
+body .scheduled-grid .planned-plan-tile > .planned-tile-actions { grid-column: 3; grid-row: 1 / 3; align-self: end; display: flex; gap: 7px; min-height: 0; margin: 0; }
+body .scheduled-grid .planned-plan-tile:first-child {
+  min-height: 118px;
+  padding: 22px 32px;
+  padding-right: 250px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--v2-ink);
+  color: #fff;
+  box-shadow: 0 18px 40px #17203320;
+}
+body .scheduled-grid .planned-plan-tile:first-child > h3 { font-size: 19px; }
+body .scheduled-grid .planned-plan-tile:first-child > p { color: #aab6c8; }
+body .scheduled-grid .planned-plan-tile:first-child .workout-date { color: #aab6c8; }
+body .scheduled-grid .planned-plan-tile:first-child .planned-badge { background: transparent; color: var(--v2-mint); }
+body .scheduled-grid .planned-plan-tile:first-child .edit-workout { border-color: #42516a; background: #26364a; color: #fff; }
+body .scheduled-grid .planned-plan-tile:first-child .delete-workout { border-color: #5a4650 !important; background: transparent !important; color: #ffb4a9 !important; }
+body .workout-complete-action {
+  top: 16px;
+  right: 24px;
+  min-width: 128px;
+  min-height: 40px;
+  border-radius: 10px;
+  background: var(--v2-mint);
+  color: var(--v2-ink);
+}
+body .scheduled-grid .planned-plan-tile:first-child .workout-complete-action { top: 22px; right: 32px; }
+
+body .archive-workout-grid { grid-template-columns: 1fr; gap: 10px; }
+body .archive-workout-grid .archive-plan-tile {
+  display: grid;
+  grid-template-columns: minmax(240px, 1.25fr) minmax(220px, 1fr) auto;
+  align-items: center;
+  min-height: 78px;
+  padding: 14px 24px;
+  border-radius: 14px;
+  box-shadow: none;
+}
+body .archive-workout-grid .archive-plan-tile > .workout-tile-head { grid-column: 1; }
+body .archive-workout-grid .archive-plan-tile > .planned-plan-items { grid-column: 2; min-height: 0; max-height: 48px; margin: 0; overflow: hidden; }
+body .archive-workout-grid .archive-plan-tile > .planned-plan-items div { display: none; }
+body .archive-workout-grid .archive-plan-tile > .planned-plan-items div:first-child { display: block; padding: 0; background: transparent; }
+body .archive-workout-grid .archive-plan-tile > .workout-card-actions { grid-column: 3; min-height: 0; margin: 0; }
+
+body .workout-card-actions button,
+body .create-complex-button,
+body .edit-complex-button,
+body .exercise-actions .secondary-button {
+  min-height: 40px;
+  height: 40px;
+  border-radius: 10px;
+  padding: 0 13px;
+  font-size: 11px;
+  font-weight: 800;
+}
+body .edit-workout,
+body .edit-complex-button,
+body .exercise-actions .secondary-button {
+  border: 1px solid var(--v2-line);
+  background: #fff;
+  color: var(--v2-ink);
+}
+body .edit-workout:hover,
+body .edit-complex-button:hover,
+body .exercise-actions .secondary-button:hover { border-color: var(--v2-purple); color: var(--v2-purple); }
+body .delete-workout { border: 1px solid #f0caca; background: #fff7f7; color: var(--v2-danger); }
+body .delete-workout:hover { border-color: var(--v2-danger); background: #fff0f0; }
+body .complete-plan,
+body .create-complex-button { border: 0; background: var(--v2-mint); color: var(--v2-ink); }
+body .complete-plan:hover,
+body .create-complex-button:hover { background: #d1f8df; }
+body .workout-card-actions { gap: 7px; }
+
+body .workout-section-tile { transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease; }
+body .workout-section-tile:hover { background: #fbfcff; }
+body .workout-section-tile.active { background: #f0f1ff; }
+body .exercise-category-card { min-height: 76px; border-radius: 14px; }
+body .exercise-category-card.active { border-color: var(--v2-purple); background: #f0f1ff; }
+body .exercise-card, body .equipment-card { min-height: 280px; border-radius: 18px; }
+body .exercise-card .workout-tile-actions, body .equipment-card .workout-tile-actions { margin-top: auto; }
+body .equipment-card-mark { border-radius: 12px; background: #e2f7eb; }
+
+@media (max-width: 820px) {
+  body .scheduled-grid .planned-plan-tile,
+  body .archive-workout-grid .archive-plan-tile { grid-template-columns: minmax(0, 1fr) auto; padding-right: 24px; }
+  body .scheduled-grid .planned-plan-tile > p,
+  body .archive-workout-grid .archive-plan-tile > .planned-plan-items { grid-column: 1; grid-row: 3; margin-top: 8px; }
+  body .scheduled-grid .planned-plan-tile > .planned-tile-actions,
+  body .archive-workout-grid .archive-plan-tile > .workout-card-actions { grid-column: 2; grid-row: 1 / 4; }
+  body .scheduled-grid .planned-plan-tile { padding-top: 58px; }
+  body .scheduled-grid .planned-plan-tile:first-child { padding-top: 68px; }
+}
+
+/* Workout component sheet: create tiles, reference cards and history cards. */
+body .workout-complex-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+body .workout-create-card { position: relative; overflow: hidden; cursor: pointer; }
+body .workout-create-card::before { display: none; }
+body .workout-create-card.workout-complex-card {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  align-items: center;
+  min-height: 154px;
+  padding: 24px 28px;
+  border: 0;
+  border-radius: 20px;
+  background: #172033;
+  color: #fff;
+}
+body .workout-create-icon {
+  display: grid;
+  grid-row: 1 / -1;
+  place-items: center;
+  width: 86px;
+  height: 86px;
+  border-radius: 50%;
+  background: #bdf2d3;
+  color: #172033;
+  font-size: 42px;
+  font-weight: 400;
+  line-height: 1;
+}
+body .workout-create-copy { min-width: 0; padding-left: 28px; }
+body .workout-create-copy .eyebrow { margin: 0 0 7px; color: #bdf2d3; }
+body .workout-create-copy h3 { margin: 0; color: inherit; font-size: 18px; line-height: 1.2; }
+body .workout-create-copy p:not(.eyebrow) { margin: 7px 0 0; color: #aab6c8; font-size: 12px; line-height: 1.4; }
+body .workout-create-card.workout-complex-card > .primary { grid-column: 2; justify-self: start; min-height: 38px; height: 38px; margin-top: 12px; border-radius: 10px; background: #bdf2d3; color: #172033; }
+body .workout-create-card.workout-complex-card > .primary:hover { background: #d1f8df; color: #172033; }
+
+body .workout-create-card.add-exercise-card,
+body .workout-create-card.add-equipment-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 298px;
+  padding: 28px;
+  border: 1px dashed #d9e2ff;
+  border-radius: 18px;
+  background: #f8faff;
+  color: #172033;
+  text-align: center;
+}
+body .workout-create-card.add-exercise-card .workout-create-icon,
+body .workout-create-card.add-equipment-card .workout-create-icon { flex: 0 0 60px; width: 60px; height: 60px; font-size: 32px; background: #eef0ff; color: #6f82ff; }
+body .workout-create-card.add-exercise-card .workout-create-copy,
+body .workout-create-card.add-equipment-card .workout-create-copy { padding: 0; }
+body .workout-create-card.add-exercise-card .workout-create-copy h3,
+body .workout-create-card.add-equipment-card .workout-create-copy h3 { margin-top: 18px; font-size: 16px; }
+body .workout-create-card.add-exercise-card > .primary,
+body .workout-create-card.add-equipment-card > .primary { min-height: 38px; height: 38px; margin-top: 18px; border-radius: 10px; background: #172033; color: #fff; }
+body .workout-create-card.add-exercise-card > .primary:hover,
+body .workout-create-card.add-equipment-card > .primary:hover { background: #26364a; color: #fff; }
+
+body .exercise-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+body .exercise-card:not(.workout-create-card)::before,
+body .equipment-card:not(.workout-create-card)::before { height: 112px; background: #e2f7eb; color: #329a63; }
+body .exercise-card .workout-group,
+body .equipment-card .workout-group { display: inline-flex; width: fit-content; padding: 5px 9px; border-radius: 999px; background: #f0ecff; color: #6652c7; font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+body .exercise-card .exercise-code,
+body .equipment-card .exercise-code { color: #7d879b; font-size: 10px; }
+body .exercise-card h3,
+body .equipment-card h3 { margin-top: 10px; font-size: 16px; line-height: 1.25; }
+body .exercise-card > p,
+body .equipment-card > p { min-height: 44px; line-height: 1.45; }
+body .exercise-card-actions,
+body .equipment-card-actions { display: flex; gap: 8px; grid-template-columns: none; }
+body .exercise-card-actions .edit-workout,
+body .equipment-card-actions .edit-workout { flex: 1; min-height: 32px; height: 32px; border-radius: 9px; padding: 0 10px; background: #eaf2ff; color: #6f82ff; }
+body .exercise-card-actions .delete-workout { min-height: 32px; height: 32px; padding: 0 11px; border-radius: 9px; }
+body .equipment-card-photo { height: 108px; margin: -16px -16px 10px; width: calc(100% + 32px); border-radius: 14px 14px 0 0; }
+
+body .archive-workout-grid { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+body .archive-workout-grid .archive-plan-tile {
+  display: flex;
+  min-height: 264px;
+  padding: 24px;
+  border-radius: 18px;
+  box-shadow: 0 6px 20px #1720330d;
+}
+body .archive-workout-grid .archive-plan-tile > .planned-plan-items { display: grid; min-height: 72px; max-height: 90px; margin: 20px 0 12px; overflow: hidden; }
+body .archive-workout-grid .archive-plan-tile > .planned-plan-items div { display: block; padding: 8px 0; border-top: 1px solid #e5eaf2; background: transparent; }
+body .archive-workout-grid .archive-plan-tile > .workout-card-actions { display: flex; gap: 8px; min-height: 36px; margin-top: auto; }
+body .archive-workout-grid .archive-plan-tile > .workout-card-actions .edit-workout { flex: 1; }
+body .completed-badge { background: #f0ecff; color: #6652c7; }
+body .canceled-badge { background: #f7eaea; color: #d55555; }
+
+@media (max-width: 700px) {
+  body .workout-create-card.workout-complex-card { grid-template-columns: 62px minmax(0, 1fr); padding: 20px; }
+  body .workout-create-icon { width: 62px; height: 62px; font-size: 32px; }
+  body .workout-create-copy { padding-left: 16px; }
+  body .workout-create-card.add-exercise-card,
+  body .workout-create-card.add-equipment-card { min-height: 230px; }
+  body .archive-workout-grid { grid-template-columns: 1fr; }
+}
+
+/* Recipes page v2: compact toolbar, category rail and recipe card states. */
+body .legend { display: none; }
+body .recipe-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) 168px 170px auto; gap: 10px; min-height: 68px; margin: 0 0 24px; padding: 14px 24px; border: 1px solid #e5eaf2; border-radius: 16px; background: #fff; }
+body .recipe-toolbar input,
+body .recipe-toolbar select { min-width: 0; height: 40px; min-height: 40px; border: 0; border-radius: 10px; background: #f6f8fc; color: #7d879b; }
+body .recipe-toolbar select:not(#recipe-order) { grid-column: 2; }
+body .recipe-toolbar #recipe-order { grid-column: 3; }
+body .recipe-toolbar .subtle { justify-self: end; white-space: nowrap; }
+body .recipe-toolbar .reset-sort { display: none; }
+body .recipe-categories { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin: 0 0 26px; }
+body .recipe-categories .category-card { min-height: 86px; padding: 12px 14px; border: 1px solid #e5eaf2; border-radius: 16px; background: #fff; box-shadow: none; }
+body .recipe-categories .category-card.active,
+body .recipe-categories .category-card.all.active { border-color: #9eddb9; background: #e2f7eb; box-shadow: none; }
+body .recipe-categories .category-card:hover { border-color: #aab6ff; box-shadow: 0 8px 20px #1720330d; transform: translateY(-1px); }
+body .recipe-categories .category-photo { width: 42px; height: 42px; }
+body .recipe-categories .category-photo::before { width: 42px; height: 42px; }
+body .recipe-categories .category-copy b { font-size: 12px; }
+body .recipe-categories .category-copy small { margin-top: 4px; font-size: 10px; }
+body .recipe-categories .category-card > strong { padding: 4px 7px; border-radius: 99px; background: #f0ecff; color: #6f82ff; font-size: 11px; }
+body .recipe-categories .category-card.all > strong { background: #fff; color: #329a63; }
+body .recipe-categories .add-category-card { border-style: dashed; background: #f8fafd; }
+body .recipes-results-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 14px; }
+body .recipes-results-head h2 { margin: 0; font-size: 18px; }
+body .recipes-results-head span { color: #7d879b; font-size: 12px; }
+body .recipe-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+body .recipe-tile,
+body .recipe-add-card { min-height: 272px; padding: 14px; border-radius: 18px; background: #fff; box-shadow: 0 8px 28px #15233d12; }
+body .recipe-tile:hover { border-color: #9aa7ff; box-shadow: 0 12px 30px #15233d18; transform: translateY(-2px); }
+body .recipe-cover { height: 82px; min-height: 82px; padding: 0 20px; border-radius: 12px; }
+body .recipe-cover-icon { font-size: 38px; }
+body .recipe-serving { top: 10px; right: 10px; padding: 4px 7px; border-radius: 8px; }
+body .recipe-tile .recipe-category { margin-top: 15px; font-size: 10px; }
+body .recipe-tile h3 { margin: 6px 0 4px; font-size: 16px; line-height: 1.22; }
+body .recipe-tile > p { min-height: 18px; margin: 0; color: #7d879b; font-size: 11px; }
+body .recipe-tile .tile-macros { grid-template-columns: 1fr; gap: 3px; margin: 12px 0 0; padding-top: 12px; border-top: 1px solid #edf0f5; }
+body .recipe-tile .tile-macros span { display: inline; padding: 0; background: transparent; text-align: left; }
+body .recipe-tile .tile-macros span:first-child { grid-column: 1; }
+body .recipe-tile .tile-macros span:not(:first-child) { display: inline-block; margin-right: 9px; }
+body .recipe-tile .tile-macros b { color: #7d879b; font-size: 11px; }
+body .recipe-tile .tile-macros span:first-child b { color: #6f82ff; }
+body .recipe-tile .tile-macros small { display: inline; margin-left: 3px; font-size: 9px; }
+body .recipe-tile-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 0; }
+body .recipe-tile-foot::before { content: 'Просмотр'; min-height: 26px; padding: 0 12px; border-radius: 8px; background: #172033; font-size: 10px; }
+body .recipe-tile-foot > span:first-child { display: none; }
+body .recipe-tile-foot b { color: #7d879b; font-size: 10px; }
+body .recipe-tile-actions { display: flex; gap: 6px; margin-top: 7px; }
+body .recipe-tile-actions button { min-height: 30px; height: 30px; border-radius: 8px; font-size: 10px; }
+body .submit-to-common { min-height: 30px; height: 30px; margin-top: 7px; border-radius: 8px; font-size: 10px; }
+body .recipe-add-card { display: flex; align-items: center; flex-direction: column; justify-content: center; border: 1px dashed #d6dde8; background: #f8fafd; text-align: center; }
+body .recipe-add-card:hover { border-color: #9aa7ff; background: #f0f1ff; transform: translateY(-2px); }
+body .recipe-add-icon { display: grid; place-items: center; width: 60px; height: 60px; border-radius: 50%; background: #fff; color: #8a95a7; font-size: 34px; }
+body .recipe-add-card h3 { margin: 18px 0 5px; font-size: 16px; }
+body .recipe-add-card p { margin: 0; color: #7d879b; font-size: 11px; }
+body .recipe-add-card .primary { min-height: 32px; height: 32px; margin-top: 18px; border-radius: 9px; padding: 0 14px; font-size: 11px; }
+
+@media (max-width: 800px) {
+  body .recipe-toolbar { grid-template-columns: 1fr 1fr; }
+  body .recipe-toolbar input { grid-column: 1 / -1; }
+  body .recipe-toolbar .subtle { justify-self: start; }
+}
+@media (max-width: 560px) {
+  body .recipe-toolbar { grid-template-columns: 1fr; padding: 12px; }
+  body .recipe-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  body .recipe-grid { grid-template-columns: 1fr; }
+}
+
+/* Popup sheet: entity accents and the shared 630×332 view shell. */
+body dialog {
+  position: relative;
+  width: min(630px, calc(100vw - 32px));
+  min-height: 0;
+  max-height: min(820px, calc(100vh - 32px));
+  overflow: hidden auto;
+  border: 1px solid #e5eaf2;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 18px 50px #15233d1c;
+}
+body dialog.recipe-dialog { width: min(900px, calc(100vw - 32px)); }
+body dialog::before { content: ''; position: sticky; z-index: 2; display: block; width: 100%; height: 6px; margin-bottom: -6px; background: #6f82ff; }
+body dialog > form,
+body dialog > .dialog-panel { padding: 30px 32px; }
+body dialog > form { margin: 0; }
+body dialog .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 22px; padding-top: 4px; }
+body dialog .modal-head > div { min-width: 0; }
+body dialog .modal-head .eyebrow { display: inline-flex; align-items: center; min-height: 26px; margin: 0 0 14px; padding: 0 12px; border-radius: 8px; background: #f0f1ff; color: #6f82ff; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+body dialog .modal-head h2 { margin: 0; color: #172033; font-size: 20px; line-height: 1.2; letter-spacing: -.03em; }
+body dialog .modal-head .icon { flex: 0 0 36px; width: 36px; min-width: 36px; height: 36px; min-height: 36px; border-radius: 10px; background: #f6f8fc; color: #172033; font-size: 20px; }
+body dialog .modal-head .icon:hover { background: #eaf2ff; color: #6f82ff; }
+body dialog .actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 24px; padding-top: 18px; border-top: 1px solid #edf0f5; }
+body dialog .actions button { min-width: 96px; }
+body dialog .field { gap: 7px; }
+body dialog .field label,
+body dialog .field > span { color: #172033; font-size: 11px; font-weight: 800; }
+body dialog .field input,
+body dialog .field select,
+body dialog .field textarea { width: 100%; }
+body dialog .recipe-meta { margin: -8px 0 18px; }
+body dialog .recipe-actions,
+body dialog .article-detail-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
+body dialog .recipe-actions button,
+body dialog .article-detail-actions button { min-height: 34px; height: 34px; border-radius: 9px; padding: 0 12px; font-size: 11px; }
+body dialog .recipe-kpis { gap: 8px; }
+body dialog .recipe-kpis > div { padding: 11px; border: 1px solid #edf0f5; border-radius: 10px; background: #f8fafd; }
+body dialog .exercise-detail-section,
+body dialog .workout-detail-section,
+body dialog .diary-entry-detail { padding-top: 16px; border-top: 1px solid #edf0f5; }
+body dialog .exercise-variant-detail { border-radius: 10px; background: #f8fafd; }
+body dialog .confirm-message { margin: 0; padding: 16px; border-radius: 12px; background: #f6f8fc; color: #7d879b; line-height: 1.55; }
+
+body dialog.popup-article::before { background: #4b9db0; }
+body dialog.popup-article .modal-head .eyebrow { background: #dff2f7; color: #4b9db0; }
+body dialog.popup-recipe::before,
+body dialog.popup-complex::before,
+body dialog.popup-progress::before { background: #7ddba8; }
+body dialog.popup-recipe .modal-head .eyebrow,
+body dialog.popup-complex .modal-head .eyebrow,
+body dialog.popup-progress .modal-head .eyebrow { background: #e2f7eb; color: #329a63; }
+body dialog.popup-product::before,
+body dialog.popup-exercise::before { background: #f4b96b; }
+body dialog.popup-product .modal-head .eyebrow,
+body dialog.popup-exercise .modal-head .eyebrow { background: #fff1de; color: #c88731; }
+body dialog.popup-equipment::before { background: #6f82ff; }
+body dialog.popup-equipment .modal-head .eyebrow { background: #f0f1ff; color: #6f82ff; }
+body dialog.popup-workout::before,
+body dialog.popup-diary::before { background: #6f82ff; }
+body dialog.popup-workout .modal-head .eyebrow,
+body dialog.popup-diary .modal-head .eyebrow { background: #f0f1ff; color: #6f82ff; }
+body dialog.popup-food-day::before { background: #172033; }
+body dialog.popup-food-day .modal-head .eyebrow { background: #f6f8fc; color: #7d879b; }
+body dialog.popup-default::before { background: #6f82ff; }
+
+@media (max-width: 640px) {
+  body dialog > form,
+  body dialog > .dialog-panel { padding: 24px 20px; }
+  body dialog .modal-head h2 { font-size: 18px; }
+  body dialog .actions { align-items: stretch; flex-direction: column-reverse; }
+  body dialog .actions button { width: 100%; }
+}
+
+/* Products page v3: category cards and full product cards. */
+body .product-catalog-layout { display: flex; flex-direction: column; gap: 0; }
+body .product-toolbar { order: 1; display: grid; grid-template-columns: minmax(260px, 1fr) 174px auto; gap: 10px; min-height: 70px; margin: 0 0 24px; padding: 15px 24px; border: 1px solid #e5eaf2; border-radius: 16px; background: #fff; }
+body .product-toolbar input,
+body .product-toolbar select { min-width: 0; height: 40px; min-height: 40px; border: 0; border-radius: 10px; background: #f6f8fc; color: #7d879b; }
+body .product-toolbar .subtle { justify-self: end; white-space: nowrap; }
+body .product-toolbar .reset-sort { display: none; }
+body .product-catalog-layout > .product-categories { order: 2; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; margin: 0 0 26px; padding: 0; border: 0; }
+body .product-catalog-layout .product-category-card { display: grid; grid-template-columns: 42px minmax(0, 1fr); grid-template-rows: 1fr auto; min-height: 78px; padding: 12px 14px; border: 1px solid #e5eaf2; border-radius: 16px; background: #fff; box-shadow: none; }
+body .product-catalog-layout .product-category-card:hover { border-color: #aab6ff; background: #fbfcff; box-shadow: 0 8px 20px #1720330d; transform: translateY(-1px); }
+body .product-catalog-layout .product-category-card.active { border-color: #6f82ff; background: #eef0ff; box-shadow: 0 0 0 2px #6f82ff20; }
+body .product-catalog-layout .product-category-photo { width: 40px; height: 40px; }
+body .product-catalog-layout .product-category-photo::before { width: 40px; height: 40px; }
+body .product-catalog-layout .product-category-copy { grid-column: 2; padding: 0; }
+body .product-catalog-layout .product-category-copy b { font-size: 12px; line-height: 1.2; }
+body .product-catalog-layout .product-category-copy small { margin-top: 4px; font-size: 10px; }
+body .product-catalog-layout .product-category-card > strong { grid-column: 2; grid-row: 2; justify-self: start; align-self: end; padding: 0; background: transparent; color: #6f82ff; box-shadow: none; font-size: 11px; }
+body .product-catalog-layout .product-category-card.all.active { background: #eef0ff; }
+body .product-catalog-layout .product-category-card.all-products-photo { background: #fff; }
+body .product-catalog-layout .product-category-card.all-products-photo::after { content: '✦'; color: #6f82ff; font-size: 21px; }
+body .product-catalog-layout .product-category-card.add-category-card { border-style: dashed; background: #f8fafd; }
+body .product-catalog-layout .product-category-card.add-category-card .product-category-photo { display: grid; place-items: center; background: #eef0ff; color: #6f82ff; font-size: 22px; }
+body .product-results-head { order: 2; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 14px; }
+body .product-results-head h2 { margin: 0; font-size: 18px; }
+body .product-results-head span { color: #7d879b; font-size: 12px; }
+body .product-catalog-layout > .product-grid { order: 3; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; overflow: visible; border: 0; border-radius: 0; background: transparent; }
+body .product-catalog-layout .product-table-head { display: none; }
+body .product-catalog-layout .product-tile {
+  display: flex;
+  flex-direction: column;
+  min-height: 312px;
+  padding: 14px;
+  border: 1px solid #e5eaf2;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 28px #15233d12;
+}
+body .product-catalog-layout .product-tile:hover { border-color: #9aa7ff; box-shadow: 0 12px 30px #15233d18; transform: translateY(-2px); }
+body .product-catalog-layout .product-tile .product-cover { display: flex; align-items: center; justify-content: center; height: 96px; min-height: 96px; margin: -14px -14px 0; border-radius: 18px 18px 12px 12px; }
+body .product-catalog-layout .product-cover-label { top: 12px; left: 14px; padding: 4px 7px; border-radius: 8px; font-size: 10px; }
+body .product-catalog-layout .product-cover-icon { width: 54px; height: 54px; }
+body .product-catalog-layout .product-cover-icon.product-sprite::before { width: 50px; height: 50px; }
+body .product-catalog-layout .product-tile-head { display: none; }
+body .product-catalog-layout .product-tile-category { display: block !important; margin: 15px 0 0; color: #d88927; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+body .product-catalog-layout .product-tile h3 { margin: 7px 0 4px; font-size: 16px; line-height: 1.25; }
+body .product-catalog-layout .product-tile > p { min-height: 18px; margin: 0; overflow: hidden; color: #7d879b; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+body .product-catalog-layout .product-tile .product-macros { grid-template-columns: repeat(3, 1fr); gap: 0; margin: 13px 0 0; padding-top: 12px; border-top: 1px solid #e5eaf2; }
+body .product-catalog-layout .product-tile .product-macros::before { display: none; }
+body .product-catalog-layout .product-tile .product-macros span { padding: 0; background: transparent; text-align: left; }
+body .product-catalog-layout .product-tile .product-macros span:nth-child(4) { display: none; }
+body .product-catalog-layout .product-tile .product-macros b { color: #172033; font-size: 14px; }
+body .product-catalog-layout .product-tile .product-macros span:first-child b { color: #6f82ff; }
+body .product-catalog-layout .product-tile .product-macros small { margin-top: 3px; font-size: 8px; }
+body .product-catalog-layout .product-tile .product-tile-foot { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-top: auto; padding-top: 9px; border-top: 0; }
+body .product-catalog-layout .product-tile .product-tile-foot span { overflow: hidden; color: #7d879b; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+body .product-catalog-layout .product-tile .product-tile-foot b { color: #7d879b; font-size: 10px; white-space: nowrap; }
+body .product-catalog-layout .product-tile .product-tile-actions { display: flex; gap: 8px; min-height: 28px; margin-top: 8px; }
+body .product-catalog-layout .product-tile .product-tile-actions button { min-height: 28px; height: 28px; border-radius: 8px; padding: 0 11px; font-size: 10px; }
+body .product-add-card { grid-column: 1 / -1; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; align-items: center; gap: 16px; min-height: 76px; padding: 14px 24px; border: 1px dashed #d9e2ff; border-radius: 18px; background: #f8faff; }
+body .product-add-card:hover { border-color: #9aa7ff; background: #f0f1ff; }
+body .product-add-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #eef0ff; color: #6f82ff; font-size: 24px; }
+body .product-add-card b, body .product-add-card small { display: block; }
+body .product-add-card b { font-size: 16px; }
+body .product-add-card small { margin-top: 4px; color: #7d879b; font-size: 11px; }
+body .product-add-card .primary { min-height: 38px; height: 38px; border-radius: 10px; font-size: 11px; }
+
+@media (max-width: 800px) {
+  body .product-toolbar { grid-template-columns: minmax(0, 1fr) 174px; }
+  body .product-toolbar input { grid-column: 1 / -1; }
+  body .product-toolbar .subtle { justify-self: start; }
+}
+@media (max-width: 560px) {
+  body .product-toolbar { grid-template-columns: 1fr; padding: 12px; }
+  body .product-catalog-layout > .product-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  body .product-catalog-layout > .product-grid { grid-template-columns: 1fr; }
+  body .product-add-card { grid-template-columns: 40px minmax(0, 1fr); padding: 14px; }
+  body .product-add-card .primary { grid-column: 1 / -1; justify-self: start; }
+}
+
+/* Popup v2: view, form, delete-confirmation and action-menu states. */
+body dialog.popup-view { width: min(630px, calc(100vw - 32px)); }
+body dialog.popup-form { width: min(668px, calc(100vw - 32px)); }
+body dialog.popup-form > form,
+body dialog.popup-form > .dialog-panel { padding: 34px 40px; }
+body dialog.popup-form .modal-head { padding-bottom: 18px; border-bottom: 1px solid #edf0f5; }
+body dialog.popup-form .modal-head h2 { font-size: 20px; }
+body dialog.popup-form .modal-head .eyebrow { display: none; }
+body dialog.popup-form .field input,
+body dialog.popup-form .field select,
+body dialog.popup-form .field textarea { min-height: 46px; border-color: #dde3ec; border-radius: 10px; }
+body dialog.popup-form .field textarea { min-height: 110px; }
+body dialog.popup-form .actions { margin-top: 22px; padding-top: 0; border-top: 0; }
+body dialog.popup-form .danger-button { align-self: flex-start; margin-right: auto; }
+
+body dialog.popup-delete,
+body dialog.popup-confirm { width: min(470px, calc(100vw - 32px)); }
+body dialog.popup-delete::before,
+body dialog.popup-confirm::before { background: #d56666; }
+body dialog.popup-delete > .dialog-panel,
+body dialog.popup-confirm > .dialog-panel { padding: 34px 32px 30px; }
+body dialog.popup-delete .modal-head .eyebrow,
+body dialog.popup-confirm .modal-head .eyebrow { background: #fff0ed; color: #d56666; }
+body dialog.popup-delete .modal-head h2,
+body dialog.popup-confirm .modal-head h2 { font-size: 20px; }
+body dialog.popup-delete .confirm-message,
+body dialog.popup-confirm .confirm-message { margin: 0; padding: 0; background: transparent; }
+body dialog.popup-delete .actions,
+body dialog.popup-confirm .actions { margin-top: 26px; padding-top: 0; border-top: 0; }
+body dialog.popup-delete .actions .danger-button,
+body dialog.popup-confirm .actions .danger-button { min-width: 144px; background: #d56666 !important; color: #fff !important; }
+
+body dialog.popup-actions { width: min(286px, calc(100vw - 32px)); border-radius: 16px; }
+body dialog.popup-actions::before { background: #6f82ff; }
+body dialog.popup-actions > .dialog-panel { padding: 28px; }
+body dialog.popup-actions .modal-head { display: block; margin-bottom: 10px; padding-bottom: 12px; border-bottom: 1px solid #edf0f5; }
+body dialog.popup-actions .modal-head .eyebrow { display: block; overflow: hidden; margin-bottom: 0; padding: 0; background: transparent; color: #7d879b; text-overflow: ellipsis; white-space: nowrap; }
+body dialog.popup-actions .modal-head h2,
+body dialog.popup-actions .modal-head .icon { display: none; }
+body dialog.popup-actions .popup-action-list { display: grid; gap: 4px; }
+body dialog.popup-actions .popup-action-list button { justify-content: flex-start; width: 100%; min-height: 40px; border: 0; border-radius: 9px; background: transparent; color: #172033; text-align: left; }
+body dialog.popup-actions .popup-action-list button:hover { background: #f6f8fc; color: #6f82ff; }
+body dialog.popup-actions .popup-action-list .danger-button { color: #d56666 !important; }
+
+body dialog.popup-food-day.recipe-dialog { width: min(1328px, calc(100vw - 32px)); }
+body dialog.popup-food-day > .dialog-panel { padding: 38px 40px; }
+body dialog.popup-food-day .modal-head { margin-bottom: 20px; }
+body dialog.popup-food-day .day-total { border-radius: 18px; }
+body dialog.popup-food-day .meal-entry { min-height: 78px; border-color: #dde3ec; border-radius: 12px; }
+body dialog.popup-food-day .diary-entry-actions { min-height: 38px; }
+
+/* Food Calendar day popup from astra-diary-calendar-popup.svg. */
+body dialog.popup-food-day.recipe-dialog { width: min(900px, calc(100vw - 32px)); max-height: calc(100vh - 48px); }
+body dialog.popup-food-day.recipe-dialog > .dialog-panel { padding: 0 36px 18px; }
+body dialog.popup-food-day.recipe-dialog .modal-head { margin: 0; padding: 30px 0 20px; }
+body dialog.popup-food-day.recipe-dialog .modal-head h2 { font-size: 26px; letter-spacing: -.04em; }
+body dialog.popup-food-day.recipe-dialog .calendar-shell { padding: 0; }
+body .diary-day-summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 20px; min-height: 62px; margin-bottom: 28px; padding: 13px 28px; border-radius: 14px; background: #f6f8fc; }
+body .diary-day-summary span { display: block; margin-bottom: 5px; color: #7d879b; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+body .diary-day-summary b { display: block; color: #172033; font-size: 13px; }
+body .diary-day-edit { border: 0; background: transparent; color: #6f82ff; font-size: 11px; font-weight: 800; cursor: pointer; }
+body .diary-popup-meal-group { margin-bottom: 26px; }
+body .diary-popup-meal-group h3 { justify-content: flex-start; gap: 6px; margin-bottom: 10px; font-size: 18px; }
+body .diary-popup-meal-group .meal-cost { padding: 0; background: transparent; color: #7d879b; font-size: 11px; font-weight: 550; }
+body dialog.popup-food-day .meal-entry { min-height: 72px; margin: 0 0 8px; padding: 14px 28px; border-color: #e5eaf2; border-radius: 12px; }
+body dialog.popup-food-day .meal-entry::before { content: ''; width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; background: #e2f7eb; }
+body dialog.popup-food-day .meal-entry > span { flex: 1; }
+body dialog.popup-food-day .meal-entry > span b { font-size: 13px; }
+body dialog.popup-food-day .meal-entry > span small { font-size: 11px; }
+body dialog.popup-food-day .meal-entry > strong { min-width: 80px; font-size: 13px; text-align: right; }
+body dialog.popup-food-day .diary-entry-actions { margin: -4px 0 8px 66px; }
+body .diary-calendar-add { display: block; width: 100%; min-height: 36px; border: 1px solid #79a8ff; border-radius: 10px; background: #eaf2ff; color: #6f82ff; font-size: 11px; font-weight: 800; cursor: pointer; }
+body .diary-calendar-add:hover { background: #dceaff; }
+body .diary-popup-nutrients { margin-top: 20px; padding: 28px; border-radius: 16px; background: #172033; }
+body .diary-popup-nutrients h3 { margin: 0 0 14px; color: #bdf2d3; font-size: 10px; letter-spacing: 1px; text-transform: uppercase; }
+body .diary-popup-nutrients > div { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+body .diary-popup-nutrients > div span { display: grid; gap: 6px; min-height: 54px; padding: 11px 16px; border-radius: 10px; background: #222d42; text-align: left; }
+body .diary-popup-nutrients > div b { font-size: 13px; }
+body .diary-popup-nutrients > div small { color: #aab6c8; font-size: 10px; }
+body .diary-popup-nutrients .nutrient-protein { background: #e2f7eb; color: #172033; }
+body .diary-popup-nutrients .nutrient-protein small { color: #329a63; }
+body .diary-popup-nutrients .nutrient-fat { border: 1px solid #ffb4aa; background: #fff1f0; color: #d55555; }
+body .diary-popup-nutrients .nutrient-fat small { color: #d55555; }
+body .diary-popup-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; }
+body .diary-popup-footer .secondary-button { min-height: 36px; height: 36px; border-radius: 10px; font-size: 11px; }
+body .diary-popup-footer .primary { min-height: 36px; height: 36px; border-radius: 10px; font-size: 11px; }
+
+/* Diary page v4: Food Calendar dashboard, nutrition widget and monthly calendar. */
+body .diary-page-subtitle { margin: -20px 0 26px; }
+body .diary-current-day { margin-bottom: 42px; }
+body .diary-current-banner { display: grid; grid-template-columns: minmax(260px, 1fr) auto auto; align-items: center; gap: 34px; min-height: 104px; padding: 24px 32px; border-radius: 18px; background: #172033; color: #fff; box-shadow: 0 18px 40px #17203318; }
+body .diary-current-banner .eyebrow { margin: 0 0 8px; color: #bdf2d3; }
+body .diary-current-banner h2 { margin: 0; color: #fff; font-size: 20px; }
+body .diary-current-stats { display: flex; gap: 48px; }
+body .diary-current-stats span { display: grid; gap: 4px; min-width: 130px; }
+body .diary-current-stats small { color: #aab6c8; font-size: 11px; }
+body .diary-current-stats b { font-size: 23px; line-height: 1.1; }
+body .today-badge { min-height: 36px; padding: 0 16px; border: 0; border-radius: 9px; background: #bdf2d3; color: #172033; font-size: 11px; font-weight: 800; cursor: pointer; }
+body .diary-widget-heading { margin: 0 0 20px; }
+body .diary-widget-heading h2, body .diary-average-heading h2 { margin: 0 0 5px; font-size: 19px; }
+body .diary-widget-heading p, body .diary-average-heading p { margin: 0; color: #7d879b; font-size: 12px; }
+body .diary-current-grid { display: grid; grid-template-columns: minmax(0, 2.38fr) minmax(260px, 1fr); gap: 28px; }
+body .diary-meals-card, body .diary-norm-card { min-height: 506px; padding: 32px; border: 1px solid #e5eaf2; border-radius: 20px; background: #fff; }
+body .diary-meals-card > .eyebrow { margin: 0 0 7px; }
+body .diary-meals-card > h2, body .diary-norm-card h2 { margin: 0 0 18px; font-size: 19px; }
+body .diary-meal-list { display: grid; gap: 14px; }
+body .diary-meal-card { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 16px; min-height: 76px; padding: 15px 16px; border: 1px solid #dde3ec; border-radius: 14px; background: #fff; }
+body .diary-meal-card:nth-child(even) { background: #f6f8fc; }
+body .diary-meal-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #e2f7eb; color: #329a63; font-size: 13px; font-weight: 800; }
+body .diary-meal-card:nth-child(2) .diary-meal-icon { background: #f0f1ff; color: #6f82ff; }
+body .diary-meal-card:nth-child(3) .diary-meal-icon { background: #fff1de; color: #d88927; }
+body .diary-meal-card > div { min-width: 0; }
+body .diary-meal-card b, body .diary-meal-card small, body .diary-meal-card p { display: block; }
+body .diary-meal-card b { font-size: 14px; }
+body .diary-meal-card small { margin-top: 3px; color: #7d879b; font-size: 11px; }
+body .diary-meal-card p { overflow: hidden; margin: 7px 0 0; color: #172033; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+body .diary-meal-card > strong { display: grid; gap: 4px; min-width: 92px; color: #172033; font-size: 13px; text-align: right; }
+body .diary-meal-card > strong small { font-weight: 500; }
+body .diary-meal-empty { background: #f6f8fc !important; }
+body .diary-add-meal { min-height: 36px; padding: 0 13px; border: 0; border-radius: 10px; background: #e2f7eb; color: #329a63; font-size: 11px; font-weight: 800; cursor: pointer; }
+body .diary-norm-card > p { margin: -10px 0 20px; color: #7d879b; font-size: 11px; }
+body .diary-norm-item { display: grid; gap: 8px; margin-top: 14px; padding: 24px; border-radius: 14px; }
+body .diary-norm-item span { font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+body .diary-norm-item b { font-size: 17px; }
+body .diary-norm-item small { font-size: 11px; }
+body .diary-norm-item i { display: block; height: 7px; overflow: hidden; border-radius: 4px; background: #e5e9f4; }
+body .diary-norm-item i em { display: block; height: 100%; border-radius: inherit; background: #6f82ff; }
+body .diary-norm-item.norm-kcal { background: #f5f6ff; color: #172033; }
+body .diary-norm-item.norm-kcal span, body .diary-norm-item.norm-kcal small { color: #6f82ff; }
+body .diary-norm-item.norm-protein { background: #f4fbf7; }
+body .diary-norm-item.norm-protein span { color: #329a63; }
+body .diary-norm-item.norm-protein i { background: #ddeee3; }
+body .diary-norm-item.norm-protein i em { background: #329a63; }
+body .diary-norm-item.norm-fat { background: #fff1f0; border: 1px solid #ffb4aa; }
+body .diary-norm-item.norm-fat span, body .diary-norm-item.norm-fat small { color: #d55555; }
+body .diary-norm-item.norm-fat i { background: #f2d7d4; }
+body .diary-norm-item.norm-fat i em { background: #d55555; }
+
+body .diary-month-head { margin-top: 56px; }
+body .diary-calendar-heading { align-items: center; margin-bottom: 20px; }
+body .diary-calendar-heading > div:first-child p { margin: 0; color: #7d879b; font-size: 12px; }
+body .diary-calendar-heading h2 { margin-bottom: 5px; }
+body .diary-calendar-actions { display: flex; gap: 8px; }
+body .diary-calendar-actions .change-month { min-width: 44px; min-height: 36px; padding: 0 12px; }
+body .diary-calendar-actions .primary { min-height: 36px; height: 36px; border-radius: 10px; font-size: 11px; }
+body .diary-average-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 30px 0 20px; }
+body .diary-average-heading > span { color: #7d879b; font-size: 11px; }
+body .diary-average-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+body .diary-average-card { position: relative; min-height: 178px; padding: 32px; overflow: hidden; border-radius: 20px; }
+body .diary-average-card > span { display: block; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+body .diary-average-card > b { display: block; margin-top: 18px; font-size: 27px; line-height: 1; }
+body .diary-average-card > small { display: block; margin-top: 8px; font-size: 11px; }
+body .diary-average-card > strong { position: absolute; top: 68px; right: 32px; font-size: 14px; }
+body .diary-average-card svg { display: block; width: 100%; height: 54px; margin-top: 10px; }
+body .diary-average-card svg path { fill: none; stroke: currentColor; stroke-dasharray: 3 5; opacity: .35; }
+body .diary-average-card svg polyline { fill: none; stroke: currentColor; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+body .average-kcal { background: #172033; color: #fff; }
+body .average-kcal > span, body .average-kcal > strong { color: #bdf2d3; }
+body .average-kcal > small { color: #aab6c8; }
+body .average-kcal svg { color: #6f82ff; }
+body .average-protein { border: 1px solid #c5ebd4; background: #e2f7eb; color: #172033; }
+body .average-protein > span, body .average-protein > strong { color: #329a63; }
+body .average-protein > small { color: #7d879b; }
+body .average-protein svg { color: #329a63; }
+
+body .diary-days-panel { margin-top: 20px; padding: 18px 16px 16px; border-radius: 20px; }
+body .diary-weekdays, body .diary-day-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 16px; }
+body .diary-weekdays { padding: 0 16px 10px; }
+body .diary-day-card { display: grid; align-content: center; grid-template-columns: 1fr; gap: 4px; min-height: 64px; padding: 10px 16px; border-radius: 12px; text-align: left; }
+body .diary-day-card .diary-day-copy b, body .diary-day-card .diary-day-copy small { display: block; }
+body .diary-day-card .diary-day-copy b { color: #7d879b; font-size: 11px; font-weight: 600; }
+body .diary-day-card .diary-day-copy small { margin-top: 2px; color: #7d879b; font-size: 10px; }
+body .diary-day-card .diary-day-number { color: #172033; font-size: 16px; font-weight: 800; }
+body .diary-day-card .diary-day-arrow { display: none; }
+body .diary-day-card.complete { background: #e2f7eb; border-color: transparent; }
+body .diary-day-card.complete .diary-day-number { color: #329a63; }
+body .diary-day-card.partial { background: #fff1de; border-color: transparent; }
+body .diary-day-card.partial .diary-day-number { color: #d88927; }
+body .diary-day-card.empty { background: #f6f8fc; border-color: transparent; }
+body .diary-day-card.today { background: #eef0ff; border: 2px solid #6f82ff; }
+body .diary-day-card.today .diary-day-number { color: #6f82ff; }
+
+@media (max-width: 1000px) {
+  body .diary-current-banner { grid-template-columns: 1fr auto; gap: 18px; }
+  body .diary-current-stats { grid-column: 1 / -1; grid-row: 2; justify-content: space-between; }
+  body .diary-current-grid { grid-template-columns: 1fr; }
+  body .diary-norm-card { min-height: auto; }
+}
+@media (max-width: 700px) {
+  body .diary-current-banner { padding: 22px; }
+  body .diary-current-stats { gap: 18px; }
+  body .diary-current-stats b { font-size: 18px; }
+  body .diary-meals-card, body .diary-norm-card { padding: 20px; }
+  body .diary-meal-card { grid-template-columns: 32px minmax(0, 1fr); }
+  body .diary-meal-card > strong { grid-column: 2; text-align: left; }
+  body .diary-meal-card > .diary-add-meal { grid-column: 2; justify-self: start; }
+  body .diary-average-grid { grid-template-columns: 1fr; gap: 14px; }
+  body .diary-calendar-heading { align-items: flex-start; flex-direction: column; }
+  body .diary-calendar-actions { width: 100%; }
+  body .diary-calendar-actions .change-month:nth-child(2) { flex: 1; }
+  body .diary-average-card { padding: 24px; }
+  body .diary-weekdays, body .diary-day-grid { gap: 5px; }
+  body .diary-days-panel { padding-inline: 8px; overflow-x: auto; }
+body .diary-weekdays, body .diary-day-grid { min-width: 620px; }
+}
+
+/* Progress page v3: key indicators, weight chart and compact measurement history. */
+body .progress-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
+body .progress-stat-card { min-height: 132px; padding: 28px; border: 1px solid #e5eaf2; border-radius: 18px; background: #fff; }
+body .progress-stat-card > span { display: block; color: #7d879b; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+body .progress-stat-card > b { display: block; margin-top: 24px; color: #172033; font-size: 30px; line-height: 1; letter-spacing: -.05em; }
+body .progress-stat-card > b i { font-size: 15px; font-style: normal; letter-spacing: 0; }
+body .progress-stat-card > small { display: block; margin-top: 10px; color: #7d879b; font-size: 11px; }
+body .progress-stat-card > small.positive { color: #329a63; font-weight: 800; }
+body .progress-stat-card > small.negative { color: #d55555; font-weight: 800; }
+body .progress-stat-card > small.blue-note { color: #6f82ff; font-weight: 800; }
+body .progress-stat-card.wellbeing-stat { border-color: #c5ebd4; background: #e2f7eb; }
+body .progress-stat-card.wellbeing-stat > span { color: #329a63; }
+body .progress-overview-grid { display: grid; grid-template-columns: minmax(0, 2.65fr) minmax(260px, 1fr); gap: 28px; margin-top: 40px; }
+body .progress-chart-card { min-height: 420px; padding: 32px; border: 1px solid #e5eaf2; border-radius: 20px; background: #fff; }
+body .progress-section-head { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+body .progress-section-head h2 { margin: 0 0 4px; font-size: 19px; }
+body .progress-section-head p, body .progress-section-head > span { margin: 0; color: #7d879b; font-size: 11px; }
+body .progress-chart-wrap { display: grid; grid-template-columns: 28px minmax(0, 1fr); grid-template-rows: 190px 22px; gap: 6px 12px; margin-top: 30px; }
+body .progress-chart-y { display: flex; flex-direction: column; justify-content: space-between; align-items: center; color: #7d879b; font-size: 10px; }
+body .progress-chart { width: 100%; height: 190px; overflow: visible; }
+body .chart-grid-line { fill: none; stroke: #eef1f6; stroke-width: 1; }
+body .chart-area { fill: #6f82ff; opacity: .08; }
+body .chart-line { fill: none; stroke: #6f82ff; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+body .chart-dot { fill: #6f82ff; }
+body .progress-chart-x { grid-column: 2; display: flex; justify-content: space-between; color: #7d879b; font-size: 10px; }
+body .progress-chart-empty { display: grid; min-height: 250px; place-items: center; color: #7d879b; text-align: center; }
+body .progress-latest-card { min-height: 420px; padding: 32px 30px; border-radius: 20px; background: #172033; color: #fff; }
+body .progress-latest-card .eyebrow { margin: 0 0 22px; color: #bdf2d3; }
+body .progress-latest-card h2 { margin: 0 0 26px; color: #fff; font-size: 19px; }
+body .progress-latest-card dl { margin: 0; }
+body .progress-latest-card dl > div { display: flex; justify-content: space-between; gap: 12px; padding: 14px 0; border-bottom: 1px solid #344057; }
+body .progress-latest-card dt { color: #aab6c8; font-size: 11px; }
+body .progress-latest-card dd { margin: 0; color: #fff; font-size: 13px; font-weight: 800; }
+body .progress-latest-edit { width: 100%; min-height: 38px; margin-top: 24px; border: 0; border-radius: 10px; background: #bdf2d3; color: #172033; font-size: 11px; font-weight: 800; cursor: pointer; }
+body .progress-details-link { margin-top: 18px; padding: 0; border: 0; background: transparent; color: #bdf2d3; font-size: 11px; cursor: pointer; }
+body .progress-history-head { align-items: end; margin-top: 56px; }
+body .progress-history-head h3 { margin: 0 0 5px; font-size: 19px; }
+body .progress-history-head .eyebrow { margin: 0; }
+body .progress-history-head + .toolbar { margin-top: 18px; }
+body .progress-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+body .progress-tile { min-height: 274px; padding: 28px; border-radius: 18px; background: #fff; }
+body .progress-tile-head { align-items: center; padding-bottom: 14px; border-bottom: 1px solid #e5eaf2; }
+body .progress-tile-head strong { color: #172033; font-size: 14px; }
+body .progress-tile-head > span { padding: 4px 9px; border-radius: 99px; background: #f0ecff; color: #6e5dc6; font-size: 9px; font-weight: 800; letter-spacing: 1px; }
+body .progress-history-rows { display: grid; gap: 0; margin: 10px 0 22px; }
+body .progress-history-rows > div { display: flex; justify-content: space-between; gap: 14px; padding: 7px 0; }
+body .progress-history-rows span { color: #7d879b; font-size: 11px; }
+body .progress-history-rows b { color: #172033; font-size: 12px; }
+body .progress-tile-actions { grid-template-columns: minmax(0, 1fr) 78px 62px; gap: 8px; min-height: 30px; }
+body .progress-tile-actions button { min-height: 30px; height: 30px; padding: 0 8px; border-radius: 8px; font-size: 10px; }
+body .progress-tile-actions .progress-open-button { border: 1px solid #79a8ff; background: #eaf2ff; color: #6f82ff; }
+body .progress-tile-actions .progress-open-button:only-child { grid-column: 1 / -1; }
+body .progress-add-card { display: grid; min-height: 274px; place-items: center; align-content: center; padding: 24px; border: 1px dashed #d9e2ff; border-radius: 18px; background: #f8faff; text-align: center; }
+body .progress-add-card:hover { border-color: #9aa7ff; background: #f0f1ff; }
+body .progress-add-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: #eef0ff; color: #6f82ff; font-size: 30px; }
+body .progress-add-card h3 { margin: 16px 0 5px; font-size: 16px; }
+body .progress-add-card p { margin: 0; color: #7d879b; font-size: 11px; }
+body .progress-add-card .primary { min-height: 36px; height: 36px; margin-top: 20px; border-radius: 10px; font-size: 11px; }
+body .progress-tip { display: grid; gap: 5px; margin-top: 48px; padding: 28px 32px; border-radius: 18px; background: #e2f7eb; }
+body .progress-tip span { color: #329a63; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+body .progress-tip b { color: #172033; font-size: 16px; }
+body .progress-tip small { color: #7d879b; font-size: 11px; }
+
+@media (max-width: 1050px) {
+  body .progress-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body .progress-overview-grid { grid-template-columns: 1fr; }
+  body .progress-latest-card { min-height: auto; }
+  body .progress-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 650px) {
+  body .progress-stat-grid, body .progress-grid { grid-template-columns: 1fr; }
+  body .progress-stat-card, body .progress-chart-card, body .progress-latest-card, body .progress-tile { padding: 22px; }
+  body .progress-chart-card { min-height: 350px; }
+  body .progress-chart-wrap { margin-top: 22px; }
+  body .progress-history-head { align-items: flex-start; flex-direction: column; gap: 8px; }
+  body .progress-tip { margin-top: 30px; padding: 22px; }
+}
+
+@media (max-width: 700px) {
+  body dialog.popup-form > form,
+  body dialog.popup-form > .dialog-panel { padding: 26px 20px; }
+  body dialog.popup-food-day.recipe-dialog { width: min(630px, calc(100vw - 32px)); }
+  body dialog.popup-food-day > .dialog-panel { padding: 26px 20px; }
 }
 </style>

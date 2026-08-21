@@ -5,8 +5,8 @@ import type { ProgressEntry, SortState } from '@/types';
 import { compareValues, formatDate, fmt, fmtValue, searchable } from '@/utils/format';
 import Toolbar from '@/components/shared/Toolbar.vue';
 
-const props = defineProps<{ refreshKey: number }>();
-const emit = defineEmits<{ edit: [id: number] }>();
+const props = defineProps<{ refreshKey: number; readOnly?: boolean }>();
+const emit = defineEmits<{ edit: [id: number]; add: [] }>();
 
 const data = ref<ProgressEntry[]>([]);
 const loading = ref(false);
@@ -38,6 +38,30 @@ const shown = computed(() => {
   return items;
 });
 
+const weightHistory = computed(() => [...data.value].reverse().filter((item) => item.weight_kg != null).slice(-30));
+const chartPoints = computed(() => {
+  if (!weightHistory.value.length) return '';
+  const values = weightHistory.value.map((item) => Number(item.weight_kg));
+  const min = Math.min(...values) - 1;
+  const max = Math.max(...values) + 1;
+  const span = Math.max(max - min, 1);
+  return weightHistory.value.map((item, index) => {
+    const x = 28 + (index / Math.max(weightHistory.value.length - 1, 1)) * 566;
+    const y = 184 - ((Number(item.weight_kg) - min) / span) * 140;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+});
+const chartAreaPoints = computed(() => chartPoints.value ? `28,184 ${chartPoints.value} 594,184` : '');
+const chartLastPoint = computed(() => {
+  const points = chartPoints.value.split(' ');
+  return points[points.length - 1] || '';
+});
+const weightDelta = computed(() => {
+  if (data.value.length < 2 || data.value[1].weight_kg == null || latest.value?.weight_kg == null) return null;
+  return Number(latest.value.weight_kg) - Number(data.value[1].weight_kg);
+});
+const wellbeingLabel = computed(() => latest.value?.wellbeing_score != null ? `${fmt(latest.value.wellbeing_score)} / 5` : '—');
+
 function metric(value: unknown, label: string, unit = '') {
   return { value, label, unit };
 }
@@ -57,6 +81,7 @@ function resetSort() {
 }
 
 async function remove(id: number) {
+  if (props.readOnly) return;
   if (!confirm('Удалить замер прогресса? Это действие нельзя отменить.')) return;
   try {
     await api.delete(`progress/${id}`);
@@ -72,52 +97,49 @@ async function remove(id: number) {
   <div v-else-if="error" class="panel empty">{{ error }}</div>
   <template v-else>
     <p class="progress-page-subtitle">Измерения, которые помогают увидеть динамику</p>
-    <section v-if="latest" class="current-progress-card">
-      <div class="current-progress-head">
-        <div>
-          <p class="eyebrow">ТЕКУЩИЕ ПОКАЗАТЕЛИ</p>
-          <h2>{{ formatDate(latest.measured_at) }}</h2>
+    <div v-if="latest" class="progress-stat-grid">
+      <article class="progress-stat-card">
+        <span>ВЕС</span><b>{{ fmtValue(latest.weight_kg) }}<i v-if="latest.weight_kg != null"> кг</i></b>
+        <small v-if="weightDelta != null" :class="weightDelta <= 0 ? 'positive' : 'negative'">{{ weightDelta <= 0 ? '−' : '+' }} {{ fmt(Math.abs(weightDelta)) }} кг за период</small><small v-else>Последний замер</small>
+      </article>
+      <article class="progress-stat-card">
+        <span>ИМТ</span><b>{{ fmtValue(latest.bmi) }}</b><small class="positive">{{ latest.bmi != null && latest.bmi >= 18.5 && latest.bmi <= 24.9 ? 'Здоровый диапазон' : 'Требует внимания' }}</small>
+      </article>
+      <article class="progress-stat-card">
+        <span>ТАЛИЯ</span><b>{{ fmtValue(latest.waist_cm) }}<i v-if="latest.waist_cm != null"> см</i></b><small class="blue-note">Последний замер</small>
+      </article>
+      <article class="progress-stat-card wellbeing-stat">
+        <span>САМОЧУВСТВИЕ</span><b>{{ wellbeingLabel }}</b><small>сон {{ fmtValue(latest.sleep_score) }} · энергия {{ fmtValue(latest.wellbeing_score) }}</small>
+      </article>
+    </div>
+    <div v-if="latest" class="progress-overview-grid">
+      <section class="progress-chart-card">
+        <div class="progress-section-head"><div><h2>Динамика веса</h2><p>Последние 30 дней</p></div><span v-if="weightHistory.length">{{ weightHistory.length }} замеров</span></div>
+        <div v-if="weightHistory.length" class="progress-chart-wrap">
+          <div class="progress-chart-y"><span>↑</span><span>Вес</span><span>↓</span></div>
+          <svg class="progress-chart" viewBox="0 0 620 220" role="img" aria-label="График динамики веса">
+            <path d="M28 44H594M28 114H594M28 184H594" class="chart-grid-line" />
+            <polygon :points="chartAreaPoints" class="chart-area" />
+            <polyline :points="chartPoints" class="chart-line" />
+            <circle v-if="chartLastPoint" :cx="Number(chartLastPoint.split(',')[0])" :cy="Number(chartLastPoint.split(',')[1])" r="6" class="chart-dot" />
+          </svg>
+          <div class="progress-chart-x"><span>{{ formatDate(weightHistory[0]?.measured_at) }}</span><span>{{ formatDate(weightHistory[weightHistory.length - 1]?.measured_at) }}</span></div>
         </div>
-        <span class="current-badge">Текущий замер</span>
-      </div>
-      <div class="current-progress-main">
-        <span v-for="item in [metric(latest.weight_kg, 'Вес', 'кг'), metric(latest.height_cm, 'Рост', 'см'), metric(latest.bmi, 'ИМТ'), metric(latest.waist_cm, 'Талия', 'см')]" :key="item.label">
-          <b>{{ fmtValue(item.value) }}<i v-if="item.value != null && item.unit"> {{ item.unit }}</i></b>
-          <small>{{ item.label }}</small>
-        </span>
-      </div>
-      <div class="current-progress-details">
-        <div>
-          <h4>Состав тела</h4>
-          <div class="progress-metrics body-composition">
-            <span v-for="item in [metric(latest.body_fat_pct, 'Жир', '%'), metric(latest.fat_mass_kg, 'Масса жира', 'кг'), metric(latest.muscle_pct, 'Мышцы', '%'), metric(latest.muscle_mass_kg, 'Мышечная масса', 'кг')]" :key="item.label">
-              <b>{{ fmtValue(item.value) }}<i v-if="item.value != null && item.unit"> {{ item.unit }}</i></b><small>{{ item.label }}</small>
-            </span>
-          </div>
-        </div>
-        <div>
-          <h4>Нормы питания</h4>
-          <div class="progress-metrics">
-            <span v-for="item in [metric(latest.protein_target_g, 'Белок', 'г'), metric(latest.fat_target_g, 'Жиры', 'г')]" :key="item.label">
-              <b>{{ fmtValue(item.value) }}<i v-if="item.value != null && item.unit"> {{ item.unit }}</i></b><small>{{ item.label }}</small>
-            </span>
-          </div>
-        </div>
-        <div>
-          <h4>Замеры и самочувствие</h4>
-          <div class="progress-metrics">
-            <span v-for="item in [metric(latest.chest_cm, 'Грудь', 'см'), metric(latest.hips_cm, 'Бёдра', 'см'), metric(latest.sleep_score, 'Сон', '/5'), metric(latest.wellbeing_score, 'Самочувствие', '/5')]" :key="item.label">
-              <b>{{ fmtValue(item.value) }}<i v-if="item.value != null && item.unit"> {{ item.unit }}</i></b><small>{{ item.label }}</small>
-            </span>
-          </div>
-        </div>
-      </div>
-      <p v-if="latest.comment" class="progress-comment">{{ latest.comment }}</p>
-      <div class="progress-tile-actions current-progress-actions">
-        <button type="button" class="edit-progress-tile" @click="emit('edit', latest.id)">✎ Редактировать</button>
-        <button type="button" class="delete-progress-tile" @click="remove(latest.id)">Удалить</button>
-      </div>
-    </section>
+        <div v-else class="progress-chart-empty">Добавьте несколько замеров, чтобы увидеть динамику веса.</div>
+      </section>
+      <aside class="progress-latest-card">
+        <p class="eyebrow">ТЕКУЩИЙ ЗАМЕР</p>
+        <h2>{{ formatDate(latest.measured_at) }}</h2>
+        <dl>
+          <div><dt>Вес</dt><dd>{{ fmtValue(latest.weight_kg) }} кг</dd></div>
+          <div><dt>Талия</dt><dd>{{ fmtValue(latest.waist_cm) }} см</dd></div>
+          <div><dt>ИМТ</dt><dd>{{ fmtValue(latest.bmi) }}</dd></div>
+          <div><dt>Самочувствие</dt><dd>{{ wellbeingLabel }}</dd></div>
+        </dl>
+        <button v-if="!props.readOnly" type="button" class="progress-latest-edit" @click="emit('edit', latest.id)">Редактировать</button>
+        <button type="button" class="progress-details-link" @click="emit('edit', latest.id)">Открыть подробности →</button>
+      </aside>
+    </div>
     <div v-else class="panel empty">Замеров пока нет</div>
 
     <div class="progress-history-head">
@@ -147,34 +169,25 @@ async function remove(id: number) {
 
     <div class="progress-grid">
       <article v-for="item in shown" :key="item.id" class="progress-tile">
-        <div class="progress-tile-head">
-          <span class="progress-date">{{ formatDate(item.measured_at) }}</span>
+        <div class="progress-tile-head"><strong>{{ formatDate(item.measured_at) }}</strong><span>ЗАМЕР</span></div>
+        <div class="progress-history-rows">
+          <div><span>Вес</span><b>{{ fmtValue(item.weight_kg) }} кг</b></div>
+          <div><span>Талия</span><b>{{ fmtValue(item.waist_cm) }} см</b></div>
+          <div><span>ИМТ</span><b>{{ fmtValue(item.bmi) }}</b></div>
+          <div><span>Самочувствие</span><b>{{ fmtValue(item.wellbeing_score) }} / 5</b></div>
         </div>
-        <div class="progress-primary">
-          <span v-for="metricItem in [metric(item.weight_kg, 'Вес', 'кг'), metric(item.height_cm, 'Рост', 'см'), metric(item.bmi, 'ИМТ')]" :key="metricItem.label">
-            <b>{{ fmtValue(metricItem.value) }}<i v-if="metricItem.value != null && metricItem.unit"> {{ metricItem.unit }}</i></b><small>{{ metricItem.label }}</small>
-          </span>
-        </div>
-        <h4>Состав тела</h4>
-        <div class="progress-metrics body-composition">
-          <span v-for="metricItem in [metric(item.body_fat_pct, 'Жир', '%'), metric(item.fat_mass_kg, 'Масса жира', 'кг'), metric(item.muscle_pct, 'Мышцы', '%'), metric(item.muscle_mass_kg, 'Мышечная масса', 'кг')]" :key="metricItem.label">
-            <b>{{ fmtValue(metricItem.value) }}<i v-if="metricItem.value != null && metricItem.unit"> {{ metricItem.unit }}</i></b><small>{{ metricItem.label }}</small>
-          </span>
-        </div>
-        <h4>Замеры и самочувствие</h4>
-        <div class="progress-metrics">
-          <span v-for="metricItem in [metric(item.waist_cm, 'Талия', 'см'), metric(item.chest_cm, 'Грудь', 'см'), metric(item.hips_cm, 'Бёдра', 'см'), metric(item.sleep_score, 'Сон', '/5'), metric(item.wellbeing_score, 'Самочувствие', '/5')]" :key="metricItem.label">
-            <b>{{ fmtValue(metricItem.value) }}<i v-if="metricItem.value != null && metricItem.unit"> {{ metricItem.unit }}</i></b><small>{{ metricItem.label }}</small>
-          </span>
-        </div>
-        <p v-if="item.comment" class="progress-comment">{{ item.comment }}</p>
         <div class="progress-tile-actions">
-          <button type="button" class="edit-progress-tile" @click="emit('edit', item.id)">✎ Редактировать</button>
-          <button type="button" class="delete-progress-tile" @click="remove(item.id)">Удалить</button>
+          <button type="button" class="progress-open-button" @click="emit('edit', item.id)">Открыть</button>
+          <button v-if="!props.readOnly" type="button" class="edit-progress-tile" @click="emit('edit', item.id)">Изменить</button>
+          <button v-if="!props.readOnly" type="button" class="delete-progress-tile" @click="remove(item.id)">Удалить</button>
         </div>
+      </article>
+      <article v-if="!props.readOnly" class="progress-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">
+        <span class="progress-add-icon">＋</span><h3>Добавить предыдущий замер</h3><p>Внесите данные за прошлую дату</p><button type="button" class="primary" @click.stop="emit('add')">＋ Добавить замер</button>
       </article>
       <div v-if="!shown.length" class="panel empty">Предыдущих замеров пока нет</div>
     </div>
+    <aside class="progress-tip"><span>ПОДСКАЗКА</span><b>Добавляйте замеры примерно в одно и то же время</b><small>Так динамика веса и объёмов будет сравниваться точнее.</small></aside>
   </template>
 </template>
 

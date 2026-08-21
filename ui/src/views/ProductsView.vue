@@ -11,7 +11,7 @@ const props = defineProps<{
   isAdmin: boolean;
   readOnly?: boolean;
 }>();
-const emit = defineEmits<{ edit: [id: number]; addCategory: [] }>();
+const emit = defineEmits<{ edit: [id: number]; addCategory: []; add: [] }>();
 
 const data = ref<Product[]>([]);
 const loading = ref(false);
@@ -130,7 +130,7 @@ function productCoverClass(category: string | null) {
       </button>
     </section>
 
-    <Toolbar v-model:query="query" placeholder="Поиск продукта…" :count-label="`Продуктов: ${shown.length}`" :reset-disabled="!sort.dir" @reset="resetSort">
+    <Toolbar class="product-toolbar" v-model:query="query" placeholder="Поиск по названию…" :count-label="`${shown.length} продуктов`" :reset-disabled="!sort.dir" @reset="resetSort">
       <select id="product-order" :value="orderValue" aria-label="Сортировка продуктов" @change="setOrder(($event.target as HTMLSelectElement).value)">
         <option value="">Исходный порядок</option>
         <option value="name:1">Название: А–Я</option>
@@ -149,6 +149,7 @@ function productCoverClass(category: string | null) {
       </select>
     </Toolbar>
 
+    <div class="product-results-head"><h2>Карточки продуктов</h2><span>{{ shown.length ? '1–' + shown.length : '0' }} из {{ data.length }}</span></div>
     <div id="product-grid" class="product-grid">
       <div class="product-table-head" aria-hidden="true">
         <span>Название</span><span>Категория</span><span>Ккал</span><span>Белки</span><span>Жиры</span><span>Углеводы</span>
@@ -178,6 +179,9 @@ function productCoverClass(category: string | null) {
           <button type="button" class="edit-product" @click="emit('edit', item.id)">✎ Редактировать</button>
           <button type="button" class="delete-product" @click="remove(item.id)">Удалить</button>
         </div>
+      </article>
+      <article v-if="!props.readOnly" class="product-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">
+        <span class="product-add-icon">＋</span><span><b>Добавить продукт</b><small>Создайте продукт с КБЖУ и стоимостью упаковки</small></span><button type="button" class="primary" @click.stop="emit('add')">＋ Новый продукт</button>
       </article>
       <div v-if="!shown.length" class="panel empty">Ничего не найдено</div>
     </div>

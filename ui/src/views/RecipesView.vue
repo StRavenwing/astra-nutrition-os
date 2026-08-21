@@ -8,7 +8,7 @@ import Toolbar from '@/components/shared/Toolbar.vue';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 
 const props = defineProps<{ refreshKey: number; isAdmin: boolean; readOnly?: boolean }>();
-const emit = defineEmits<{ openRecipe: [id: number]; edit: [id: number]; addCategory: [] }>();
+const emit = defineEmits<{ openRecipe: [id: number]; edit: [id: number]; addCategory: []; add: [] }>();
 
 const data = ref<RecipeSummary[]>([]);
 const loading = ref(false);
@@ -193,6 +193,35 @@ async function removeRecipe(item: RecipeSummary) {
       </button>
     </section>
 
+    <details class="legend">
+      <summary>Что означают ID рецептов?</summary>
+      <div>
+        <span v-for="(value, key) in idLegend" :key="key"><b>{{ key }}-</b> {{ value }}</span>
+      </div>
+      <p>Цифры после дефиса — последовательный номер рецепта в категории.</p>
+    </details>
+
+    <Toolbar class="recipe-toolbar" v-model:query="query" placeholder="Поиск по названию, продуктам…" :count-label="`Записей: ${shown.length}`" :reset-disabled="!sort.dir" @reset="resetSort">
+      <select id="recipe-order" :value="orderValue" aria-label="Сортировка рецептов" @change="setOrder(($event.target as HTMLSelectElement).value)">
+        <option value="">Исходный порядок</option>
+        <option value="name:1">Название: А–Я</option>
+        <option value="name:-1">Название: Я–А</option>
+        <option value="category:1">Категория: А–Я</option>
+        <option value="version:1">Версия: по возрастанию</option>
+        <option value="version:-1">Версия: по убыванию</option>
+        <option value="kcal_per_serving:1">Калории: меньше</option>
+        <option value="kcal_per_serving:-1">Калории: больше</option>
+        <option value="protein_per_serving_g:-1">Белок: больше</option>
+        <option value="protein_per_serving_g:1">Белок: меньше</option>
+        <option value="cost_per_serving_rsd:1">Цена: меньше</option>
+        <option value="cost_per_serving_rsd:-1">Цена: больше</option>
+      </select>
+      <select :value="collection" aria-label="Коллекция рецептов" @change="collection = ($event.target as HTMLSelectElement).value as 'common' | 'local'; category = 'all'">
+        <option value="common">Общая коллекция</option>
+        <option value="local">Мои рецепты</option>
+      </select>
+    </Toolbar>
+
     <section class="recipe-categories visual" aria-label="Типы рецептов">
       <button type="button" class="category-card all" :class="{ active: category === 'all' }" @click="category = 'all'">
         <span class="category-photo all-photo"></span>
@@ -218,34 +247,7 @@ async function removeRecipe(item: RecipeSummary) {
       </button>
     </section>
 
-    <details class="legend">
-      <summary>Что означают ID рецептов?</summary>
-      <div>
-        <span v-for="(value, key) in idLegend" :key="key"><b>{{ key }}-</b> {{ value }}</span>
-      </div>
-      <p>Цифры после дефиса — последовательный номер рецепта в категории.</p>
-    </details>
-
-    <Toolbar v-model:query="query" :count-label="`Записей: ${shown.length}`" :reset-disabled="!sort.dir" @reset="resetSort">
-      <select id="recipe-order" :value="orderValue" aria-label="Сортировка рецептов" @change="setOrder(($event.target as HTMLSelectElement).value)">
-        <option value="">Исходный порядок</option>
-        <option value="name:1">Название: А–Я</option>
-        <option value="name:-1">Название: Я–А</option>
-        <option value="category:1">Категория: А–Я</option>
-        <option value="version:1">Версия: по возрастанию</option>
-        <option value="version:-1">Версия: по убыванию</option>
-        <option value="kcal_per_serving:1">Калории: меньше</option>
-        <option value="kcal_per_serving:-1">Калории: больше</option>
-        <option value="protein_per_serving_g:-1">Белок: больше</option>
-        <option value="protein_per_serving_g:1">Белок: меньше</option>
-        <option value="cost_per_serving_rsd:1">Цена: меньше</option>
-        <option value="cost_per_serving_rsd:-1">Цена: больше</option>
-      </select>
-      <select :value="collection" aria-label="Коллекция рецептов" @change="collection = ($event.target as HTMLSelectElement).value as 'common' | 'local'; category = 'all'">
-        <option value="common">Общая коллекция</option>
-        <option value="local">Мои рецепты</option>
-      </select>
-    </Toolbar>
+    <div class="recipes-results-head"><h2>Все рецепты</h2><span>Записей: {{ shown.length }}</span></div>
 
     <div id="recipe-grid" class="recipe-grid">
       <article v-for="item in shown" :key="item.id" class="recipe-tile" tabindex="0" title="Открыть рецепт" @click="emit('openRecipe', item.id)" @keydown.enter.prevent="emit('openRecipe', item.id)" @keydown.space.prevent="emit('openRecipe', item.id)">
@@ -279,6 +281,12 @@ async function removeRecipe(item: RecipeSummary) {
           <button type="button" class="edit-recipe" @click="emit('edit', item.id)">✎ Редактировать</button>
           <button type="button" class="delete-recipe" @click="removeRecipe(item)">Удалить</button>
         </div>
+      </article>
+      <article v-if="!props.readOnly" class="recipe-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">
+        <span class="recipe-add-icon">＋</span>
+        <h3>Добавить рецепт</h3>
+        <p>Создать новую карточку</p>
+        <button type="button" class="primary" @click.stop="emit('add')">＋ Добавить</button>
       </article>
       <div v-if="!shown.length" class="panel empty">Ничего не найдено</div>
     </div>

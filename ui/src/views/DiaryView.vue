@@ -6,8 +6,8 @@ import type { DiaryEntry, ProgressEntry } from '@/types';
 import { dayIso, diaryTotals, fmt, localToday } from '@/utils/format';
 import CalendarModal from '@/components/modals/CalendarModal.vue';
 
-const props = defineProps<{ refreshKey: number }>();
-const emit = defineEmits<{ edit: [id: number] }>();
+const props = defineProps<{ refreshKey: number; readOnly?: boolean }>();
+const emit = defineEmits<{ edit: [id: number]; add: [] }>();
 
 const data = ref<DiaryEntry[]>([]);
 const progress = ref<ProgressEntry[]>([]);
@@ -65,6 +65,20 @@ const monthOffset = computed(() => (new Date(monthDate.value.year, monthDate.val
 const selectedDayItems = computed(() => data.value.filter((item) => item.entry_date === selectedDate.value));
 const selectedDayTotals = computed(() => diaryTotals(selectedDayItems.value));
 const selectedDayLabel = computed(() => new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${selectedDate.value}T12:00:00`)));
+const kcalTarget = 2100;
+const effectiveProteinTarget = computed(() => proteinTarget.value || 110);
+const effectiveFatTarget = computed(() => fatTarget.value || 70);
+const averageKcal = computed(() => filledDays.value ? monthTotals.value.kcal / filledDays.value : 0);
+const averageProtein = computed(() => filledDays.value ? monthTotals.value.protein / filledDays.value : 0);
+const kcalDelta = computed(() => Math.round(kcalTarget - averageKcal.value));
+const proteinDelta = computed(() => Math.round(effectiveProteinTarget.value - averageProtein.value));
+
+function dayProgress(day: number) {
+  const items = itemsForDay(day);
+  if (!items.length) return 'empty';
+  const kcal = diaryTotals(items).kcal;
+  return kcal >= kcalTarget * 0.8 ? 'complete' : 'partial';
+}
 
 function openMonthChooser() {
   monthInput.value = month.value;
@@ -75,6 +89,15 @@ function selectMonth(key: string) {
   if (!key) return;
   month.value = key;
   calendarMode.value = null;
+}
+
+function shiftMonth(delta: number) {
+  const date = new Date(monthDate.value.year, monthDate.value.monthIndex + delta, 1);
+  month.value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function selectCurrentMonth() {
+  month.value = currentMonthKey;
 }
 
 function openDay(iso: string) {
@@ -102,6 +125,7 @@ function mealTotal(meal: string) {
 }
 
 async function removeEntry(id: number) {
+  if (props.readOnly) return;
   if (!confirm('Удалить запись из дневника? Это действие нельзя отменить.')) return;
   try {
     await api.delete(`diary/${id}`);
@@ -112,6 +136,7 @@ async function removeEntry(id: number) {
 }
 
 function editEntry(id: number) {
+  if (props.readOnly) return;
   calendarMode.value = null;
   emit('edit', id);
 }
@@ -122,65 +147,86 @@ function editEntry(id: number) {
   <div v-else-if="error" class="panel empty">{{ error }}</div>
   <template v-else>
     <p class="diary-page-subtitle">Food Calendar помогает увидеть ритм без лишнего контроля</p>
-    <button type="button" class="current-day-card" @click="openDay(todayIso)">
-      <div class="current-day-head">
+    <section class="diary-current-day">
+      <div class="diary-current-banner">
         <div>
-          <p class="eyebrow">СЕГОДНЯ</p>
+          <p class="eyebrow">FOOD CALENDAR</p>
           <h2>{{ todayLabel }}</h2>
         </div>
-        <span>Открыть день →</span>
-      </div>
-      <div class="current-day-body">
-        <div class="today-meals">
-          <template v-for="meal in mealOrder" :key="meal">
-            <div v-if="todayItems.filter((item) => item.meal_type === meal).length" class="today-meal-row">
-              <span>{{ meal }}</span>
-              <b>{{ todayItems.filter((item) => item.meal_type === meal).map((item) => item.name).join(', ') }}</b>
-              <small>{{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).kcal) }} ккал</small>
-            </div>
-          </template>
-          <div v-if="!todayItems.length" class="today-empty">
-            <b>Записей пока нет</b>
-            <small>Добавь блюда через кнопку «Добавить»</small>
-          </div>
+        <div class="diary-current-stats">
+          <span><small>Заполнено дней в месяце</small><b>{{ filledDays }}</b></span>
+          <span><small>Средняя стоимость дня</small><b>{{ fmt(filledDays ? monthTotals.cost / filledDays : 0) }} RSD</b></span>
         </div>
-        <div class="today-kbju">
-          <span><b>{{ fmt(todayTotals.kcal) }}</b><small>ккал</small></span>
-          <span :class="{ 'goal-met': proteinTarget && todayTotals.protein >= proteinTarget }">
-            <b>{{ fmt(todayTotals.protein) }}</b>
-            <small class="goal-label">
-              <template v-if="proteinTarget">{{ fmt(Math.max(proteinTarget - todayTotals.protein, 0)) }} г осталось до нормы</template>
-              <template v-else>белки</template>
-            </small>
-          </span>
-          <span :class="{ 'goal-exceeded': fatTarget && todayTotals.fat > fatTarget }">
-            <b>{{ fmt(todayTotals.fat) }}</b>
-            <small class="goal-label">
-              <template v-if="fatTarget && todayTotals.fat <= fatTarget">{{ fmt(fatTarget - todayTotals.fat) }} г осталось до максимума</template>
-              <template v-else-if="fatTarget">{{ fmt(todayTotals.fat - fatTarget) }} г выше максимума</template>
-              <template v-else>жиры</template>
-            </small>
-          </span>
-          <span><b>{{ fmt(todayTotals.carbs) }}</b><small>углеводы</small></span>
-          <span class="today-cost"><b>{{ fmt(todayTotals.cost) }} RSD</b><small>стоимость дня</small></span>
-        </div>
+        <button type="button" class="today-badge" @click="openDay(todayIso)">Сегодня</button>
       </div>
-    </button>
+    </section>
 
-    <div class="diary-month-head">
-      <div>
-        <p class="eyebrow">ДНЕВНИК ПИТАНИЯ</p>
-        <h2>{{ monthLabel }}</h2>
-      </div>
-      <button type="button" class="change-month" @click="openMonthChooser">▦ Сменить месяц</button>
+    <div class="diary-widget-heading">
+      <h2>Виджет текущего дня</h2>
+      <p>Список блюд по приёмам пищи и состояние дневной нормы</p>
     </div>
 
-    <div class="diary-summary month-summary">
-      <div><span>Заполненных дней</span><b>{{ filledDays }}</b></div>
-      <div><span>Средний белок в день</span><b>{{ filledDays ? `${fmt(monthTotals.protein / filledDays)} г` : '—' }}</b></div>
-      <div><span>Средние жиры в день</span><b>{{ filledDays ? `${fmt(monthTotals.fat / filledDays)} г` : '—' }}</b></div>
-      <div><span>Калории за месяц</span><b>{{ fmt(monthTotals.kcal) }}</b></div>
-      <div><span>Среднее за заполненный день</span><b>{{ filledDays ? fmt(monthTotals.kcal / filledDays) : '—' }}</b></div>
+    <div class="diary-current-grid">
+      <section class="diary-meals-card">
+        <p class="eyebrow">{{ todayLabel }}</p>
+        <h2>Сегодня</h2>
+        <div class="diary-meal-list">
+          <template v-for="meal in mealOrder" :key="meal">
+            <article v-if="todayItems.filter((item) => item.meal_type === meal).length" class="diary-meal-card">
+              <span class="diary-meal-icon">{{ meal.slice(0, 1) }}</span>
+              <div>
+                <b>{{ meal }}</b>
+                <small>{{ todayItems.filter((item) => item.meal_type === meal).length }} блюда · {{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).kcal) }} ккал</small>
+                <p>{{ todayItems.filter((item) => item.meal_type === meal).map((item) => item.name).join(' · ') }}</p>
+              </div>
+              <strong>{{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).kcal) }} ккал<small>белок {{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).protein) }} г</small></strong>
+            </article>
+          </template>
+          <template v-for="meal in mealOrder" :key="`empty-${meal}`">
+            <article v-if="!todayItems.filter((item) => item.meal_type === meal).length && (meal === 'Ужин' || meal === 'Перекус')" class="diary-meal-card diary-meal-empty">
+              <span class="diary-meal-icon">{{ meal.slice(0, 1) }}</span>
+              <div><b>{{ meal }}</b><small>Ещё не добавлен</small></div>
+              <button v-if="!props.readOnly" type="button" class="diary-add-meal" @click="emit('add')">＋ Добавить</button>
+            </article>
+          </template>
+          <div v-if="!todayItems.length" class="today-empty"><b>Записей пока нет</b><small>Добавьте блюдо через кнопку «Запись»</small></div>
+        </div>
+      </section>
+
+      <aside class="diary-norm-card">
+        <h2>Норма за день</h2>
+        <p>Остаток показывается при наличии нормы</p>
+        <div class="diary-norm-item norm-kcal"><span>КАЛОРИИ</span><b>{{ fmt(todayTotals.kcal) }} / {{ fmt(kcalTarget) }} ккал</b><small>Осталось {{ fmt(Math.max(kcalTarget - todayTotals.kcal, 0)) }} ккал</small><i><em :style="{ width: `${Math.min(todayTotals.kcal / kcalTarget * 100, 100)}%` }"></em></i></div>
+        <div class="diary-norm-item norm-protein"><span>БЕЛОК</span><b>{{ fmt(todayTotals.protein) }} / {{ fmt(effectiveProteinTarget) }} г</b><small>Осталось {{ fmt(Math.max(effectiveProteinTarget - todayTotals.protein, 0)) }} г</small><i><em :style="{ width: `${Math.min(todayTotals.protein / effectiveProteinTarget * 100, 100)}%` }"></em></i></div>
+        <div class="diary-norm-item norm-fat" :class="{ exceeded: todayTotals.fat > effectiveFatTarget }"><span>ЖИРЫ · МАКСИМУМ</span><b>{{ fmt(todayTotals.fat) }} / {{ fmt(effectiveFatTarget) }} г</b><small>{{ todayTotals.fat > effectiveFatTarget ? `Превышено на ${fmt(todayTotals.fat - effectiveFatTarget)} г` : `Осталось ${fmt(effectiveFatTarget - todayTotals.fat)} г` }}</small><i><em :style="{ width: `${Math.min(todayTotals.fat / effectiveFatTarget * 100, 100)}%` }"></em></i></div>
+      </aside>
+    </div>
+
+    <div class="diary-average-heading">
+      <div><h2>Средние показатели месяца</h2><p>Отдельно от виджета текущего дня · по заполненным дням</p></div>
+      <span>{{ filledDays }} заполненных дней</span>
+    </div>
+    <div class="diary-average-grid">
+      <article class="diary-average-card average-kcal">
+        <span>СРЕДНЯЯ КАЛОРИЙНОСТЬ</span><b>{{ fmt(averageKcal) }} ккал</b><small>в день · цель {{ fmt(kcalTarget) }} ккал</small><strong>{{ kcalDelta >= 0 ? '−' : '+' }}{{ fmt(Math.abs(kcalDelta)) }}</strong>
+        <svg viewBox="0 0 420 64" aria-hidden="true"><path d="M2 48H418M2 26H418"/><polyline points="2,38 32,28 62,36 92,22 122,31 152,25 182,16 212,30 242,19 272,25 302,12 332,22 362,8 392,18 418,6"/></svg>
+      </article>
+      <article class="diary-average-card average-protein">
+        <span>СРЕДНИЙ БЕЛОК</span><b>{{ fmt(averageProtein) }} г</b><small>в день · цель {{ fmt(effectiveProteinTarget) }} г</small><strong>{{ proteinDelta >= 0 ? '−' : '+' }}{{ fmt(Math.abs(proteinDelta)) }} г</strong>
+        <svg viewBox="0 0 420 64" aria-hidden="true"><path d="M2 48H418M2 26H418"/><polyline points="2,42 32,35 62,29 92,38 122,24 152,33 182,18 212,28 242,16 272,23 302,12 332,20 362,8 392,16 418,5"/></svg>
+      </article>
+    </div>
+
+    <div class="diary-month-head diary-calendar-heading">
+      <div>
+        <h2>Календарь питания</h2>
+        <p>Нажмите на день, чтобы открыть подробное содержание</p>
+      </div>
+      <div class="diary-calendar-actions">
+        <button type="button" class="change-month" aria-label="Предыдущий месяц" @click="shiftMonth(-1)">‹</button>
+        <button type="button" class="change-month" @click="openMonthChooser">{{ monthLabel }}</button>
+        <button type="button" class="primary" @click="selectCurrentMonth">Сегодня</button>
+      </div>
     </div>
 
     <section class="diary-days-panel">
@@ -194,7 +240,7 @@ function editEntry(id: number) {
           :key="day"
           type="button"
           class="diary-day-card"
-          :class="{ filled: itemsForDay(day).length }"
+          :class="[dayProgress(day), { filled: itemsForDay(day).length, today: dayIso(monthDate.year, monthDate.monthIndex, day) === todayIso }]"
           @click="openDay(dayIso(monthDate.year, monthDate.monthIndex, day))"
         >
           <span class="diary-day-number">{{ day }}</span>
@@ -224,32 +270,38 @@ function editEntry(id: number) {
   </CalendarModal>
 
   <CalendarModal :open="calendarMode === 'day'" :title="selectedDayLabel" @close="calendarMode = null">
-    <button type="button" class="calendar-back" @click="calendarMode = null">← Закрыть день</button>
+    <div class="diary-day-summary">
+      <div><span>ИТОГ ЗА ДЕНЬ</span><b>{{ selectedDayItems.length }} приёма · {{ fmt(selectedDayTotals.kcal) }} ккал · белок {{ fmt(selectedDayTotals.protein) }} г · жиры {{ fmt(selectedDayTotals.fat) }} г</b></div>
+      <button v-if="!props.readOnly" type="button" class="diary-day-edit" @click="emit('add'); calendarMode = null">Изменить день</button>
+    </div>
     <template v-for="meal in mealOrder" :key="meal">
-      <section v-if="selectedDayItems.filter((item) => item.meal_type === meal).length" class="meal-group">
+      <section class="meal-group diary-popup-meal-group">
         <h3>{{ meal }} <span class="meal-cost">{{ fmt(mealTotal(meal).cost) }} RSD</span></h3>
         <template v-for="item in selectedDayItems.filter((entry) => entry.meal_type === meal)" :key="item.id">
-          <button type="button" class="meal-entry" @click="editEntry(item.id)">
+          <button type="button" class="meal-entry" :disabled="props.readOnly" @click="editEntry(item.id)">
             <span><b>{{ item.name }}</b><small>{{ entryCaption(item) }}</small></span>
             <strong>{{ fmt((Number(item.kcal_per_serving) || 0) * (Number(item.servings) || 0)) }} ккал</strong>
           </button>
-          <div class="diary-entry-actions">
+          <div v-if="!props.readOnly" class="diary-entry-actions">
             <button type="button" class="edit-diary-entry" @click="editEntry(item.id)">Редактировать</button>
             <button type="button" class="delete-diary-entry" @click="removeEntry(item.id)">Удалить</button>
           </div>
         </template>
+        <button v-if="!props.readOnly" type="button" class="diary-calendar-add" @click="emit('add'); calendarMode = null">＋ Добавить блюдо в {{ meal.toLowerCase() }}</button>
       </section>
     </template>
     <div v-if="!selectedDayItems.length" class="empty day-empty">В этот день записей пока нет</div>
-    <div class="day-total">
-      <h3>Итого за день</h3>
+    <div class="day-total diary-popup-nutrients">
+      <h3>Нутриенты дня</h3>
       <div>
-        <span><b>{{ fmt(selectedDayTotals.kcal) }}</b><small>ккал</small></span>
-        <span><b>{{ fmt(selectedDayTotals.protein) }}</b><small>белки</small></span>
-        <span><b>{{ fmt(selectedDayTotals.fat) }}</b><small>жиры</small></span>
-        <span><b>{{ fmt(selectedDayTotals.carbs) }}</b><small>углеводы</small></span>
-        <span class="day-cost"><b>{{ fmt(selectedDayTotals.cost) }} RSD</b><small>стоимость дня</small></span>
+        <span><b>{{ fmt(selectedDayTotals.kcal) }} / {{ fmt(kcalTarget) }}</b><small>калории · осталось {{ fmt(Math.max(kcalTarget - selectedDayTotals.kcal, 0)) }}</small></span>
+        <span class="nutrient-protein"><b>{{ fmt(selectedDayTotals.protein) }} / {{ fmt(effectiveProteinTarget) }} г</b><small>белок · {{ selectedDayTotals.protein >= effectiveProteinTarget ? 'норма достигнута' : `осталось ${fmt(effectiveProteinTarget - selectedDayTotals.protein)} г` }}</small></span>
+        <span class="nutrient-fat"><b>{{ fmt(selectedDayTotals.fat) }} / {{ fmt(effectiveFatTarget) }} г</b><small>жиры · {{ selectedDayTotals.fat >= effectiveFatTarget ? 'максимум достигнут' : `осталось ${fmt(effectiveFatTarget - selectedDayTotals.fat)} г` }}</small></span>
       </div>
+    </div>
+    <div class="diary-popup-footer">
+      <button type="button" class="secondary-button" @click="calendarMode = null">Отмена</button>
+      <button v-if="!props.readOnly" type="button" class="primary" @click="emit('add'); calendarMode = null">＋ Добавить запись</button>
     </div>
   </CalendarModal>
 </template>
