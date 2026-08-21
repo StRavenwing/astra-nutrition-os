@@ -4353,4 +4353,416 @@ body main .history-card-actions .history-details-action {
   line-height: 1;
 }
 body main .history-card-actions .history-details-action:hover { border-color: #6f82ff; background: #dfeaff; color: #566ddf; }
+
+/* Complex cards: keep the visual, content and actions inside the card bounds. */
+body main .workout-complex-grid > .workout-complex-card:not(.workout-create-card) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  min-height: 184px !important;
+  height: 184px;
+  overflow: hidden;
+  padding: 0 !important;
+}
+body main .workout-complex-card:not(.workout-create-card) .workout-complex-photo {
+  flex: 0 0 72px;
+  height: 72px;
+  min-height: 72px;
+}
+body main .workout-complex-card:not(.workout-create-card) .category-copy {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 10px 16px 0;
+}
+body main .workout-complex-card:not(.workout-create-card) .category-copy b { line-height: 18px; }
+body main .workout-complex-card:not(.workout-create-card) .category-copy small { margin-top: 2px; line-height: 14px; }
+body main .workout-complex-card:not(.workout-create-card) .workout-complex-actions {
+  flex: 0 0 46px;
+  min-height: 46px;
+  margin-top: 0;
+  padding: 7px 16px 9px;
+}
+body main .workout-complex-card:not(.workout-create-card) .create-complex-button,
+body main .workout-complex-card:not(.workout-create-card) .edit-complex-button { min-height: 30px; height: 30px; }
+body main .workout-complex-grid > .workout-create-card.workout-complex-card {
+  grid-column: span 2;
+  min-height: 154px !important;
+  height: 154px;
+}
+@media (max-width: 900px) {
+  body main .workout-complex-grid > .workout-create-card.workout-complex-card { grid-column: 1 / -1; }
+}
+
+/* Content card pattern: WORKOUT CARD · 354 x 300 from astra-component-cards.svg. */
+body main .workout-complex-grid { grid-template-columns: repeat(auto-fill, minmax(354px, 1fr)) !important; gap: 20px !important; }
+body main .workout-complex-grid > .workout-complex-card:not(.workout-create-card) {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  width: 354px;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 300px !important;
+  height: 300px;
+  padding: 0 !important;
+  overflow: hidden;
+  border: 0;
+  border-radius: 18px !important;
+  background: #fff;
+  box-shadow: 0 8px 24px #15233d14;
+}
+body main .workout-complex-grid > .workout-complex-card:not(.workout-create-card):hover,
+body main .workout-complex-grid > .workout-complex-card:not(.workout-create-card):focus-visible {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px #6f82ff26, 0 12px 30px #15233d20;
+  outline: none;
+  transform: translateY(-2px);
+}
+body main .workout-complex-cover {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: 0 0 108px;
+  width: calc(100% - 32px);
+  height: 108px;
+  margin: 16px 16px 0;
+  padding: 0 14px 0 20px;
+  box-sizing: border-box;
+  border-radius: 13px;
+  background: #f0f1ff;
+}
+body main .workout-complex-mark { color: #6f82ff; font-size: 46px; line-height: 1; }
+body main .workout-complex-duration { padding: 5px 10px; border-radius: 8px; background: #fff; color: #6f82ff; font-size: 12px; font-weight: 700; }
+body main .workout-complex-body { display: flex; flex: 1 1 auto; min-height: 0; flex-direction: column; padding: 0 20px 14px; }
+body main .workout-complex-body h3 { display: -webkit-box; min-height: 22px; margin: 16px 0 4px; overflow: hidden; color: #172033; font-size: 18px; line-height: 22px; text-align: left; text-overflow: ellipsis; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
+body main .workout-complex-body > p { min-height: 17px; margin: 0; overflow: hidden; color: #7d879b; font-size: 12px; line-height: 17px; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+body main .workout-complex-divider { flex: 0 0 1px; height: 1px; margin: 10px 0 9px; background: #edf0f5; }
+body main .workout-complex-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 18px; color: #7d879b; font-size: 12px; line-height: 18px; }
+body main .workout-complex-meta span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body main .workout-complex-meta strong { flex: 0 0 auto; color: #329a63; font-size: 12px; font-weight: 700; }
+body main .workout-complex-body .workout-complex-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 28px; min-height: 28px; margin-top: auto; padding: 0; }
+body main .workout-complex-body .create-complex-button { flex: 0 0 164px; width: 164px; min-height: 28px; height: 28px; border: 0; border-radius: 8px; padding: 0 10px; background: #172033; color: #fff; font-size: 12px; font-weight: 700; }
+body main .workout-complex-body .create-complex-button:hover { background: #2a3549; }
+body main .workout-complex-body .edit-complex-button { flex: 0 0 36px; width: 36px; min-width: 36px; height: 28px; min-height: 28px; padding: 0; border: 1px solid #d9e2ec; border-radius: 8px; background: #f6f8fc; color: #6f82ff; font-size: 15px; }
+body main .workout-complex-body .edit-complex-button:hover { border-color: #79a8ff; background: #eaf2ff; }
+body main .workout-complex-grid > .workout-create-card.workout-complex-card { grid-column: span 2; }
+@media (max-width: 900px) {
+  body main .workout-complex-grid { grid-template-columns: minmax(0, 354px) !important; }
+  body main .workout-complex-grid > .workout-create-card.workout-complex-card { grid-column: 1; }
+}
+@media (max-width: 500px) {
+  body main .workout-complex-grid { grid-template-columns: 1fr !important; }
+  body main .workout-complex-grid > .workout-complex-card:not(.workout-create-card) { width: 100%; }
+}
+
+/* Article content cards: reset the legacy flow so long titles cannot push actions over the excerpt. */
+body main .theory-page .article-grid { display: grid !important; grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 24px !important; }
+body main .theory-page .article-card {
+  position: relative !important;
+  display: block !important;
+  box-sizing: border-box;
+  width: 100%;
+  height: 300px !important;
+  min-height: 300px !important;
+  padding: 20px !important;
+  overflow: hidden !important;
+  border: 0;
+  border-radius: 18px !important;
+  background: #fff;
+  box-shadow: 0 8px 24px #15233d14;
+}
+body main .theory-page .article-card::before {
+  content: '' !important;
+  position: absolute !important;
+  inset: 16px 16px auto !important;
+  width: auto !important;
+  height: 108px !important;
+  margin: 0 !important;
+  border-radius: 13px !important;
+  background: #dff2f7 !important;
+  z-index: 0;
+}
+body main .theory-page .article-card::after {
+  content: '◈' !important;
+  position: absolute !important;
+  top: 48px !important;
+  left: 38px !important;
+  z-index: 1;
+  color: #4b9db0;
+  font-size: 44px;
+  line-height: 1;
+}
+body main .theory-page .article-card > img { display: none !important; }
+body main .theory-page .article-card .article-card-head { position: absolute; top: 30px; left: 24px; z-index: 2; }
+body main .theory-page .article-card .article-card-head .eyebrow { margin: 0; padding: 5px 9px; border-radius: 8px; background: #ffffffd1; color: #4b9db0; font-size: 10px; }
+body main .theory-page .article-card .article-title {
+  position: absolute;
+  top: 138px;
+  left: 20px;
+  right: 20px;
+  display: -webkit-box;
+  height: 48px;
+  min-height: 48px !important;
+  margin: 0 !important;
+  overflow: hidden;
+  color: #172033;
+  font-size: 20px !important;
+  line-height: 24px !important;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+body main .theory-page .article-card .article-lead {
+  position: absolute;
+  top: 194px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  height: 34px;
+  min-height: 34px;
+  overflow: hidden;
+  color: #7d879b;
+  line-height: 17px;
+}
+body main .theory-page .article-card .article-open-icon { flex: 0 0 24px; width: 24px; height: 24px; }
+body main .theory-page .article-card .article-excerpt {
+  display: -webkit-box;
+  max-height: 34px;
+  margin: 0;
+  overflow: hidden;
+  color: #7d879b;
+  font-size: 12px;
+  line-height: 17px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+body main .theory-page .article-card .article-tags { display: none !important; }
+body main .theory-page .article-card .article-card-primary {
+  position: absolute;
+  left: 20px;
+  bottom: 14px;
+  z-index: 3;
+  width: 132px;
+  min-width: 132px;
+  height: 28px;
+  min-height: 28px !important;
+  margin: 0 !important;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 11px;
+}
+body main .theory-page .article-card .article-card-actions {
+  position: absolute;
+  right: 20px;
+  bottom: 14px;
+  z-index: 3;
+  display: flex !important;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  min-height: 28px;
+  margin: 0 !important;
+}
+body main .theory-page .article-card .article-card-actions button {
+  flex: 0 0 28px;
+  width: 28px;
+  min-width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1;
+}
+body main .theory-page .article-card .article-pin-action { top: 30px; right: 16px; z-index: 4; width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; border: 1px solid #7bc8a4; border-radius: 10px; background: #e7f6ee; color: #216e4e; }
+body main .theory-page .article-card:hover,
+body main .theory-page .article-card:focus-visible { border-color: transparent; box-shadow: 0 0 0 2px #4b9db026, 0 12px 30px #15233d20; outline: none; transform: translateY(-2px); }
+@media (max-width: 900px) { body main .theory-page .article-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
+@media (max-width: 600px) { body main .theory-page .article-grid { grid-template-columns: 1fr !important; } }
+
+/* Product v3 final card reset: 242 x 312, with visible name and actions. */
+body main .product-catalog-layout > .product-grid { grid-template-columns: repeat(auto-fill, 242px) !important; gap: 20px !important; justify-content: start; }
+body main .product-catalog-layout > .product-grid > .product-tile {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  justify-content: flex-start !important;
+  box-sizing: border-box;
+  width: 242px;
+  min-width: 242px;
+  max-width: 242px;
+  height: 312px !important;
+  min-height: 312px !important;
+  max-height: 312px;
+  padding: 0 !important;
+  overflow: hidden;
+  border: 1px solid #e5eaf2;
+  border-radius: 18px !important;
+  background: #fff;
+  color: #172033;
+  box-shadow: 0 8px 28px #15233d12;
+  cursor: pointer;
+}
+body main .product-catalog-layout > .product-grid > .product-tile:hover,
+body main .product-catalog-layout > .product-grid > .product-tile:focus-visible { border-color: #79a8ff; box-shadow: 0 0 0 2px #79a8ff26, 0 12px 30px #15233d18; outline: none; transform: translateY(-2px); }
+body main .product-catalog-layout .product-tile::before { display: none !important; }
+body main .product-catalog-layout .product-tile .product-cover {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 96px;
+  width: 100%;
+  height: 96px;
+  min-height: 96px;
+  margin: 0 !important;
+  border-radius: 18px 18px 13px 13px;
+}
+body main .product-catalog-layout .product-tile .product-cover-label { display: none !important; }
+body main .product-catalog-layout .product-tile .product-cover-icon { width: 54px; height: 54px; border-radius: 50%; background: #ffffffd9; }
+body main .product-catalog-layout .product-tile .product-cover-icon.product-sprite::before { width: 50px; height: 50px; }
+body main .product-catalog-layout .product-tile .product-tile-head { display: none !important; }
+body main .product-catalog-layout .product-tile .product-tile-category {
+  display: block !important;
+  min-height: 12px;
+  margin: 22px 18px 0 !important;
+  color: #d88927;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  line-height: 12px;
+  text-transform: uppercase;
+}
+body main .product-catalog-layout .product-tile.product-cover-tone-0 .product-tile-category { color: #329a63; }
+body main .product-catalog-layout .product-tile.product-cover-tone-1 .product-tile-category { color: #d88927; }
+body main .product-catalog-layout .product-tile.product-cover-tone-2 .product-tile-category { color: #6f82ff; }
+body main .product-catalog-layout .product-tile.product-cover-tone-3 .product-tile-category { color: #d56666; }
+body main .product-catalog-layout .product-tile.product-cover-tone-4 .product-tile-category { color: #6652c7; }
+body main .product-catalog-layout .product-tile.product-cover-tone-5 .product-tile-category { color: #4aa8b3; }
+body main .product-catalog-layout .product-tile h3 {
+  display: -webkit-box;
+  min-height: 19px;
+  height: 19px;
+  margin: 6px 18px 3px !important;
+  overflow: hidden;
+  color: #172033;
+  font-size: 16px !important;
+  font-weight: 750;
+  line-height: 19px !important;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+body main .product-catalog-layout .product-tile > p {
+  display: -webkit-box;
+  min-height: 17px;
+  height: 17px;
+  margin: 0 18px !important;
+  overflow: hidden;
+  color: #7d879b;
+  font-size: 12px;
+  line-height: 17px;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+body main .product-catalog-layout .product-tile .product-macros {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 12px 18px 0;
+  padding-top: 8px;
+  border-top: 1px solid #e5eaf2;
+}
+body main .product-catalog-layout .product-tile .product-macros span { padding: 0; background: transparent; text-align: left; }
+body main .product-catalog-layout .product-tile .product-macros span:nth-child(4) { display: none; }
+body main .product-catalog-layout .product-tile .product-macros b { color: #172033; font-size: 16px; line-height: 19px; }
+body main .product-catalog-layout .product-tile .product-macros span:first-child b { color: #6f82ff; }
+body main .product-catalog-layout .product-tile .product-macros small { display: block; margin-top: 3px; color: #7d879b; font-size: 10px; font-weight: 700; letter-spacing: 1px; line-height: 12px; text-transform: uppercase; }
+body main .product-catalog-layout .product-tile .product-tile-foot {
+  display: flex;
+  align-items: center;
+  flex: 0 0 17px;
+  min-height: 17px;
+  margin: auto 18px 0;
+  padding: 0;
+  border: 0;
+}
+body main .product-catalog-layout .product-tile .product-tile-foot span { display: block; overflow: hidden; color: #7d879b; font-size: 12px; line-height: 17px; text-overflow: ellipsis; white-space: nowrap; }
+body main .product-catalog-layout .product-tile .product-tile-actions {
+  display: grid !important;
+  grid-template-columns: 100px 80px;
+  gap: 8px;
+  flex: 0 0 28px;
+  min-height: 28px;
+  margin: 5px 18px 8px;
+}
+body main .product-catalog-layout .product-tile .product-tile-actions .edit-product {
+  width: 100px;
+  min-width: 100px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 1px solid #79a8ff;
+  border-radius: 8px;
+  background: #eaf2ff;
+  color: #6f82ff;
+  font-size: 11px;
+  font-weight: 800;
+}
+body main .product-catalog-layout .product-tile .product-tile-actions .edit-product:hover { border-color: #6f82ff; background: #e0ebff; }
+body main .product-catalog-layout .product-tile .product-tile-actions .delete-product {
+  width: 80px;
+  min-width: 80px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  border: 1px solid #ffb4aa;
+  border-radius: 8px;
+  background: #fff2f0;
+  color: #d55555;
+  font-size: 14px;
+}
+body main .product-catalog-layout .product-tile .product-tile-actions .delete-product:hover { border-color: #d55555; background: #ffe9e5; }
+@media (max-width: 600px) {
+  body main .product-catalog-layout > .product-grid { grid-template-columns: repeat(auto-fill, 242px) !important; justify-content: center; }
+}
+
+/* Information page: use the full workspace width instead of the legacy 1028px cap. */
+body main .theory-page {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0;
+}
+body main .theory-page .popular-articles,
+body main .theory-page .article-sections-block,
+body main .theory-page .selected-section,
+body main .theory-page .information-search,
+body main .theory-page .article-grid,
+body main .theory-page .article-sections {
+  width: 100%;
+  max-width: none;
+}
+body main .theory-page .article-grid {
+  grid-template-columns: repeat(auto-fill, minmax(354px, 1fr)) !important;
+}
+body main .theory-page .article-sections {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)) !important;
+  gap: 16px;
+}
+body main .theory-page .article-section-card {
+  width: auto;
+  min-width: 0;
+}
+@media (max-width: 1100px) {
+  body main .theory-page .article-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 700px) {
+  body main .theory-page .article-grid { grid-template-columns: 1fr !important; }
+  body main .theory-page .article-sections { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
 </style>

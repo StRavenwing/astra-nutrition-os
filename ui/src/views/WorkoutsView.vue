@@ -221,11 +221,19 @@ async function removeExercise(id: number) {
       <div class="subsection-heading"><p class="eyebrow">ТРЕНИРОВКИ</p><h2>Комплексы</h2></div>
       <div class="workout-complex-grid">
         <article v-for="complex in workoutComplexes" :key="complex.id" class="category-card workout-complex-card" tabindex="0" role="button" @click="emit('openComplex', complex)" @keydown.enter.prevent="emit('openComplex', complex)" @keydown.space.prevent="emit('openComplex', complex)">
-          <span class="workout-complex-photo">🏋️</span>
-          <span class="category-copy"><b>{{ complex.name }}</b><small>{{ complex.comment || 'Комплекс тренировок' }}</small></span>
-          <div class="workout-complex-actions">
-            <button type="button" class="primary create-complex-button" @click.stop="emit('openComplex', complex)">Открыть комплекс</button>
-            <button v-if="props.isAdmin" type="button" class="icon-action edit-complex-button" aria-label="Редактировать комплекс" title="Редактировать комплекс" @click.stop="emit('buildComplex', { complex, mode: 'edit' })">✎</button>
+          <div class="workout-complex-cover">
+            <span class="workout-complex-mark">↗</span>
+            <span class="workout-complex-duration">{{ complex.items.length }} упражн.</span>
+          </div>
+          <div class="workout-complex-body">
+            <h3>{{ complex.name }}</h3>
+            <p>Комплекс · {{ complex.items.length }} упражнений</p>
+            <div class="workout-complex-divider"></div>
+            <div class="workout-complex-meta"><span>{{ complex.comment || 'Повторяемая программа' }}</span><strong>{{ complex.items.length }} упражн.</strong></div>
+            <div class="workout-complex-actions">
+              <button type="button" class="primary create-complex-button" @click.stop="emit('openComplex', complex)">Открыть комплекс</button>
+              <button v-if="props.isAdmin" type="button" class="icon-action edit-complex-button" aria-label="Редактировать комплекс" title="Редактировать комплекс" @click.stop="emit('buildComplex', { complex, mode: 'edit' })">✎</button>
+            </div>
           </div>
         </article>
         <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card workout-complex-card" tabindex="0" role="button" @click="emit('buildComplex', { complex: null, mode: 'create' })" @keydown.enter.prevent="emit('buildComplex', { complex: null, mode: 'create' })">

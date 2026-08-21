@@ -181,7 +181,7 @@ function productCategoryTone(categoryName: string) {
       <div class="product-table-head" aria-hidden="true">
         <span>Название</span><span>Категория</span><span>Ккал</span><span>Белки</span><span>Жиры</span><span>Углеводы</span>
       </div>
-      <article v-for="item in shown" :key="item.id" class="product-tile" :class="productCoverClass(item.category)">
+      <article v-for="item in shown" :key="item.id" class="product-tile" :class="productCoverClass(item.category)" :tabindex="props.isAdmin ? 0 : undefined" :role="props.isAdmin ? 'button' : undefined" :aria-label="props.isAdmin ? `Редактировать продукт ${item.name}` : undefined" @click="props.isAdmin && emit('edit', item.id)" @keydown.enter.prevent="props.isAdmin && emit('edit', item.id)" @keydown.space.prevent="props.isAdmin && emit('edit', item.id)">
         <div class="product-cover" :class="productCoverClass(item.category)">
           <span class="product-cover-label">{{ item.category || 'Продукты' }}</span>
           <span class="product-cover-icon product-sprite" :style="productSpriteStyle(item.category || 'Основа')"></span>
@@ -202,8 +202,8 @@ function productCategoryTone(categoryName: string) {
           <span>{{ fmt(item.price_per_100_or_unit_rsd) }} RSD / {{ basis(item).slice(3) }}</span>
         </div>
         <div v-if="props.isAdmin" class="product-tile-actions">
-          <button type="button" class="card-action edit-product" @click="emit('edit', item.id)">Редактировать</button>
-          <button type="button" class="icon-action danger-icon delete-product" aria-label="Удалить продукт" title="Удалить продукт" @click="remove(item.id)">×</button>
+          <button type="button" class="card-action edit-product" @click.stop="emit('edit', item.id)">Изменить</button>
+          <button type="button" class="icon-action danger-icon delete-product" aria-label="Удалить продукт" title="Удалить продукт" @click.stop="remove(item.id)">×</button>
         </div>
       </article>
       <article v-if="!props.readOnly" class="product-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">
