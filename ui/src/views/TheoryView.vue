@@ -142,6 +142,7 @@ async function createSection() {
 <template>
   <section class="theory-page">
     <div class="theory-head"><div><p class="eyebrow">ИНФОРМАЦИЯ</p><h2>Статьи и полезные материалы</h2></div><button v-if="props.isAdmin" type="button" class="primary" @click="emit('addArticle')">＋ Добавить статью</button></div>
+    <p class="information-page-subtitle">Короткие материалы о питании и привычках</p>
     <div v-if="error" class="panel empty">{{ error }}</div>
 
     <div class="article-sort-row">

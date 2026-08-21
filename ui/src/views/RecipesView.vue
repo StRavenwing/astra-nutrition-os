@@ -154,7 +154,7 @@ async function removeRecipe(item: RecipeSummary) {
   <div v-if="loading" class="panel">Загрузка…</div>
   <div v-else-if="error" class="panel empty">{{ error }}</div>
   <template v-else>
-    <p class="recipes-page-subtitle">Коллекция блюд, которые легко повторить</p>
+    <p class="recipes-page-subtitle">Компактная библиотека блюд с понятными действиями</p>
     <section v-if="notices.length" class="moderation-notices">
       <div v-for="item in notices" :key="`${item.id}-${item.moderation_status}`" :class="`notice-${item.moderation_status}`">
         <b v-if="item.moderation_status === 'accepted'">Ура! Твой рецепт добавлен в общую коллекцию!</b>

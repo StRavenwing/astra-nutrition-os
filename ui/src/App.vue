@@ -2719,3 +2719,200 @@ dialog::backdrop { background: #0e172880; }
 .article-section-card:hover, .workout-section-tile:hover, .recipe-categories .category-card:hover, .product-catalog-layout .product-category-card:hover { transform: translateY(-2px); }
 @media (max-width: 760px) { .workout-tile, .article-card { min-height: 255px; } .workout-tile::before, .article-card::before { flex-basis: 76px; height: 76px; } .article-card img { height: 76px; } }
 </style>
+
+<style lang="scss">
+/* Design v2: shared foundation, entity cards and popup system. */
+:root {
+  --v2-bg: #f7f8fc;
+  --v2-surface: #ffffff;
+  --v2-ink: #172033;
+  --v2-muted: #7d879b;
+  --v2-line: #e3e8f1;
+  --v2-soft: #f0f2f7;
+  --v2-purple: #6f82ff;
+  --v2-mint: #bdf2d3;
+  --v2-danger: #d56666;
+}
+
+body { background: var(--v2-bg); color: var(--v2-ink); }
+main { padding-top: 44px; }
+main > header { margin-bottom: 30px; }
+main > header h1 { margin-bottom: 7px; font-size: clamp(27px, 3vw, 34px); }
+main > header p { color: var(--v2-muted); }
+.eyebrow { font-size: 10px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+
+button, input, select, textarea { font: inherit; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible {
+  outline: 3px solid #6f82ff55;
+  outline-offset: 2px;
+}
+.primary, .mint-button, .complete-plan {
+  min-height: 48px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--v2-ink);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.primary:hover, .complete-plan:hover { background: #26364a; }
+.mint-button { background: var(--v2-mint); color: var(--v2-ink); }
+.mint-button:hover { background: #d1f8df; }
+.secondary-button, .reset-sort, .login-button, .actions button:not(.primary), .toolbar button:not(.primary) {
+  min-height: 44px;
+  padding: 0 15px;
+  border: 1px solid var(--v2-line);
+  border-radius: 11px;
+  background: var(--v2-surface);
+  color: var(--v2-ink);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.secondary-button:hover, .reset-sort:hover, .login-button:hover, .actions button:not(.primary):hover { border-color: var(--v2-purple); color: var(--v2-purple); }
+.danger-button, .delete-product, .delete-recipe, .delete-workout, .delete-progress-tile, .delete-diary-entry {
+  border-color: #f0caca !important;
+  background: #fff7f7 !important;
+  color: var(--v2-danger) !important;
+}
+.icon { display: grid; place-items: center; width: 40px; height: 40px; min-height: 40px; padding: 0; border: 0; border-radius: 11px; background: var(--v2-soft); color: var(--v2-ink); cursor: pointer; }
+.icon:hover { background: #e5e9f2; }
+button:disabled { cursor: not-allowed; opacity: .52; }
+input, select, textarea { min-height: 44px; border: 1px solid var(--v2-line); border-radius: 11px; background: #fff; color: var(--v2-ink); }
+textarea { min-height: 110px; }
+.toolbar { gap: 10px; padding: 14px; border: 1px solid var(--v2-line); border-radius: 16px; background: #fff; }
+.toolbar input, .toolbar select { min-height: 40px; }
+
+/* Overview */
+body .dashboard-layout { grid-template-columns: minmax(0, 1.7fr) minmax(260px, .8fr); gap: 18px; }
+body .dashboard-hero { min-height: 250px; padding: 32px; border-radius: 24px; background: var(--v2-ink); box-shadow: 0 18px 40px #17203318; }
+body .dashboard-hero h2 { max-width: 560px; font-size: clamp(25px, 3.2vw, 36px); }
+body .dashboard-ring { flex-basis: 156px; width: 156px; height: 156px; }
+body .dashboard-database { padding: 28px; border-radius: 24px; background: #e2f7eb; }
+body .dashboard-quick { margin-top: 2px; }
+body .dashboard-quick-grid { gap: 12px; }
+body .dashboard-quick-grid .card { min-height: 116px; padding: 18px; border-radius: 17px; }
+body .dashboard-diary, body .dashboard-protein { padding: 24px; border-radius: 20px; }
+body .dashboard-meal-row { padding: 13px 0; }
+
+/* Food Calendar / diary */
+.diary-page-subtitle, .progress-page-subtitle, .workouts-page-subtitle, .information-page-subtitle, .products-page-subtitle, .recipes-page-subtitle { margin: -21px 0 24px; color: var(--v2-muted); font-size: 14px; }
+body .current-day-card { min-height: 286px; padding: 28px; border-radius: 24px; text-align: left; box-shadow: 0 18px 40px #17203318; }
+body .current-day-head { margin-bottom: 24px; }
+body .today-meal-row { min-height: 54px; border-radius: 12px; }
+body .today-kbju { gap: 10px; }
+body .today-kbju span { min-width: 92px; padding: 12px; border-radius: 12px; }
+body .diary-month-head { margin-top: 28px; }
+body .diary-summary { gap: 12px; }
+body .diary-summary > div { min-height: 88px; padding: 16px; background: #fff; }
+body .diary-days-panel { padding: 22px; background: #fff; }
+body .diary-day-card { min-height: 88px; background: #fff; }
+body .diary-day-card.filled { background: #f0f1ff; }
+body .month-choice { border-radius: 11px; }
+body .day-total { padding: 20px; border-radius: 20px; }
+
+/* Progress */
+body .current-progress-card { padding: 28px; border-radius: 24px; box-shadow: 0 18px 40px #17203318; }
+body .current-progress-main { gap: 18px; }
+body .current-progress-main > strong { font-size: clamp(42px, 6vw, 64px); letter-spacing: -.06em; }
+body .progress-grid { grid-template-columns: repeat(auto-fit, minmax(235px, 1fr)); gap: 14px; }
+body .progress-tile { min-height: 214px; padding: 20px; border-radius: 18px; background: #fff; }
+body .progress-tile-actions { gap: 7px; }
+body .progress-history-head { margin-top: 30px; }
+
+/* Workouts */
+body .scheduled-workouts { margin-bottom: 26px; }
+body .scheduled-workouts-head, body .subsection-heading, body .equipment-group-head, body .archive-group-head { margin-bottom: 14px; }
+body .scheduled-grid, body .exercise-grid, body .archive-workout-grid { grid-template-columns: repeat(auto-fit, minmax(265px, 1fr)); gap: 16px; }
+body .workout-tile { min-height: 300px; border-radius: 18px; background: #fff; }
+body .planned-plan-tile, body .archive-plan-tile { padding-top: 16px; }
+body .planned-plan-tile::before, body .archive-plan-tile::before { display: none; }
+body .workout-section-menu { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 28px; }
+body .workout-section-tile { min-height: 104px; padding: 16px; border-radius: 16px; background: #fff; }
+body .workout-section-tile.active { border-color: var(--v2-purple); background: #f0f1ff; box-shadow: 0 0 0 2px #6f82ff22; }
+body .workout-section-icon { width: 52px; height: 52px; }
+body .workout-complex-card, body .exercise-category-card, body .equipment-card { border-radius: 16px; }
+body .exercise-category-card { min-height: 76px; }
+body .exercise-card { min-height: 280px; }
+body .equipment-card-photo { height: 108px; border-radius: 13px; object-fit: cover; }
+
+/* Information */
+body .theory-head { margin-bottom: 8px; }
+body .popular-articles { padding: 20px; border: 1px solid #c9c0ff; border-radius: 22px; background: linear-gradient(135deg, #fff, #f5f2ff); }
+body .article-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+body .theory-page .article-card { min-height: 300px; padding: 16px; border-radius: 18px; background: #fff; }
+body .theory-page .article-card::before { content: ''; position: static; inset: auto; display: block; width: calc(100% + 32px); height: 108px; margin: -16px -16px 0; border-radius: 14px 14px 0 0; background: #dff2f7; }
+body .theory-page .article-card img { width: calc(100% + 32px); height: 108px; margin: -16px -16px 15px; }
+body .theory-page .article-card h3 { font-size: 19px; line-height: 1.24; }
+body .theory-page .article-section-card { min-height: 104px; padding: 16px; border-radius: 16px; background: #fff; }
+body .article-sections { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+body .article-section-info { border-radius: 18px; }
+body .article-detail-body { line-height: 1.7; }
+
+/* Recipes: full cards with the compact v2 controls. */
+body .recipe-categories { grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; }
+body .recipe-categories .category-card { min-height: 96px; border-radius: 16px; }
+body .recipe-grid { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+body .recipe-tile { min-height: 314px; border-radius: 18px; background: #fff; }
+body .recipe-cover { height: 108px; border-radius: 14px; }
+body .recipe-tile-foot::before { min-height: 34px; padding: 0 15px; border-radius: 10px; }
+
+/* Products: v2 uses a dense catalogue row rather than a large content card. */
+body .product-catalog-layout { display: grid; grid-template-columns: 184px minmax(0, 1fr); gap: 24px; }
+body .product-catalog-layout .product-categories { display: flex; flex-direction: column; gap: 3px; margin: 0; padding-right: 14px; border-right: 1px solid var(--v2-line); }
+body .product-catalog-layout .product-category-card { min-height: 48px; padding: 6px 9px; border: 0; border-radius: 10px; background: transparent; }
+body .product-catalog-layout .product-category-card:hover { transform: none; background: #f0f2f7; }
+body .product-catalog-layout .product-category-card.active { border: 0; background: #e2f7eb; box-shadow: none; }
+body .product-catalog-layout .product-category-photo { width: 36px; height: 36px; }
+body .product-catalog-layout .product-category-photo::before { width: 36px; height: 36px; }
+body .product-catalog-layout .product-category-copy b { font-size: 11px; }
+body .product-catalog-layout .product-category-copy small { font-size: 9px; }
+body .product-catalog-layout .product-grid { display: block; overflow: hidden; border: 1px solid var(--v2-line); border-radius: 16px; background: #fff; }
+body .product-table-head, body .product-tile { display: grid; grid-template-columns: minmax(190px, 2fr) minmax(100px, 1.15fr) repeat(4, minmax(64px, .7fr)); gap: 12px; align-items: center; }
+body .product-table-head { min-height: 46px; padding: 0 20px; border-bottom: 1px solid var(--v2-line); background: #fbfcfe; }
+body .product-tile { min-height: 78px; padding: 12px 20px; border: 0; border-bottom: 1px solid #edf0f5; border-radius: 0; box-shadow: none; }
+body .product-tile:hover { transform: none; background: #fbfcff; box-shadow: none; }
+body .product-tile .product-cover { display: none; }
+body .product-tile h3 { grid-column: 1; grid-row: 1; margin: 0; font-size: 14px; }
+body .product-tile-category { grid-column: 2; grid-row: 1; display: block !important; margin: 0; color: var(--v2-muted); font-size: 11px; }
+body .product-tile > p { grid-column: 1; grid-row: 2; margin: 3px 0 0; }
+body .product-tile .product-macros { grid-column: 3 / -1; grid-row: 1 / 3; margin: 0; padding: 0; border: 0; }
+body .product-tile .product-tile-foot { grid-column: 2; grid-row: 2; margin: 3px 0 0; padding: 0; border: 0; }
+body .product-tile .product-tile-actions { grid-column: 1 / -1; grid-row: 3; min-height: 28px; margin: 3px 0 0; justify-content: flex-end; }
+
+/* Popups: one shell for view, add, edit, delete and action variants. */
+dialog { width: min(640px, calc(100vw - 32px)); max-height: min(820px, calc(100vh - 32px)); padding: 0; border: 1px solid var(--v2-line); border-radius: 22px; background: #fff; color: var(--v2-ink); }
+dialog.recipe-dialog { width: min(900px, calc(100vw - 32px)); }
+dialog > form, dialog > .dialog-panel { padding: 28px; }
+dialog > form { margin: 0; }
+dialog .modal-head { align-items: flex-start; margin-bottom: 24px; }
+dialog .modal-head h2 { margin-top: 5px; font-size: 24px; letter-spacing: -.035em; }
+dialog .modal-head .eyebrow { margin: 0; color: var(--v2-purple); }
+dialog .actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--v2-line); }
+dialog .actions button { min-height: 44px; }
+dialog .confirm-message { padding: 16px; border-radius: 12px; background: #f7f8fc; color: var(--v2-muted); line-height: 1.55; }
+dialog .danger-button, dialog .delete-button { background: #fff7f7; color: var(--v2-danger); }
+dialog .field { gap: 7px; }
+dialog .field label { color: var(--v2-ink); font-size: 11px; font-weight: 800; }
+dialog .field small, dialog .hint { color: var(--v2-muted); font-size: 11px; line-height: 1.45; }
+dialog .field.full { grid-column: 1 / -1; }
+.form-grid, .field-grid { gap: 14px; }
+
+@media (max-width: 900px) {
+  body .dashboard-layout { grid-template-columns: 1fr; }
+  body .dashboard-database, body .dashboard-diary, body .dashboard-protein { grid-column: 1; }
+  body .workout-section-menu { grid-template-columns: repeat(2, 1fr); }
+  body .product-catalog-layout { grid-template-columns: 1fr; }
+  body .product-catalog-layout .product-categories { flex-direction: row; overflow-x: auto; padding: 0 0 8px; border-right: 0; border-bottom: 1px solid var(--v2-line); }
+  body .product-catalog-layout .product-category-card { min-width: 148px; }
+}
+@media (max-width: 760px) {
+  main { padding: 30px 20px 44px; }
+  body .dashboard-hero, body .current-day-card, body .current-progress-card { padding: 22px; border-radius: 19px; }
+  body .product-catalog-layout .product-grid { overflow-x: auto; }
+  body .product-table-head, body .product-tile { min-width: 720px; }
+  dialog > form, dialog > .dialog-panel { padding: 22px; }
+}
+</style>

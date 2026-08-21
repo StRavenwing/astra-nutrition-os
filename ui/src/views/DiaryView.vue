@@ -121,6 +121,7 @@ function editEntry(id: number) {
   <div v-if="loading" class="panel">Загрузка…</div>
   <div v-else-if="error" class="panel empty">{{ error }}</div>
   <template v-else>
+    <p class="diary-page-subtitle">Food Calendar помогает увидеть ритм без лишнего контроля</p>
     <button type="button" class="current-day-card" @click="openDay(todayIso)">
       <div class="current-day-head">
         <div>

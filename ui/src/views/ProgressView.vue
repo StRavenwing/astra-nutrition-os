@@ -71,6 +71,7 @@ async function remove(id: number) {
   <div v-if="loading" class="panel">Загрузка…</div>
   <div v-else-if="error" class="panel empty">{{ error }}</div>
   <template v-else>
+    <p class="progress-page-subtitle">Измерения, которые помогают увидеть динамику</p>
     <section v-if="latest" class="current-progress-card">
       <div class="current-progress-head">
         <div>

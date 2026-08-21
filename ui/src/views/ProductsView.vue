@@ -103,7 +103,7 @@ function productCoverClass(category: string | null) {
   <div v-if="loading" class="panel">Загрузка…</div>
   <div v-else-if="error" class="panel empty">{{ error }}</div>
   <template v-else>
-    <p class="products-page-subtitle">Общая база и ваша личная коллекция</p>
+    <p class="products-page-subtitle">База продуктов с быстрым добавлением в дневник</p>
     <div class="product-catalog-layout">
     <section class="product-categories" aria-label="Категории продуктов">
       <button type="button" class="product-category-card all" :class="{ active: category === 'all' }" @click="category = 'all'">

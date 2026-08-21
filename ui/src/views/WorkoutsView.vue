@@ -114,6 +114,7 @@ async function removeExercise(id: number) {
   <div v-if="loading" class="panel">Загрузка…</div>
   <div v-else-if="error" class="panel empty">{{ error }}</div>
   <template v-else>
+    <p class="workouts-page-subtitle">План, упражнения и история нагрузки в одном месте</p>
     <section class="scheduled-workouts">
       <div class="scheduled-workouts-head">
         <div>
