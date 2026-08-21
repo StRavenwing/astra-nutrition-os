@@ -2,7 +2,6 @@
 import { reactive, ref } from 'vue';
 import { api, setAccessToken } from '@/api/client';
 import type { AuthUser } from '@/types';
-import PwaInstallButton from '@/components/shared/PwaInstallButton.vue';
 
 const props = withDefaults(defineProps<{ allowGuest?: boolean }>(), { allowGuest: false });
 const emit = defineEmits<{ authenticated: [user: AuthUser]; guest: [] }>();
@@ -94,7 +93,7 @@ async function confirmReset() {
   <div class="auth-page" :class="{ 'reset-active': resetMode }">
     <section class="auth-panel">
       <div class="brand auth-brand">
-        <span>A</span>
+        <img class="auth-brand-mark" src="/assets/astra-app-icon.png" alt="Astra">
         <div>
           Astra Nutrition OS
           <small>PERSONAL WORKSPACE</small>
@@ -160,7 +159,6 @@ async function confirmReset() {
       </section>
       <button v-if="!resetMode && mode === 'login'" type="button" class="forgot-password" @click="openReset">Забыли пароль?</button>
       <p v-if="!resetMode && notice" class="auth-notice">{{ notice }}</p>
-      <PwaInstallButton wide />
       <button v-if="props.allowGuest" type="button" class="guest-entry" @click="$emit('guest')">Продолжить без входа</button>
     </section>
   </div>
@@ -188,6 +186,15 @@ async function confirmReset() {
 
 .auth-brand {
   padding: 0 0 20px;
+}
+
+.auth-brand-mark {
+  display: block;
+  flex: 0 0 44px;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  object-fit: cover;
 }
 
 .auth-tabs {

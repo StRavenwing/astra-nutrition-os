@@ -97,6 +97,11 @@ function productCoverClass(category: string | null) {
   const index = Object.keys(productSpritePositions).indexOf(category || '');
   return `product-cover-tone-${Math.max(0, index) % 6}`;
 }
+
+function productCategoryTone(categoryName: string) {
+  const index = Object.keys(productSpritePositions).indexOf(categoryName);
+  return `product-category-tone-${Math.max(0, index) % 5}`;
+}
 </script>
 
 <template>
@@ -120,7 +125,7 @@ function productCoverClass(category: string | null) {
         :key="item"
         type="button"
         class="product-category-card"
-        :class="{ active: category === item }"
+        :class="[productCategoryTone(item), { active: category === item }]"
         :style="productSpriteStyle(item)"
         @click="category = item"
       >
@@ -154,7 +159,7 @@ function productCoverClass(category: string | null) {
       <div class="product-table-head" aria-hidden="true">
         <span>Название</span><span>Категория</span><span>Ккал</span><span>Белки</span><span>Жиры</span><span>Углеводы</span>
       </div>
-      <article v-for="item in shown" :key="item.id" class="product-tile">
+      <article v-for="item in shown" :key="item.id" class="product-tile" :class="productCoverClass(item.category)">
         <div class="product-cover" :class="productCoverClass(item.category)">
           <span class="product-cover-label">{{ item.category || 'Продукты' }}</span>
           <span class="product-cover-icon product-sprite" :style="productSpriteStyle(item.category || 'Основа')"></span>

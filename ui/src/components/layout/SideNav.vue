@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { pages } from '@/constants';
 import type { AuthUser, PageId } from '@/types';
+import PwaInstallButton from '@/components/shared/PwaInstallButton.vue';
 
 defineProps<{ currentPage: PageId; feedbackUnread: number; user: AuthUser }>();
 defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
@@ -9,7 +10,7 @@ defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
 <template>
   <aside class="side-nav">
     <div class="brand">
-      <span class="brand-mark">✦</span>
+      <img class="brand-mark" src="/assets/astra-app-icon.png" alt="Astra">
       <div>
         Astra
         <small>Nutrition OS</small>
@@ -36,6 +37,10 @@ defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
       <span class="feedback-label">Обратная связь</span>
       <strong v-if="feedbackUnread" class="feedback-count">{{ feedbackUnread > 99 ? '99+' : feedbackUnread }}</strong>
     </button>
+
+    <div class="side-install">
+      <PwaInstallButton wide />
+    </div>
 
     <div class="aside-user">
       <span class="avatar">{{ user.email.slice(0, 1).toUpperCase() }}</span>
@@ -111,5 +116,22 @@ nav button .nav-icon {
   text-align: center;
   font-size: 10px;
   font-weight: 850;
+}
+
+.side-install {
+  margin-top: 8px;
+  padding: 0 12px;
+}
+
+.side-install .install-app {
+  min-height: 42px;
+  border-color: #8de0b1;
+  background: #bdf2d3;
+  color: #172033;
+  box-shadow: none;
+}
+
+.side-install .install-app:hover {
+  background: #d5f8e2;
 }
 </style>

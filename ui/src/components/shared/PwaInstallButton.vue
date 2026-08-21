@@ -30,7 +30,7 @@ const {
     :title="nativePromptReady ? 'Установить Astra' : 'Показать инструкцию установки'"
     @click="install"
   >
-    <img src="/assets/app-icon-192.png" alt="">
+    <img src="/assets/astra-app-icon.png" alt="">
     <span>Установить приложение</span>
   </button>
 

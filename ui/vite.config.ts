@@ -12,10 +12,7 @@ export default defineConfig({
       filename: 'sw.js',
       manifestFilename: 'manifest.webmanifest',
       includeAssets: [
-        'assets/app-icon-180.png',
-        'assets/app-icon-192.png',
-        'assets/app-icon-512.png',
-        'assets/app-icon-1024.png',
+        'assets/astra-app-icon.png',
         'assets/recipe-category-icons.png',
         'assets/product-category-icons.png'
       ],
@@ -36,14 +33,14 @@ export default defineConfig({
         prefer_related_applications: false,
         icons: [
           {
-            src: '/assets/app-icon-192.png',
-            sizes: '192x192',
+            src: '/assets/astra-app-icon.png',
+            sizes: '1254x1254',
             type: 'image/png',
             purpose: 'any'
           },
           {
-            src: '/assets/app-icon-512.png',
-            sizes: '512x512',
+            src: '/assets/astra-app-icon.png',
+            sizes: '1254x1254',
             type: 'image/png',
             purpose: 'any maskable'
           }
@@ -53,19 +50,19 @@ export default defineConfig({
             name: 'Дневник питания',
             short_name: 'Дневник',
             url: '/#diary',
-            icons: [{ src: '/assets/app-icon-192.png', sizes: '192x192', type: 'image/png' }]
+            icons: [{ src: '/assets/astra-app-icon.png', sizes: '1254x1254', type: 'image/png' }]
           },
           {
             name: 'Рецепты',
             short_name: 'Рецепты',
             url: '/#recipes',
-            icons: [{ src: '/assets/app-icon-192.png', sizes: '192x192', type: 'image/png' }]
+            icons: [{ src: '/assets/astra-app-icon.png', sizes: '1254x1254', type: 'image/png' }]
           },
           {
             name: 'Прогресс',
             short_name: 'Прогресс',
             url: '/#progress',
-            icons: [{ src: '/assets/app-icon-192.png', sizes: '192x192', type: 'image/png' }]
+            icons: [{ src: '/assets/astra-app-icon.png', sizes: '1254x1254', type: 'image/png' }]
           }
         ]
       },

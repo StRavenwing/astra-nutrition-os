@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { AuthUser } from '@/types';
-import PwaInstallButton from '@/components/shared/PwaInstallButton.vue';
 
 defineProps<{
   title: string;
@@ -26,7 +25,6 @@ defineEmits<{
       <h1>{{ title }}</h1>
     </div>
     <div class="header-actions">
-      <PwaInstallButton />
       <span v-if="guest" class="guest-badge">Режим чтения</span>
       <button v-if="guest" type="button" class="login-button" @click="$emit('login')">Войти</button>
       <button v-if="canAddCategory" type="button" class="secondary-header-action" @click="$emit('addCategory')">＋ Категория</button>
