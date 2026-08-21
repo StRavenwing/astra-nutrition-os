@@ -26,6 +26,7 @@ import RecipeDetailModal from '@/components/modals/RecipeDetailModal.vue';
 import ExerciseManagerModal from '@/components/modals/ExerciseManagerModal.vue';
 import WorkoutBuilderModal from '@/components/modals/WorkoutBuilderModal.vue';
 import WorkoutComplexModal from '@/components/modals/WorkoutComplexModal.vue';
+import WorkoutComplexDetailModal from '@/components/modals/WorkoutComplexDetailModal.vue';
 import WorkoutDetailModal from '@/components/modals/WorkoutDetailModal.vue';
 import ExerciseDetailModal from '@/components/modals/ExerciseDetailModal.vue';
 import FeedbackModal from '@/components/modals/FeedbackModal.vue';
@@ -58,6 +59,7 @@ let feedbackTimer: ReturnType<typeof setInterval> | null = null;
 const complexEditorOpen = ref(false);
 const complexEditor = ref<WorkoutComplex | null>(null);
 const complexEditorMode = ref<'create' | 'edit'>('create');
+const workoutComplexDetail = ref<WorkoutComplex | null>(null);
 const categoryOpen = ref(false);
 const categoryKind = ref<'product' | 'recipe'>('product');
 const articleOpen = ref(false);
@@ -244,6 +246,15 @@ function buildWorkoutFromComplex(payload: { complex: WorkoutComplex | null; mode
   complexEditorOpen.value = true;
 }
 
+function openWorkoutComplexDetail(complex: WorkoutComplex) {
+  workoutComplexDetail.value = complex;
+}
+
+function editWorkoutComplexFromDetail(complex: WorkoutComplex) {
+  workoutComplexDetail.value = null;
+  buildWorkoutFromComplex({ complex, mode: 'edit' });
+}
+
 async function completeWorkoutFromDetail(plan: WorkoutPlan) {
   try {
     await api.completeWorkoutPlan(plan.id);
@@ -373,6 +384,7 @@ onBeforeUnmount(() => {
       @edit-equipment="editEquipment"
       @open-plan="openWorkoutDetail"
       @open-exercise="openExerciseDetail"
+      @open-complex="openWorkoutComplexDetail"
       @build-complex="buildWorkoutFromComplex"
       @manage-exercises="exerciseManagerOpen = true"
       @build="repeatPlan = null; editPlan = null; workoutBuilderOpen = true"
@@ -386,6 +398,7 @@ onBeforeUnmount(() => {
   <ExerciseManagerModal v-if="isAdmin" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @edit="editExercise" @changed="refresh" />
   <WorkoutBuilderModal :open="workoutBuilderOpen" :repeat-plan="repeatPlan" :edit-plan="editPlan" @close="workoutBuilderOpen = false; repeatPlan = null; editPlan = null" @saved="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; refresh()" />
   <WorkoutComplexModal :open="complexEditorOpen" :complex="complexEditor" :mode="complexEditorMode" @close="complexEditorOpen = false" @saved="complexEditorOpen = false; complexEditor = null; refresh()" @open-exercise="openExerciseDetail" />
+  <WorkoutComplexDetailModal :open="Boolean(workoutComplexDetail)" :complex="workoutComplexDetail" :is-admin="isAdmin" :read-only="isGuest" @close="workoutComplexDetail = null" @edit="editWorkoutComplexFromDetail" />
   <WorkoutDetailModal :plan="workoutDetailPlan" @close="workoutDetailPlan = null" @edit="editWorkoutFromDetail" @repeat="repeatPlan = $event; editPlan = null; workoutDetailPlan = null; workoutBuilderOpen = true" @complete="completeWorkoutFromDetail" @cancel="cancelWorkoutFromDetail" />
   <ExerciseDetailModal :exercise="exerciseDetail" @close="exerciseDetail = null" />
   <FeedbackModal :open="feedbackOpen" :is-admin="isAdmin" @close="feedbackOpen = false" @sent="feedbackOpen = false" @read="loadFeedbackUnread" />
@@ -4037,8 +4050,307 @@ body main .product-catalog-layout .product-tile .product-tile-actions .edit-prod
 body main .product-catalog-layout .product-tile .product-tile-actions .delete-product { width: 36px; min-width: 36px; min-height: 28px; height: 28px; border-radius: 8px; }
 body main .product-catalog-layout > .product-grid > .product-add-card { min-height: 312px; }
 
+/* Product cards: match the v3 reference with a large cover and full-width actions. */
+body main .product-catalog-layout > .product-grid { grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)) !important; gap: 24px !important; }
+body main .product-catalog-layout > .product-grid > .product-tile { min-height: 400px !important; padding: 22px !important; border-radius: 18px !important; }
+body main .product-catalog-layout .product-tile .product-cover { flex-basis: 122px; height: 122px; min-height: 122px; margin: -22px -22px 0; border-radius: 18px 18px 14px 14px; }
+body main .product-catalog-layout .product-tile .product-cover-icon { width: 70px; height: 70px; }
+body main .product-catalog-layout .product-tile .product-cover-icon.product-sprite::before { width: 64px; height: 64px; }
+body main .product-catalog-layout .product-tile .product-tile-category { margin-top: 20px; font-size: 12px; letter-spacing: .04em; }
+body main .product-catalog-layout .product-tile h3 { min-height: 0; margin: 10px 0 5px; font-size: 20px; line-height: 1.18; }
+body main .product-catalog-layout .product-tile > p { min-height: 20px; font-size: 14px; line-height: 1.35; }
+body main .product-catalog-layout .product-tile .product-macros { margin-top: 18px; padding-top: 15px; }
+body main .product-catalog-layout .product-tile .product-macros b { font-size: 20px; }
+body main .product-catalog-layout .product-tile .product-macros small { margin-top: 5px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+body main .product-catalog-layout .product-tile .product-tile-foot { margin-top: auto; padding-top: 18px; }
+body main .product-catalog-layout .product-tile .product-tile-foot span { font-size: 14px; }
+body main .product-catalog-layout .product-tile .product-tile-foot b { font-size: 14px; }
+body main .product-catalog-layout .product-tile .product-tile-actions { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 9px; min-height: 38px; margin-top: 10px; }
+body main .product-catalog-layout .product-tile .product-tile-actions .edit-product,
+body main .product-catalog-layout .product-tile .product-tile-actions .delete-product { width: 100%; min-width: 0; min-height: 38px; height: 38px; border-radius: 10px; padding: 0 10px; font-size: 0; font-weight: 800; }
+body main .product-catalog-layout .product-tile .product-tile-actions .edit-product { border: 1px solid #6f9cff; background: #eef3ff; color: #6f82ff; }
+body main .product-catalog-layout .product-tile .product-tile-actions .edit-product::before { content: '✎'; margin-right: 6px; font-size: 13px; }
+body main .product-catalog-layout .product-tile .product-tile-actions .edit-product::after { content: 'Изменить'; font-size: 14px; }
+body main .product-catalog-layout .product-tile .product-tile-actions .delete-product { border: 1px solid #ff9e97; background: #fff7f6; color: #e05b5b; }
+body main .product-catalog-layout .product-tile .product-tile-actions .delete-product::after { content: 'Удалить'; font-size: 14px; }
+body main .product-catalog-layout .product-tile.product-cover-tone-0 .product-cover { background: #e2f7eb; color: #329a63; }
+body main .product-catalog-layout .product-tile.product-cover-tone-1 .product-cover { background: #fff0dc; color: #d88927; }
+body main .product-catalog-layout .product-tile.product-cover-tone-2 .product-cover { background: #e8f1ff; color: #6f82ff; }
+body main .product-catalog-layout .product-tile.product-cover-tone-3 .product-cover { background: #fde7e2; color: #d56666; }
+body main .product-catalog-layout .product-tile.product-cover-tone-4 .product-cover { background: #f0f1ff; color: #6652c7; }
+body main .product-catalog-layout .product-tile.product-cover-tone-5 .product-cover { background: #dff2f7; color: #4aa8b3; }
+body main .product-catalog-layout .product-tile.product-cover-tone-0 .product-tile-category { color: #329a63; }
+body main .product-catalog-layout .product-tile.product-cover-tone-1 .product-tile-category { color: #d88927; }
+body main .product-catalog-layout .product-tile.product-cover-tone-2 .product-tile-category { color: #6f82ff; }
+body main .product-catalog-layout .product-tile.product-cover-tone-3 .product-tile-category { color: #d56666; }
+body main .product-catalog-layout .product-tile.product-cover-tone-4 .product-tile-category { color: #6652c7; }
+body main .product-catalog-layout .product-tile.product-cover-tone-5 .product-tile-category { color: #4aa8b3; }
+
+/* Compact product card size from the design system: 242 x 312 px. */
+body main .product-catalog-layout > .product-grid { grid-template-columns: repeat(auto-fill, 242px) !important; gap: 20px !important; justify-content: start; }
+body main .product-catalog-layout > .product-grid > .product-tile { box-sizing: border-box; width: 242px; min-width: 242px; max-width: 242px; height: 312px; min-height: 312px !important; max-height: 312px; padding: 14px !important; }
+body main .product-catalog-layout .product-tile .product-cover { flex-basis: 82px; height: 82px; min-height: 82px; margin: -14px -14px 0; border-radius: 18px 18px 12px 12px; }
+body main .product-catalog-layout .product-tile .product-cover-icon { width: 54px; height: 54px; }
+body main .product-catalog-layout .product-tile .product-cover-icon.product-sprite::before { width: 50px; height: 50px; }
+body main .product-catalog-layout .product-tile .product-tile-category { margin-top: 12px; font-size: 10px; }
+body main .product-catalog-layout .product-tile h3 { margin: 6px 0 3px; font-size: 16px; line-height: 1.2; }
+body main .product-catalog-layout .product-tile > p { min-height: 16px; font-size: 11px; }
+body main .product-catalog-layout .product-tile .product-macros { margin-top: 10px; padding-top: 10px; }
+body main .product-catalog-layout .product-tile .product-macros b { font-size: 14px; }
+body main .product-catalog-layout .product-tile .product-macros small { margin-top: 3px; font-size: 8px; }
+body main .product-catalog-layout .product-tile .product-tile-foot { padding-top: 8px; }
+body main .product-catalog-layout .product-tile .product-tile-foot span { font-size: 10px; }
+body main .product-catalog-layout .product-tile .product-tile-actions { gap: 7px; min-height: 28px; margin-top: 7px; }
+body main .product-catalog-layout .product-tile .product-tile-actions .edit-product,
+body main .product-catalog-layout .product-tile .product-tile-actions .delete-product { min-height: 28px; height: 28px; border-radius: 8px; padding: 0 6px; }
+body main .product-catalog-layout .product-tile .product-tile-actions .edit-product::before { margin-right: 3px; font-size: 11px; }
+body main .product-catalog-layout .product-tile .product-tile-actions .edit-product::after,
+body main .product-catalog-layout .product-tile .product-tile-actions .delete-product::after { font-size: 11px; }
+
+/* Exact card geometry from astra-products-page-v3.svg. */
+body main .product-catalog-layout > .product-grid > .product-tile { padding: 18px !important; }
+body main .product-catalog-layout .product-tile .product-cover { flex-basis: 96px; height: 96px; min-height: 96px; margin: -18px -18px 0; border-radius: 18px; }
+body main .product-catalog-layout .product-tile .product-cover-icon { width: 54px; height: 54px; }
+body main .product-catalog-layout .product-tile .product-cover-icon.product-sprite::before { width: 50px; height: 50px; }
+body main .product-catalog-layout .product-tile .product-tile-category { margin-top: 16px; font-size: 10px; letter-spacing: 1px; line-height: 12px; }
+body main .product-catalog-layout .product-tile h3 { min-height: 0; margin: 8px 0 4px; font-size: 16px; line-height: 19px; }
+body main .product-catalog-layout .product-tile > p { min-height: 17px; font-size: 12px; line-height: 17px; }
+body main .product-catalog-layout .product-tile .product-macros { margin-top: 15px; padding-top: 10px; }
+body main .product-catalog-layout .product-tile .product-macros b { font-size: 16px; line-height: 19px; }
+body main .product-catalog-layout .product-tile .product-macros small { margin-top: 3px; font-size: 10px; letter-spacing: 1px; line-height: 12px; }
+body main .product-catalog-layout .product-tile .product-tile-foot { padding-top: 16px; }
+body main .product-catalog-layout .product-tile .product-tile-foot span { font-size: 12px; line-height: 17px; }
+body main .product-catalog-layout .product-tile .product-tile-actions { grid-template-columns: 100px 80px; justify-content: start; gap: 8px; min-height: 28px; margin-top: 5px; }
+body main .product-catalog-layout .product-tile .product-tile-actions .edit-product,
+body main .product-catalog-layout .product-tile .product-tile-actions .delete-product { width: 100px; min-width: 0; min-height: 28px; height: 28px; border-radius: 8px; padding: 0; }
+body main .product-catalog-layout .product-tile .product-tile-actions .delete-product { width: 80px; }
+
+/* Popup and action-button system from astra-popups-all-items.svg. */
+body dialog { box-sizing: border-box; border: 1px solid #e5eaf2; border-radius: 22px; background: #fff; box-shadow: 0 12px 40px #15233d26; }
+body dialog::before { height: 6px; background: #6f82ff; }
+body dialog > form,
+body dialog > .dialog-panel { padding: 30px 32px; }
+body dialog .modal-head { margin-bottom: 22px; }
+body dialog .modal-head .eyebrow { min-height: 26px; margin: 0 0 14px; padding: 0 12px; border-radius: 8px; font-size: 10px; letter-spacing: .08em; }
+body dialog .modal-head h2 { font-size: 20px; line-height: 1.2; }
+body dialog .modal-head .icon { flex: 0 0 36px; width: 36px; min-width: 36px; height: 36px; min-height: 36px; border-radius: 50%; background: #f6f8fc; color: #172033; font-size: 18px; }
+body dialog .modal-head .icon:hover { background: #eaf2ff; color: #6f82ff; }
+body dialog .actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 24px; padding-top: 18px; border-top: 1px solid #edf0f5; }
+body dialog .actions button { min-height: 34px; height: 34px; border-radius: 9px; padding: 0 14px; font-size: 11px; font-weight: 700; }
+body dialog .actions button.primary { border: 0; background: #172033; color: #fff; }
+body dialog .actions button:not(.primary) { border: 1px solid #e5eaf2; background: #fff; color: #172033; }
+body dialog .actions button:not(.primary):hover { border-color: #6f82ff; color: #6f82ff; }
+body dialog .article-detail-actions { display: flex; align-items: center; gap: 12px; margin: 20px 0 0; padding-top: 0; border-top: 0; }
+body dialog .article-detail-actions button { box-sizing: border-box; min-height: 34px; height: 34px; border-radius: 9px; padding: 0 12px; font-size: 11px; font-weight: 700; }
+body dialog .article-detail-actions .edit-article-button { min-width: 106px; border: 1px solid #79a8ff; background: #eaf2ff; color: #6f82ff; }
+body dialog .article-detail-actions .article-pin-button { min-width: 86px; border: 1px solid #e5eaf2; background: #f6f8fc; color: #7d879b; }
+body dialog .article-detail-actions .article-visibility-button { min-width: 106px; border: 1px solid #ffb4aa; background: #fff0ed; color: #d56666; }
+body dialog .article-detail-actions .article-return-button { border-color: #7bc8a4; background: #e7f6ee; color: #216e4e; }
+body dialog.popup-article::before { background: #4b9db0; }
+body dialog.popup-article .modal-head .eyebrow { background: #dff2f7; color: #4b9db0; }
+body dialog.popup-recipe::before,
+body dialog.popup-complex::before,
+body dialog.popup-progress::before { background: #7ddba8; }
+body dialog.popup-recipe .modal-head .eyebrow,
+body dialog.popup-complex .modal-head .eyebrow,
+body dialog.popup-progress .modal-head .eyebrow { background: #e2f7eb; color: #329a63; }
+body dialog.popup-product::before,
+body dialog.popup-exercise::before { background: #f4b96b; }
+body dialog.popup-product .modal-head .eyebrow,
+body dialog.popup-exercise .modal-head .eyebrow { background: #fff1de; color: #c88731; }
+body dialog.popup-equipment::before { background: #6f82ff; }
+body dialog.popup-equipment .modal-head .eyebrow { background: #f0f1ff; color: #6f82ff; }
+body dialog.popup-workout::before,
+body dialog.popup-diary::before { background: #6f82ff; }
+body dialog.popup-workout .modal-head .eyebrow,
+body dialog.popup-diary .modal-head .eyebrow { background: #f0f1ff; color: #6f82ff; }
+body dialog.popup-delete::before,
+body dialog.popup-confirm::before { background: #d56666; }
+body dialog.popup-delete .modal-head .eyebrow,
+body dialog.popup-confirm .modal-head .eyebrow { background: #fff0ed; color: #d56666; }
+body dialog.popup-delete .actions .danger-button,
+body dialog.popup-confirm .actions .danger-button { border: 1px solid #ffb4aa; background: #fff0ed !important; color: #d56666 !important; }
+
 @media (max-width: 760px) {
   body main .product-catalog-layout > .product-categories { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
   body main .product-catalog-layout > .product-grid { grid-template-columns: 1fr !important; }
 }
+
+/* Workout components v2: compact complex cards and exact reference-card geometry. */
+body main .workout-complex-grid { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)) !important; gap: 16px !important; }
+body main .workout-complex-grid > .workout-complex-card:not(.workout-create-card) {
+  display: flex !important;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 154px !important;
+  height: 154px;
+  padding: 0 !important;
+  overflow: hidden;
+  border: 1px solid #e5eaf2;
+  border-radius: 20px !important;
+  background: #fff;
+  cursor: pointer;
+}
+body main .workout-complex-grid > .workout-complex-card:not(.workout-create-card):hover,
+body main .workout-complex-grid > .workout-complex-card:not(.workout-create-card):focus-visible {
+  border-color: #6f82ff;
+  box-shadow: 0 0 0 2px #6f82ff26, 0 10px 24px #17203312;
+  outline: none;
+}
+body main .workout-complex-card:not(.workout-create-card) .workout-complex-photo {
+  display: grid;
+  flex: 0 0 84px;
+  place-items: center;
+  width: 100%;
+  height: 84px;
+  background: #eef0ff;
+  color: #6f82ff;
+  font-size: 28px;
+}
+body main .workout-complex-card:not(.workout-create-card) .category-copy { min-width: 0; padding: 12px 16px 0; }
+body main .workout-complex-card:not(.workout-create-card) .category-copy b { display: block; overflow: hidden; color: #172033; font-size: 15px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+body main .workout-complex-card:not(.workout-create-card) .category-copy small { display: block; margin-top: 4px; overflow: hidden; color: #7d879b; font-size: 11px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+body main .workout-complex-card:not(.workout-create-card) .workout-complex-actions { display: flex; align-items: center; gap: 8px; margin-top: auto; padding: 10px 16px 14px; }
+body main .workout-complex-card:not(.workout-create-card) .create-complex-button { flex: 1; min-width: 0; min-height: 34px; height: 34px; border: 0; border-radius: 9px; background: #172033; color: #fff; font-size: 11px; }
+body main .workout-complex-card:not(.workout-create-card) .create-complex-button:hover { background: #2a3549; }
+body main .workout-complex-card:not(.workout-create-card) .edit-complex-button { flex: 0 0 34px; width: 34px; min-width: 34px; height: 34px; min-height: 34px; padding: 0; border: 1px solid #d9e2ec; border-radius: 9px; background: #f6f8fc; color: #6f82ff; }
+
+body main .equipment-card:not(.workout-create-card) .card-action,
+body main .equipment-card:not(.workout-create-card) .edit-workout {
+  width: 130px;
+  min-height: 32px;
+  height: 32px;
+  border: 1px solid #79a8ff;
+  border-radius: 9px;
+  background: #eaf2ff;
+  color: #6f82ff;
+  font-size: 11px;
+  font-weight: 800;
+}
+body main .equipment-card:not(.workout-create-card) .card-action:hover,
+body main .equipment-card:not(.workout-create-card) .edit-workout:hover { border-color: #6f82ff; background: #eaf2ff; color: #566ddf; }
+
+/* The form mockup is 980 px wide with a two-column intro and table-like exercise rows. */
+body dialog.popup-complex.popup-form { width: min(980px, calc(100vw - 32px)); }
+body dialog.popup-complex.popup-form > .dialog-panel { padding: 34px 44px 26px; }
+body dialog.popup-complex.popup-form .complex-form > .grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; margin: 20px 0 30px; }
+body dialog.popup-complex.popup-form .complex-form > .grid .field { min-width: 0; }
+body dialog.popup-complex.popup-form .complex-form > .grid .field input { height: 48px; min-height: 48px; }
+body dialog.popup-complex.popup-form .complex-form > .grid .field textarea { min-height: 48px; height: 48px; resize: vertical; }
+body dialog.popup-complex.popup-form .complex-exercises-section,
+body dialog.popup-complex.popup-form .complex-media-section { margin-top: 0; padding: 0; border: 0; border-radius: 0; background: transparent; }
+body dialog.popup-complex.popup-form .complex-media-section { margin-top: 28px; padding-top: 20px; border-top: 1px solid #edf0f5; }
+body dialog.popup-complex.popup-form .complex-items { gap: 0; margin-top: 12px; border: 1px solid #dde3ec; border-radius: 10px; overflow: hidden; background: #fff; }
+body dialog.popup-complex.popup-form .complex-item { padding: 13px 16px; border: 0; border-radius: 0; background: #fff; }
+body dialog.popup-complex.popup-form .complex-item + .complex-item { border-top: 1px solid #edf0f5; }
+body dialog.popup-complex.popup-form .complex-item-head { min-height: 30px; }
+body dialog.popup-complex.popup-form .builder-number { display: grid; place-items: center; width: 26px; height: 26px; flex: 0 0 26px; border-radius: 50%; background: #eef0ff; color: #6f82ff; font-size: 11px; font-weight: 800; }
+body dialog.popup-complex.popup-form .complex-item-head select { min-height: 34px; height: 34px; border: 0; background: transparent; font-weight: 700; }
+body dialog.popup-complex.popup-form .complex-exercise-link { display: none; }
+body dialog.popup-complex.popup-form .complex-item-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 10px 0 0 42px; }
+body dialog.popup-complex.popup-form .complex-item-fields .field label { margin-bottom: 4px; font-size: 10px; }
+body dialog.popup-complex.popup-form .complex-item-fields input { height: 34px; min-height: 34px; padding: 0 9px; }
+body dialog.popup-complex.popup-form .remove-builder-item { width: 28px; height: 28px; min-width: 28px; border: 0; border-radius: 8px; background: transparent; color: #7d879b; font-size: 18px; }
+body dialog.popup-complex.popup-form .remove-builder-item:hover { background: #fff0ed; color: #d56666; }
+body dialog.popup-complex.popup-form .complex-section-head h3 { font-size: 16px; }
+body dialog.popup-complex.popup-form .complex-section-head .secondary-button { min-height: 38px; height: 38px; border: 0; border-radius: 10px; background: #e2f7eb; color: #329a63; }
+body dialog.popup-complex.popup-form .complex-form > .actions { margin-top: 20px; padding-top: 20px; border-top: 1px solid #edf0f5; }
+body dialog.popup-complex.popup-form .complex-form > .actions button { min-height: 38px; height: 38px; border-radius: 10px; }
+body dialog.popup-complex.popup-form .complex-form > .actions .primary { min-width: 94px; border: 0; background: #172033; color: #fff; }
+
+@media (max-width: 700px) {
+  body dialog.popup-complex.popup-form > .dialog-panel { padding: 26px 20px; }
+  body dialog.popup-complex.popup-form .complex-form > .grid { grid-template-columns: 1fr; gap: 12px; }
+  body dialog.popup-complex.popup-form .complex-item-fields { grid-template-columns: 1fr 1fr; margin-left: 0; }
+}
+
+/* Workout history cards: match the completed/cancelled states from the component sheet. */
+body main .archive-history-groups .archive-workout-grid { grid-template-columns: repeat(2, minmax(0, 410px)) !important; justify-content: start; gap: 16px !important; }
+body main .history-workout-card {
+  box-sizing: border-box;
+  width: 410px;
+  min-width: 0;
+  min-height: 264px !important;
+  height: 264px;
+  padding: 24px !important;
+  border: 1px solid #e5eaf2;
+  border-radius: 18px !important;
+  background: #fff;
+  box-shadow: 0 6px 20px #1720330d;
+}
+body main .history-workout-card:hover,
+body main .history-workout-card:focus-visible { border-color: #79a8ff; box-shadow: 0 0 0 2px #79a8ff26, 0 8px 24px #17203312; outline: none; }
+body main .history-workout-card .workout-tile-head { min-height: 24px; }
+body main .history-workout-card .workout-date { color: #172033; font-size: 14px; font-weight: 700; }
+body main .history-workout-card .workout-group { padding: 5px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+body main .history-workout-card h3 { min-height: 46px; margin: 18px 0 6px; font-size: 19px; line-height: 1.22; }
+body main .history-workout-card > p { min-height: 18px; margin: 0; color: #7d879b; font-size: 12px; }
+body main .history-card-summary { min-height: 52px; max-height: 52px; margin: 16px 0 10px; padding-top: 10px; overflow: hidden; border-top: 1px solid #e5eaf2; }
+body main .history-card-summary b,
+body main .history-card-summary small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body main .history-card-summary b { color: #172033; font-size: 12px; line-height: 18px; }
+body main .history-card-summary small { margin-top: 4px; color: #7d879b; font-size: 12px; line-height: 18px; }
+body main .history-card-actions { display: flex !important; align-items: center; justify-content: flex-start !important; gap: 10px; min-height: 36px; margin-top: auto; }
+body main .history-card-actions .history-details-action,
+body main .history-card-actions .history-repeat-action,
+body main .history-card-actions .history-delete-action { box-sizing: border-box; min-height: 36px; height: 36px; border-radius: 9px; padding: 0 12px; font-size: 11px; font-weight: 800; }
+body main .history-card-actions .history-details-action { flex: 0 0 160px; width: 160px; border: 1px solid #79a8ff; background: #eaf2ff; color: #6f82ff; }
+body main .history-card-actions .history-repeat-action { flex: 0 0 126px; width: 126px; border: 0; background: #172033; color: #fff; }
+body main .history-card-actions .history-repeat-action:hover { background: #2a3549; }
+body main .history-card-actions .history-delete-action { flex: 0 0 126px; width: 126px; border: 1px solid #ccd3df; background: #f7f8fa; color: #7d879b; }
+body main .history-card-actions .history-delete-action:hover { border-color: #ffb4aa; background: #fff2f0; color: #d55555; }
+
+@media (max-width: 900px) {
+  body main .archive-history-groups .archive-workout-grid { grid-template-columns: minmax(0, 410px) !important; }
+  body main .history-workout-card { width: min(410px, 100%); }
+}
+
+/* Final history reset: legacy archive-grid alignment must not affect the component-sheet cards. */
+body main .archive-history-layout { grid-template-columns: minmax(0, 836px) 408px !important; }
+body main .archive-history-groups { width: 836px; max-width: 100%; }
+body main .archive-history-groups .archive-workout-grid { display: grid !important; grid-template-columns: repeat(2, 410px) !important; width: 836px; max-width: 100%; }
+body main .history-workout-card { display: flex !important; flex-direction: column !important; align-items: stretch !important; justify-content: flex-start !important; width: 410px; max-width: 100%; }
+body main .history-workout-card .workout-tile-head,
+body main .history-workout-card h3,
+body main .history-workout-card > p,
+body main .history-workout-card .history-card-summary,
+body main .history-workout-card .history-card-actions { width: 100%; max-width: 100%; text-align: left; }
+body main .history-workout-card .workout-tile-head { flex: 0 0 auto; }
+body main .history-workout-card h3 { display: -webkit-box; flex: 0 0 auto; text-align: left; }
+body main .history-card-actions .history-details-action { flex: 0 0 160px !important; width: 160px !important; }
+body main .history-card-actions .history-repeat-action,
+body main .history-card-actions .history-delete-action { flex: 0 0 126px !important; width: 126px !important; }
+
+@media (max-width: 1100px) {
+  body main .archive-history-layout { grid-template-columns: minmax(0, 1fr) !important; }
+  body main .archive-history-groups { width: 100%; }
+  body main .archive-history-groups .archive-workout-grid { width: 100%; }
+}
+@media (max-width: 900px) {
+  body main .archive-history-groups .archive-workout-grid { grid-template-columns: minmax(0, 410px) !important; }
+}
+@media (max-width: 500px) {
+  body main .archive-history-groups .archive-workout-grid { grid-template-columns: minmax(0, 1fr) !important; }
+  body main .history-workout-card { width: 100%; }
+  body main .history-card-actions .history-details-action { flex-basis:  min(160px, calc(100% - 136px)) !important; width: min(160px, calc(100% - 136px)) !important; }
+}
+
+/* Card action rule: details is an icon action, not a text button. */
+body main .history-card-actions .history-details-action {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 36px !important;
+  width: 36px !important;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid #79a8ff;
+  border-radius: 9px;
+  background: #eaf2ff;
+  color: #6f82ff;
+  font-size: 16px;
+  line-height: 1;
+}
+body main .history-card-actions .history-details-action:hover { border-color: #6f82ff; background: #dfeaff; color: #566ddf; }
 </style>

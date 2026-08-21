@@ -16,6 +16,7 @@ const selectedArticle = ref<Article | null>(null);
 const sectionOpen = ref(false);
 const sectionInfoOpen = ref(false);
 const sectionName = ref('');
+const articleQuery = ref('');
 const error = ref('');
 
 function sortArticles(list: Article[]) {
@@ -24,9 +25,14 @@ function sortArticles(list: Article[]) {
     return sortOrder.value === 'asc' ? result : -result;
   });
 }
-const popularArticles = computed(() => sortArticles(articles.value.filter((article) => article.is_pinned)));
-const sectionArticleList = computed(() => sortArticles(activeSection.value === null ? [] : articles.value.filter((article) => article.section_id === activeSection.value)));
-const tagArticleList = computed(() => sortArticles(activeTag.value ? articles.value.filter((article) => articleTags(article).includes(activeTag.value as string)) : []));
+function matchesQuery(article: Article) {
+  const query = articleQuery.value.trim().toLocaleLowerCase('ru');
+  if (!query) return true;
+  return [article.title, article.section_name, article.body].some((value) => value.toLocaleLowerCase('ru').includes(query));
+}
+const popularArticles = computed(() => sortArticles(articles.value.filter((article) => article.is_pinned && matchesQuery(article))));
+const sectionArticleList = computed(() => sortArticles(activeSection.value === null ? [] : articles.value.filter((article) => article.section_id === activeSection.value && matchesQuery(article))));
+const tagArticleList = computed(() => sortArticles(activeTag.value ? articles.value.filter((article) => articleTags(article).includes(activeTag.value as string) && matchesQuery(article)) : []));
 const activeSectionName = computed(() => sections.value.find((section) => section.id === activeSection.value)?.name || '');
 const activeSectionItem = computed(() => sections.value.find((section) => section.id === activeSection.value) || null);
 
@@ -143,6 +149,10 @@ async function createSection() {
   <section class="theory-page">
     <div class="theory-head"><div><p class="eyebrow">ИНФОРМАЦИЯ</p><h2>Статьи и полезные материалы</h2></div><button v-if="props.isAdmin" type="button" class="primary" @click="emit('addArticle')">＋ Добавить статью</button></div>
     <p class="information-page-subtitle">Короткие материалы о питании и привычках</p>
+    <section class="information-search" aria-label="Поиск по материалам">
+      <p class="eyebrow">ПОИСК ПО МАТЕРИАЛАМ</p>
+      <input v-model="articleQuery" type="search" placeholder="Поиск…" aria-label="Поиск по материалам">
+    </section>
     <div v-if="error" class="panel empty">{{ error }}</div>
 
     <div class="article-sort-row">
@@ -156,7 +166,7 @@ async function createSection() {
           <img v-if="item.photos[0]" :src="item.photos[0]" :alt="item.title">
           <div class="article-card-head"><p class="eyebrow">{{ item.section_name }}</p><span v-if="item.is_hidden" class="hidden-badge">Скрыта</span></div>
           <h3 class="article-title">{{ item.title }}</h3><div class="article-lead"><span class="article-open-icon" aria-hidden="true">↗</span><div class="article-excerpt" v-html="articleHtml(item.body)"></div></div><div v-if="articleTags(item).length" class="article-tags" @click.stop><button v-for="tag in articleTags(item)" :key="tag" type="button" @click="filterByTag(tag)">{{ tag }}</button></div>
-          <button type="button" class="primary card-primary article-card-primary" @click.stop="openArticle(item)">Открыть статью</button>
+          <button type="button" class="primary card-primary article-card-primary" @click.stop="openArticle(item)">Читать статью</button>
           <div v-if="props.isAdmin" class="article-card-actions" @click.stop><button type="button" class="icon-action article-visibility-button" :class="{ 'article-return-button': item.is_hidden }" :aria-label="item.is_hidden ? 'Вернуть статью' : 'Скрыть статью'" :title="item.is_hidden ? 'Вернуть статью' : 'Скрыть статью'" @click="toggleFlag(item, 'is_hidden')">{{ item.is_hidden ? '↶' : '◌' }}</button><button type="button" class="icon-action edit-article-button" aria-label="Редактировать статью" title="Редактировать статью" @click="editArticle(item)">✎</button></div>
         </article>
       </div>
@@ -166,7 +176,7 @@ async function createSection() {
     <section class="article-sections-block">
       <div class="content-block-head"><div><p class="eyebrow">РАЗДЕЛЫ</p><h3>Выберите раздел</h3></div></div>
       <div class="article-sections">
-        <button v-for="item in sections" :key="item.id" type="button" class="article-section-card" :class="{ active: activeSection === item.id }" @click="activeSection = item.id"><span><b>{{ item.name }}</b><small>{{ item.article_count }} статей</small></span><strong>{{ sectionArticles(item.id).length }}</strong></button>
+        <button v-for="item in sections" :key="item.id" type="button" class="article-section-card" :class="{ active: activeSection === item.id }" @click="activeSection = item.id"><span><b>{{ item.name }} · {{ sectionArticles(item.id).length }}</b><small>{{ item.article_count }} статей</small></span><strong>{{ sectionArticles(item.id).length }}</strong></button>
         <button v-if="props.isAdmin" type="button" class="article-section-card add-section-card" @click="sectionOpen = true"><span><b>＋ Создать раздел</b><small>Новый раздел статей</small></span></button>
       </div>
     </section>
@@ -185,7 +195,7 @@ async function createSection() {
           <img v-if="item.photos[0]" :src="item.photos[0]" :alt="item.title">
           <div class="article-card-head"><p class="eyebrow">{{ item.section_name }}</p><span v-if="item.is_hidden" class="hidden-badge">Скрыта</span></div>
           <h3 class="article-title">{{ item.title }}</h3><div class="article-lead"><span class="article-open-icon" aria-hidden="true">↗</span><div class="article-excerpt" v-html="articleHtml(item.body)"></div></div><div v-if="articleTags(item).length" class="article-tags" @click.stop><button v-for="tag in articleTags(item)" :key="tag" type="button" @click="filterByTag(tag)">{{ tag }}</button></div>
-          <button type="button" class="primary card-primary article-card-primary" @click.stop="openArticle(item)">Открыть статью</button>
+          <button type="button" class="primary card-primary article-card-primary" @click.stop="openArticle(item)">Читать статью</button>
           <div v-if="props.isAdmin" class="article-card-actions" @click.stop><button type="button" class="icon-action article-visibility-button" :class="{ 'article-return-button': item.is_hidden }" :aria-label="item.is_hidden ? 'Вернуть статью' : 'Скрыть статью'" :title="item.is_hidden ? 'Вернуть статью' : 'Скрыть статью'" @click="toggleFlag(item, 'is_hidden')">{{ item.is_hidden ? '↶' : '◌' }}</button><button type="button" class="icon-action edit-article-button" aria-label="Редактировать статью" title="Редактировать статью" @click="editArticle(item)">✎</button></div>
         </article>
       </div>
@@ -233,4 +243,58 @@ async function createSection() {
 .article-detail-body :deep(blockquote), .article-section-info-body :deep(blockquote) { margin: 12px 0 12px 32px; padding-left: 12px; border-left: 3px solid #c8d8f7; }
 @media (max-width: 600px) { .theory-head, .content-block-head { align-items: flex-start; flex-direction: column; }.popular-articles { padding: 14px; } }
 .article-title { font-size: 19px !important; }
+
+/* Information page v2 layout. */
+.theory-page { max-width: 1028px; }
+.theory-head { min-height: 0; margin: 0; justify-content: flex-end; }
+.theory-head > div { display: none; }
+.theory-head > button { min-height: 38px; border-radius: 10px; font-size: 11px; }
+.information-page-subtitle { margin: -21px 0 24px; }
+.information-search { box-sizing: border-box; min-height: 92px; margin: 0 0 48px; padding: 30px 32px 14px; border-radius: 18px; background: #172033; }
+.information-search .eyebrow { margin: 0 0 10px; color: #bdf2d3; }
+.information-search input { box-sizing: border-box; width: 472px; max-width: 100%; height: 40px; min-height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: #fff; color: #172033; font-size: 14px; }
+.article-sort-row { display: none; }
+.popular-articles { margin-bottom: 58px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.popular-articles .content-block-head { margin-bottom: 18px; }
+.popular-articles .content-block-head small { display: none; }
+.article-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.article-card { box-sizing: border-box; min-height: 300px; height: 300px; padding: 20px; border-radius: 18px; box-shadow: 0 8px 24px #15233d14; }
+.article-card::before { inset: 16px 16px auto; width: auto; height: 108px; margin: 0; border-radius: 13px; background: #dff2f7; }
+.article-card::after { content: '◈'; position: absolute; top: 48px; left: 38px; z-index: 1; color: #4b9db0; font-size: 44px; line-height: 1; }
+.article-card img { display: none; }
+.article-card.has-pin-action { padding-top: 20px; }
+.article-card-head { position: absolute; top: 30px; left: 24px; z-index: 2; }
+.article-card-head .eyebrow { margin: 0; padding: 5px 9px; border-radius: 8px; background: #ffffffd1; color: #4b9db0; font-size: 10px; }
+.article-card h3.article-title { min-height: 0; margin: 120px 0 5px !important; font-size: 20px !important; line-height: 24px !important; }
+.article-lead { display: block; min-height: 0; margin: 0; padding-top: 10px; border-top: 1px solid #edf0f5; }
+.article-open-icon { display: none; }
+.article-excerpt { max-height: 42px; color: #7d879b; font-size: 12px; line-height: 1.45; }
+.article-tags { display: none; }
+.article-card-primary { align-self: flex-start; width: 132px; min-height: 28px !important; height: 28px; margin-top: auto; border-radius: 8px; padding: 0 10px; font-size: 11px; }
+.article-card-actions { position: absolute; right: 20px; bottom: 14px; display: flex; gap: 6px; margin: 0; }
+.article-card-actions button { box-sizing: border-box; width: 28px; min-width: 28px; height: 28px; min-height: 28px; padding: 0; border-radius: 8px; font-size: 14px; }
+.article-pin-action { top: 30px; right: 24px; width: 32px; min-width: 32px; height: 32px; min-height: 32px; padding: 0; border: 0; border-radius: 9px; background: #fff; color: #4b9db0; font-size: 15px; }
+.article-pin-action.pinned { background: #dff2f7; color: #4b9db0; }
+.article-sections-block { margin-bottom: 24px; }
+.article-sections-block .content-block-head { margin-bottom: 18px; }
+.article-sections { display: flex; flex-wrap: wrap; align-items: center; gap: 24px; min-height: 116px; box-sizing: border-box; padding: 34px 32px; border: 1px solid #e5eaf2; border-radius: 18px; background: #fff; }
+.article-section-card { display: flex; flex: 0 0 168px; align-items: center; justify-content: flex-start; width: 168px; height: 42px; min-height: 42px; padding: 0 20px; border: 0; border-radius: 10px; background: #f6f8fc; color: #7d879b; }
+.article-section-card.active { border: 0; background: #e2f7eb; box-shadow: none; color: #329a63; }
+.article-section-card > span { min-width: 0; }
+.article-section-card b { overflow: hidden; color: inherit; font-size: 12px; line-height: 42px; text-overflow: ellipsis; white-space: nowrap; }
+.article-section-card small, .article-section-card strong { display: none; }
+.article-section-card.add-section-card { border: 1px dashed #d9e2ff; background: #f8faff; }
+.article-section-card.add-section-card b { line-height: 16px; }
+.article-section-card.add-section-card small { display: block; margin-top: 2px; color: #7d879b; font-size: 10px; line-height: 12px; }
+.selected-section { margin-bottom: 24px; }
+
+@media (max-width: 900px) {
+  .article-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 600px) {
+  .article-grid { grid-template-columns: 1fr; }
+  .information-search { padding: 26px 20px 14px; }
+  .article-sections { gap: 10px; padding: 20px; }
+  .article-section-card { flex-basis: calc(50% - 5px); width: auto; padding: 0 12px; }
+}
 </style>

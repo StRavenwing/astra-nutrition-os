@@ -135,13 +135,13 @@ async function save() {
 </script>
 
 <template>
-  <ModalDialog :open="open" :title="mode === 'edit' ? 'Редактировать комплекс' : 'Создать комплекс'" eyebrow="WORKOUT COMPLEX" wide @close="$emit('close')">
+  <ModalDialog :open="open" :title="mode === 'edit' ? 'Редактировать комплекс тренировок' : 'Создать комплекс тренировок'" eyebrow="WORKOUT COMPLEX" wide @close="$emit('close')">
     <form class="complex-form" @submit.prevent="save">
       <div v-if="loading" class="panel">Загрузка…</div>
       <template v-else>
         <div class="grid">
-          <div class="field full"><label>Название комплекса</label><input v-model="form.name" required></div>
-          <div class="field full"><label>Комментарий</label><textarea v-model="form.comment" rows="4" placeholder="Описание комплекса, рекомендации и важные замечания"></textarea></div>
+          <div class="field"><label>Название комплекса</label><input v-model="form.name" placeholder="Например, силовая база" required></div>
+          <div class="field"><label>Комментарий</label><input v-model="form.comment" placeholder="35 минут · грудь и спина"></div>
         </div>
 
         <section class="complex-exercises-section">

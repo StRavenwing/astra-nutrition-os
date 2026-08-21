@@ -94,6 +94,28 @@ function productSpriteStyle(item: string) {
 }
 
 function productCoverClass(category: string | null) {
+  const toneByCategory: Record<string, string> = {
+    'Белковые': 'product-cover-tone-3',
+    'Добавки': 'product-cover-tone-4',
+    'Зелень': 'product-cover-tone-0',
+    'Крупы': 'product-cover-tone-1',
+    'Масла': 'product-cover-tone-5',
+    'Молочные': 'product-cover-tone-4',
+    'Морепродукты': 'product-cover-tone-2',
+    'Мясо': 'product-cover-tone-3',
+    'Напитки': 'product-cover-tone-1',
+    'Орехи': 'product-cover-tone-2',
+    'Овощи': 'product-cover-tone-0',
+    'Основа': 'product-cover-tone-4',
+    'Перекусы': 'product-cover-tone-1',
+    'Рыба': 'product-cover-tone-5',
+    'Соусы': 'product-cover-tone-5',
+    'Сыры': 'product-cover-tone-4',
+    'Фрукты': 'product-cover-tone-1',
+    'Хлеб': 'product-cover-tone-1',
+    'Ягоды': 'product-cover-tone-2'
+  };
+  if (category && toneByCategory[category]) return toneByCategory[category];
   const index = Object.keys(productSpritePositions).indexOf(category || '');
   return `product-cover-tone-${Math.max(0, index) % 6}`;
 }
@@ -177,11 +199,10 @@ function productCategoryTone(categoryName: string) {
           <span><b>{{ fmt(item.carbs_g) }}</b><small>углев.</small></span>
         </div>
         <div class="product-tile-foot">
-          <span>{{ item.package_size ? `${fmt(item.package_size)} ${item.unit || ''} в упаковке` : 'Цена за расчётную единицу' }}</span>
-          <b>{{ fmt(item.price_per_100_or_unit_rsd) }} RSD</b>
+          <span>{{ fmt(item.price_per_100_or_unit_rsd) }} RSD / {{ basis(item).slice(3) }}</span>
         </div>
         <div v-if="props.isAdmin" class="product-tile-actions">
-          <button type="button" class="primary card-primary edit-product" @click="emit('edit', item.id)">Редактировать</button>
+          <button type="button" class="card-action edit-product" @click="emit('edit', item.id)">Редактировать</button>
           <button type="button" class="icon-action danger-icon delete-product" aria-label="Удалить продукт" title="Удалить продукт" @click="remove(item.id)">×</button>
         </div>
       </article>

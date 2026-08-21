@@ -124,11 +124,23 @@ nav button .nav-icon {
 }
 
 .side-install .install-app {
+  justify-content: flex-start;
+  gap: 7px;
+  box-sizing: border-box;
   min-height: 42px;
+  padding: 7px 9px;
   border-color: #8de0b1;
   background: #bdf2d3;
   color: #172033;
+  font-size: 11px;
+  line-height: 1.15;
   box-shadow: none;
+}
+
+.side-install .install-app span {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
 }
 
 .side-install .install-app:hover {
