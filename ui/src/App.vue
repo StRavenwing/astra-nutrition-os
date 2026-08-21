@@ -2567,14 +2567,155 @@ dialog::backdrop { background: #0e172880; }
 .workout-section-tile:nth-child(2) .workout-section-icon { background-position: -330px -333px; background-color: #e2f7eb; }
 .workout-section-tile:nth-child(3) .workout-section-icon { background-position: -710px -333px; background-color: #e6e7ff; }
 .workout-section-tile:nth-child(4) .workout-section-icon { background-position: -900px -333px; background-color: #fff1de; }
-.article-section-card { position: relative; padding-left: 78px; }
-.article-section-card::before { content: ''; position: absolute; left: 15px; top: 15px; width: 54px; height: 54px; border-radius: 50%; background: #e2f7eb url('/assets/astra-category-icons-articles.svg') -116px -157px no-repeat; }
-.article-section-card:nth-child(2)::before { background-color: #f0f1ff; background-position: -306px -157px; }
-.article-section-card:nth-child(3)::before { background-color: #dff2f7; background-position: -496px -157px; }
-.article-section-card:nth-child(4)::before { background-color: #e6e7ff; background-position: -686px -157px; }
-.article-section-card:nth-child(5)::before { background-color: #fff1de; background-position: -876px -157px; }
-.article-section-card:nth-child(6)::before { background-color: #fde7e2; background-position: -1066px -157px; }
 .add-section-card::before { display: none; }
+.article-section-card { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; gap: 11px; align-items: center; min-height: 96px; padding: 15px; border-radius: 14px; }
+.article-section-card > span { grid-column: 2; min-width: 0; }
+.article-section-card > strong { grid-column: 3; grid-row: 1; align-self: start; }
+.article-section-card::before { content: ''; position: static; grid-column: 1; grid-row: 1; width: 48px; height: 48px; border-radius: 50%; background: #e2f7eb url('/assets/astra-category-icons-articles.svg') -119px -162px no-repeat; }
+.article-section-card:nth-child(2)::before { background-color: #f0f1ff; background-position: -309px -162px; }
+.article-section-card:nth-child(3)::before { background-color: #dff2f7; background-position: -499px -162px; }
+.article-section-card:nth-child(4)::before { background-color: #e6e7ff; background-position: -689px -162px; }
+.article-section-card:nth-child(5)::before { background-color: #fff1de; background-position: -879px -162px; }
+.article-section-card:nth-child(6)::before { background-color: #fde7e2; background-position: -1069px -162px; }
+.article-section-card.add-section-card { display: flex; min-height: 96px; padding: 15px; }
+.article-section-card.add-section-card > span { min-width: 0; }
+.recipes-page-subtitle { margin: -22px 0 24px; color: var(--muted); font-size: 14px; }
+.recipe-collections { display: none; }
+.recipe-categories { grid-template-columns: repeat(auto-fit, minmax(144px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.recipe-categories .category-card { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 11px; min-height: 92px; padding: 15px; border-radius: 16px; }
+.recipe-categories .category-card > strong { position: static; grid-column: 3; grid-row: 1; align-self: start; padding: 5px 8px; background: #edf2ff; color: var(--blue); box-shadow: none; }
+.recipe-categories .category-photo { width: 48px; height: 48px; border-radius: 50%; }
+.recipe-categories .category-photo::before { width: 48px; height: 48px; }
+.recipe-categories .category-copy { grid-column: 2; padding: 0; min-width: 0; }
+.recipe-categories .category-copy b { display: block; font-size: 12px; line-height: 1.2; }
+.recipe-categories .category-copy small { margin-top: 4px; color: var(--muted); font-size: 10px; text-transform: none; letter-spacing: 0; }
+.recipe-categories .all-photo { background: #e2f7eb; }
+.recipe-categories .all-photo::after { content: '✦'; color: #329a63; font-size: 24px; text-shadow: none; }
+.recipe-categories .add-category-card { border-style: dashed; background: #fff; }
+.recipe-categories .add-category-card .category-photo { display: grid; place-items: center; background: #f0f1ff; color: var(--blue); font-size: 24px; }
+.recipe-grid { grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 24px; }
+.recipe-tile { min-height: 268px; padding: 16px; border-radius: 18px; box-shadow: 0 8px 28px #15233d12; }
+.recipe-tile::before { display: none; }
+.recipe-cover { position: relative; display: flex; align-items: center; height: 94px; padding: 0 26px; border-radius: 13px; overflow: hidden; background: #e2f7eb; color: #329a63; }
+.recipe-cover-icon { font-size: 42px; line-height: 1; }
+.recipe-serving { position: absolute; top: 12px; right: 12px; padding: 5px 9px; border-radius: 8px; background: #ffffffd1; color: inherit; font-size: 10px; font-weight: 800; }
+.recipe-cover-breakfast { background: #f0f1ff; color: #6f82ff; }
+.recipe-cover-dessert { background: #fff1de; color: #c88731; }
+.recipe-cover-salad, .recipe-cover-drink { background: #dff2f7; color: #4b9db0; }
+.recipe-cover-wrap, .recipe-cover-garnish { background: #e2f7eb; color: #329a63; }
+.recipe-cover-sauce, .recipe-cover-snack { background: #f0f1ff; color: #6f82ff; }
+.recipe-cover-ready { background: #fde7e2; color: #d56666; }
+.recipe-tile-head { display: none; }
+.recipe-tile .recipe-category { margin-top: 14px; color: var(--muted); font-size: 10px; text-transform: none; letter-spacing: .02em; }
+.recipe-tile h3 { margin: 5px 0 4px; font-size: 18px; line-height: 1.2; }
+.recipe-tile > p { min-height: 18px; margin: 0; font-size: 11px; }
+.recipe-tile .tile-macros { grid-template-columns: repeat(4, 1fr); gap: 0; margin: 12px 0 10px; padding-top: 12px; border-top: 1px solid #edf0f5; }
+.recipe-tile .tile-macros::before { display: none; }
+.recipe-tile .tile-macros span { padding: 0; background: transparent; text-align: left; }
+.recipe-tile .tile-macros b { color: var(--muted); font-size: 11px; }
+.recipe-tile .tile-macros span:first-child b { color: var(--blue); }
+.recipe-tile .tile-macros small { margin-top: 2px; font-size: 8px; }
+.recipe-tile-foot { padding-top: 0; border-top: 0; }
+.recipe-tile-foot > span:first-child { display: none; }
+.recipe-tile-foot::before { content: 'Открыть рецепт'; display: inline-flex; align-items: center; min-height: 28px; padding: 0 13px; border-radius: 8px; background: var(--ink); color: #fff; font-size: 10px; font-weight: 800; }
+.recipe-tile-foot b { color: var(--muted); font-size: 10px; }
+.recipe-tile-foot b small { font-size: 9px; }
+.products-page-subtitle { margin: -22px 0 24px; color: var(--muted); font-size: 14px; }
+.product-catalog-layout { display: grid; grid-template-columns: 184px minmax(0, 1fr); gap: 28px; align-items: start; }
+.product-catalog-layout .product-categories { display: flex; flex-direction: column; gap: 3px; margin: 0; padding-right: 16px; border-right: 1px solid var(--line); }
+.product-catalog-layout .product-categories { grid-column: 1; grid-row: 1 / span 2; }
+.product-catalog-layout .product-category-card { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-height: 48px; padding: 6px 9px; border: 0; border-radius: 10px; box-shadow: none; background: transparent; }
+.product-catalog-layout .product-category-card:hover { transform: none; background: #f1f4fb; box-shadow: none; }
+.product-catalog-layout .product-category-card.active { border: 0; background: #e2f7eb; box-shadow: none; }
+.product-catalog-layout .product-category-card > strong { position: static; grid-column: 3; grid-row: 1; padding: 4px 7px; background: #fff; color: var(--blue); box-shadow: none; }
+.product-catalog-layout .product-category-photo { width: 36px; height: 36px; border-radius: 50%; }
+.product-catalog-layout .product-category-photo::before { width: 36px; height: 36px; background-size: 1260px 760px; }
+.product-catalog-layout .product-category-copy { grid-column: 2; padding: 0; min-width: 0; }
+.product-catalog-layout .product-category-copy b { display: block; overflow: hidden; font-size: 11px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.product-catalog-layout .product-category-copy small { margin-top: 3px; color: var(--muted); font-size: 9px; text-transform: none; letter-spacing: 0; }
+.product-catalog-layout .product-category-card.all { margin-bottom: 5px; background: #e2f7eb; }
+.product-catalog-layout .product-category-card.all .product-category-photo { background: #fff; }
+.product-catalog-layout .product-category-card.all-products-photo::after { content: '✦'; color: #329a63; font-size: 20px; letter-spacing: 0; text-shadow: none; }
+.product-catalog-layout .product-category-card.add-category-card { margin-top: 8px; border: 1px dashed #b8c0d1; background: #fff; }
+.product-catalog-layout .product-category-card.add-category-card .product-category-photo { display: grid; place-items: center; background: #f0f1ff; color: var(--blue); font-size: 20px; }
+.product-catalog-layout .toolbar { grid-column: 2; grid-row: 1; margin: 0 0 18px; }
+.product-catalog-layout .product-grid { grid-column: 2; grid-row: 2; margin-top: 0; display: block; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+.product-table-head, .product-tile { display: grid; grid-template-columns: minmax(190px, 2fr) minmax(100px, 1.15fr) repeat(4, minmax(64px, .7fr)); gap: 12px; align-items: center; }
+.product-table-head { min-height: 45px; padding: 0 24px; border-bottom: 1px solid var(--line); background: #fbfcfe; color: var(--muted); font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.product-tile { min-height: 72px; padding: 12px 24px; border: 0; border-bottom: 1px solid #edf0f5; border-radius: 0; box-shadow: none; }
+.product-tile:last-of-type { border-bottom: 0; }
+.product-tile:hover { transform: none; border-color: #edf0f5; background: #fbfcff; box-shadow: none; }
+.product-tile::before { display: none; }
+.product-tile-head { display: none; }
+.product-tile h3 { grid-column: 1; grid-row: 1; margin: 0; font-size: 14px; line-height: 1.25; }
+.product-tile-category { grid-column: 2; grid-row: 1; margin: 0; color: var(--muted); font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.product-tile > p { grid-column: 1; grid-row: 2; min-height: 0; margin: 4px 0 0; overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.product-tile .product-macros { display: grid; grid-column: 3 / -1; grid-row: 1 / 3; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; align-items: center; margin: 0; }
+.product-tile .product-macros::before { display: none; }
+.product-tile .product-macros span { padding: 0; background: transparent; text-align: left; }
+.product-tile .product-macros b { color: var(--ink); font-size: 12px; }
+.product-tile .product-macros small { margin-top: 2px; font-size: 8px; }
+.product-tile .product-tile-foot { grid-column: 2; grid-row: 2; margin: 4px 0 0; padding: 0; border: 0; font-size: 9px; }
+.product-tile .product-tile-foot span { display: none; }
+.product-tile .product-tile-foot b { color: var(--muted); font-size: 9px; }
+.product-tile .product-tile-actions { grid-column: 1 / -1; grid-row: 3; display: flex; justify-content: flex-end; min-height: 30px; margin: 4px 0 0; }
+.product-tile .product-tile-actions button { width: auto; min-height: 28px; height: 28px; }
+.product-catalog-layout > .product-grid > .empty { margin: 16px; }
 @media (max-width: 900px) { aside { width: auto; } main { margin-left: 0; padding: 32px 24px 48px; } }
+@media (max-width: 760px) { .product-catalog-layout { grid-template-columns: 1fr; } .product-catalog-layout .product-categories { grid-column: 1; grid-row: auto; flex-direction: row; overflow-x: auto; padding: 0 0 8px; border-right: 0; border-bottom: 1px solid var(--line); } .product-catalog-layout .product-category-card { min-width: 150px; } .product-catalog-layout .toolbar, .product-catalog-layout .product-grid { grid-column: 1; grid-row: auto; } .product-catalog-layout .product-grid { margin-top: 0; overflow-x: auto; } .product-table-head, .product-tile { min-width: 720px; } }
+.product-catalog-layout { display: block; }
+.product-catalog-layout .product-categories { display: grid; grid-template-columns: repeat(auto-fit, minmax(144px, 1fr)); grid-column: auto; grid-row: auto; gap: 16px; margin-bottom: 24px; padding: 0; border: 0; }
+.product-catalog-layout .product-category-card { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; min-height: 92px; padding: 15px; border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+.product-catalog-layout .product-category-card:hover { transform: translateY(-2px); background: #fff; }
+.product-catalog-layout .product-category-card.active { border-color: var(--blue); background: #fff; box-shadow: 0 0 0 2px #6f82ff22; }
+.product-catalog-layout .product-category-card > strong { position: static; grid-column: 3; grid-row: 1; align-self: start; }
+.product-catalog-layout .product-category-photo { width: 48px; height: 48px; }
+.product-catalog-layout .product-category-photo::before { width: 48px; height: 48px; }
+.product-catalog-layout .product-category-copy b { font-size: 12px; }
+.product-catalog-layout .product-category-copy small { font-size: 10px; }
+.product-catalog-layout .toolbar { margin: 18px 0; }
+.product-catalog-layout .product-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 24px; overflow: visible; border: 0; border-radius: 0; background: transparent; }
+.product-table-head { display: none; }
+.product-tile { display: flex; flex-direction: column; min-height: 300px; padding: 16px; border: 1px solid var(--line); border-radius: 18px; background: #fff; box-shadow: 0 8px 28px #15233d12; }
+.product-tile:hover { transform: translateY(-3px); border-color: #aab6ff; background: #fff; box-shadow: 0 12px 30px #17203312; }
+.product-cover { position: relative; display: flex; align-items: center; justify-content: center; height: 108px; border-radius: 13px; background: #fff1de; color: #c88731; overflow: hidden; }
+.product-cover-label { position: absolute; top: 12px; left: 12px; padding: 5px 9px; border-radius: 8px; background: #ffffffd1; color: inherit; font-size: 10px; font-weight: 800; }
+.product-cover-icon { width: 64px; height: 64px; border-radius: 50%; background: #fff; }
+.product-cover-icon.product-sprite { display: grid; place-items: center; background: #ffffffd1; }
+.product-cover-icon.product-sprite::before { width: 58px; height: 58px; }
+.product-cover-tone-0, .product-cover-tone-3 { background: #e2f7eb; color: #329a63; }
+.product-cover-tone-1, .product-cover-tone-4 { background: #f0f1ff; color: #6f82ff; }
+.product-cover-tone-2 { background: #dff2f7; color: #4b9db0; }
+.product-cover-tone-5 { background: #fde7e2; color: #d56666; }
+.product-tile .product-tile-category { display: none; }
+.product-tile h3 { margin: 14px 0 4px; font-size: 18px; line-height: 1.2; }
+.product-tile > p { min-height: 18px; margin: 0; font-size: 11px; white-space: normal; }
+.product-tile .product-macros { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin: 12px 0 10px; padding-top: 12px; border-top: 1px solid #edf0f5; }
+.product-tile .product-macros::before { display: none; }
+.product-tile .product-macros span { padding: 0; background: transparent; text-align: left; }
+.product-tile .product-macros b { color: var(--ink); font-size: 11px; }
+.product-tile .product-macros span:first-child b { color: var(--blue); }
+.product-tile .product-macros small { margin-top: 2px; font-size: 8px; }
+.product-tile .product-tile-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 1px solid #edf0f5; }
+.product-tile .product-tile-foot span { display: block; overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.product-tile .product-tile-foot b { color: var(--ink); font-size: 11px; }
+.product-tile .product-tile-actions { display: flex; gap: 7px; min-height: 32px; margin-top: 10px; }
+.product-tile .product-tile-actions button { width: auto; min-height: 32px; height: 32px; }
+.product-catalog-layout > .product-grid > .empty { grid-column: 1 / -1; margin: 0; }
+@media (max-width: 760px) { .product-catalog-layout .product-categories { display: flex; flex-direction: row; overflow-x: auto; padding-bottom: 8px; } .product-catalog-layout .product-category-card { min-width: 150px; } .product-catalog-layout .product-grid { grid-template-columns: 1fr; } .product-table-head, .product-tile { min-width: 0; } }
 @media (max-width: 560px) { main { padding: 24px 16px 40px; } }
+.workout-tile, .article-card { min-height: 300px; padding: 16px; border-radius: 18px; box-shadow: 0 8px 28px #15233d12; }
+.workout-tile::before { content: '↗'; position: static; display: grid; flex: 0 0 108px; place-items: center; width: calc(100% + 32px); height: 108px; margin: -16px -16px 0; background: #f0f1ff; color: #6f82ff; font-size: 44px; }
+.planned-plan-tile::before, .archive-plan-tile::before { content: '↗'; background: #f0f1ff; color: #6f82ff; }
+.exercise-card::before { content: '✦'; background: #e2f7eb; color: #329a63; }
+.workout-tile:hover, .article-card:hover { border-color: #aab6ff; box-shadow: 0 12px 30px #17203312; }
+.article-card { min-height: 300px; }
+.article-card::before { height: 108px; margin: -16px -16px 0; background: #dff2f7; }
+.article-card img { position: relative; z-index: 1; width: calc(100% + 32px); height: 108px; margin: -16px -16px 15px; }
+.article-card:not(:has(img))::after { content: '◈'; position: absolute; top: 36px; left: 34px; z-index: 1; color: #4b9db0; font-size: 44px; }
+.article-card:not(:has(img)) .article-card-head { margin-top: 15px; }
+.card-compact, .article-section-card, .workout-section-tile { min-height: 96px; border-radius: 14px; }
+.article-section-card, .workout-section-tile, .recipe-categories .category-card, .product-catalog-layout .product-category-card { box-shadow: none; }
+.article-section-card:hover, .workout-section-tile:hover, .recipe-categories .category-card:hover, .product-catalog-layout .product-category-card:hover { transform: translateY(-2px); }
+@media (max-width: 760px) { .workout-tile, .article-card { min-height: 255px; } .workout-tile::before, .article-card::before { flex-basis: 76px; height: 76px; } .article-card img { height: 76px; } }
 </style>

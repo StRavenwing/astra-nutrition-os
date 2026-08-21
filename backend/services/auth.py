@@ -3,19 +3,25 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import logging
 import secrets
+import smtplib
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 from typing import Any
 
 import jwt
 
 from backend.config import Settings
-from backend.models import User, current_database
-from backend.services.errors import ConflictError, UnauthorizedError
+from backend.models import PasswordResetCode, User, current_database
+from backend.services.errors import ConflictError, DomainError, UnauthorizedError
 
 
 JWT_ALGORITHM = "HS256"
 PASSWORD_ITERATIONS = 260_000
+PASSWORD_RESET_TTL_SECONDS = 10 * 60
+PASSWORD_RESET_MAX_ATTEMPTS = 5
+logger = logging.getLogger(__name__)
 
 
 def utc_now() -> str:
@@ -132,3 +138,95 @@ def authenticate_user(data: dict[str, Any]) -> User:
     if user is None or not verify_password(data.get("password") or "", user.password_hash):
         raise UnauthorizedError("Неверный email или пароль")
     return user
+
+
+def _reset_code_hash(email: str, code: str, settings: Settings) -> str:
+    value = f"{email}:{code}".encode("utf-8")
+    return hmac.new(settings.auth_secret.encode("utf-8"), value, hashlib.sha256).hexdigest()
+
+
+def _send_password_reset_email(email: str, code: str, settings: Settings) -> None:
+    if not settings.smtp_host or not settings.smtp_from:
+        raise DomainError("Отправка писем не настроена: укажите SMTP-параметры в .env", 503)
+
+    message = EmailMessage()
+    message["Subject"] = "Код восстановления Astra Nutrition OS"
+    message["From"] = settings.smtp_from
+    message["To"] = email
+    message.set_content(
+        "Здравствуйте!\n\n"
+        f"Код для восстановления пароля: {code}\n\n"
+        "Код действует 10 минут. Если вы не запрашивали восстановление, просто проигнорируйте это письмо.\n"
+    )
+    try:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as server:
+            if settings.smtp_use_tls:
+                server.starttls()
+            if settings.smtp_username:
+                server.login(settings.smtp_username, settings.smtp_password)
+            server.send_message(message)
+    except (OSError, smtplib.SMTPException) as exc:
+        logger.exception("Password reset email delivery failed")
+        raise DomainError("Не удалось отправить письмо с кодом. Попробуйте ещё раз позже", 503) from exc
+
+
+def request_password_reset(email_value: str, settings: Settings) -> dict[str, Any]:
+    email = normalize_email(email_value)
+    user = User.get_or_none(User.email == email)
+    if user is None:
+        return {"ok": True, "message": "Если аккаунт существует, код отправлен на почту"}
+
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    now = int(datetime.now(timezone.utc).timestamp())
+    with current_database().atomic():
+        PasswordResetCode.update(used_at=now).where(
+            (PasswordResetCode.email == email) & PasswordResetCode.used_at.is_null(True)
+        ).execute()
+        PasswordResetCode.create(
+            email=email,
+            code_hash=_reset_code_hash(email, code, settings),
+            expires_at=now + PASSWORD_RESET_TTL_SECONDS,
+            attempts=0,
+            created_at=now,
+        )
+    try:
+        _send_password_reset_email(email, code, settings)
+    except DomainError:
+        PasswordResetCode.update(used_at=now).where(
+            (PasswordResetCode.email == email) & PasswordResetCode.used_at.is_null(True)
+        ).execute()
+        raise
+    return {"ok": True, "message": "Если аккаунт существует, код отправлен на почту"}
+
+
+def confirm_password_reset(email_value: str, code: str, password: str, settings: Settings) -> dict[str, Any]:
+    email = normalize_email(email_value)
+    now = int(datetime.now(timezone.utc).timestamp())
+    reset = (
+        PasswordResetCode.select()
+        .where(
+            (PasswordResetCode.email == email)
+            & PasswordResetCode.used_at.is_null(True)
+            & (PasswordResetCode.expires_at >= now)
+        )
+        .order_by(PasswordResetCode.created_at.desc())
+        .first()
+    )
+    if reset is None or reset.attempts >= PASSWORD_RESET_MAX_ATTEMPTS:
+        raise UnauthorizedError("Код недействителен или истёк")
+
+    reset.attempts += 1
+    reset.save()
+    expected = _reset_code_hash(email, code, settings)
+    if not hmac.compare_digest(reset.code_hash, expected):
+        raise UnauthorizedError("Код недействителен или истёк")
+
+    user = User.get_or_none(User.email == email)
+    if user is None:
+        raise UnauthorizedError("Код недействителен или истёк")
+    with current_database().atomic():
+        user.password_hash = hash_password(password)
+        user.save()
+        reset.used_at = now
+        reset.save()
+    return {"ok": True, "message": "Пароль изменён"}

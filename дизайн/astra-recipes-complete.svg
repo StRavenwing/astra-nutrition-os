@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1120" viewBox="0 0 1440 1120">
+  <defs>
+    <style>
+      .s{font-family:Inter,Arial,sans-serif}.ink{fill:#172033}.muted{fill:#7D879B}.white{fill:#fff}
+      .body{font-size:14px;font-weight:500}.small{font-size:12px;font-weight:500}.h1{font-size:30px;font-weight:750;letter-spacing:-.9px}.h2{font-size:18px;font-weight:700}.label{font-size:11px;font-weight:700;letter-spacing:.9px}.nav{font-size:13px;font-weight:600}
+      .line{fill:none;stroke:#172033;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.navline{fill:none;stroke:#AAB4C4;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+    </style>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="8" stdDeviation="14" flood-color="#15233D" flood-opacity=".07"/></filter>
+  </defs>
+  <rect width="1440" height="1120" fill="#F6F8FC"/>
+  <!-- Sidebar -->
+  <rect width="248" height="1120" fill="#0E1728"/>
+  <g class="s">
+    <circle cx="39" cy="42" r="17" fill="#BDF2D3"/><path d="M32 43c5-9 13-9 15-6-1 7-7 12-15 13Z" fill="#0E1728"/>
+    <text x="67" y="49" fill="#fff" font-size="18" font-weight="750">Astra</text>
+    <text x="24" y="112" fill="#647189" class="label">ОСНОВНАЯ НАВИГАЦИЯ</text>
+    <g transform="translate(28 132)"><path d="m2 11 10-8 10 8v9H3v-9Zm6 9v-6h4v6" class="navline"/><text x="34" y="18" fill="#AAB4C4" class="nav">Обзор</text></g>
+    <g transform="translate(28 192)"><path d="M3 5h18v15H3zM7 5V3h10v2M7 10h10M7 15h6" class="navline"/><text x="34" y="18" fill="#AAB4C4" class="nav">Продукты</text></g>
+    <rect x="16" y="252" width="216" height="48" rx="12" fill="#26364A"/>
+    <g transform="translate(28 264)"><path d="M4 18 9 13l4 3 7-9M15 7h5v5" class="navline" stroke="#BDF2D3"/><text x="34" y="18" fill="#fff" class="nav">Рецепты</text></g>
+    <g transform="translate(28 324)"><rect x="3" y="4" width="18" height="16" rx="3" class="navline"/><path d="M7 9h10M7 13h10M7 17h6" class="navline"/><text x="34" y="18" fill="#AAB4C4" class="nav">Дневник питания</text></g>
+    <g transform="translate(28 384)"><path d="M4 18 9 13l4 3 7-9M15 7h5v5" class="navline"/><text x="34" y="18" fill="#AAB4C4" class="nav">Прогресс</text></g>
+    <g transform="translate(28 444)"><path d="m12 2 2 6 6 2-6 2-2 6-2-6-6-2 6-2 2-6Z" class="navline"/><text x="34" y="18" fill="#AAB4C4" class="nav">Тренировки</text></g>
+    <g transform="translate(28 504)"><path d="M4 5h16v14H4zM8 9h8M8 13h5" class="navline"/><text x="34" y="18" fill="#AAB4C4" class="nav">Информация</text></g>
+    <line x1="24" y1="558" x2="224" y2="558" stroke="#26344A"/>
+    <g transform="translate(28 582)"><path d="M3 5h18v13H3zM3 6l9 7 9-7" class="navline"/><text x="34" y="18" fill="#AAB4C4" class="nav">Обратная связь</text><circle cx="171" cy="3" r="8" fill="#F4B96B"/><text x="168" y="7" fill="#172033" font-size="10" font-weight="700">2</text></g>
+    <rect x="20" y="1010" width="208" height="84" rx="16" fill="#17243A"/><circle cx="48" cy="1052" r="20" fill="#F3C6A9"/><path d="M37 1050c3-12 18-12 22 0-4 5-16 5-22 0Z" fill="#7D4F42"/><text x="78" y="1048" fill="#F4F7FC" class="small">lipatova_2013@...</text><text x="78" y="1068" fill="#8190A6" class="small">Личная база · v7</text>
+  </g>
+
+  <!-- Main -->
+  <g class="s">
+    <text x="288" y="68" fill="#7D879B" class="label">PERSONAL WORKSPACE</text>
+    <text x="288" y="108" class="ink h1">Рецепты</text>
+    <text x="288" y="136" class="muted body">Коллекция блюд, которые легко повторить</text>
+    <rect x="1120" y="52" width="98" height="44" rx="12" fill="#E2F7EB"/><text x="1143" y="79" fill="#329A63" class="small" font-weight="700">＋ Категория</text>
+    <rect x="1230" y="52" width="86" height="44" rx="12" fill="#172033"/><text x="1250" y="79" fill="#fff" class="small" font-weight="700">＋ Добавить</text>
+    <rect x="288" y="178" width="1028" height="72" rx="18" fill="#fff" stroke="#E5EAF2"/>
+    <rect x="314" y="194" width="450" height="40" rx="10" fill="#F6F8FC"/><circle cx="338" cy="214" r="7" fill="none" stroke="#8A95A7" stroke-width="2"/><path d="m344 220 5 5" stroke="#8A95A7" stroke-width="2"/><text x="364" y="220" class="muted body">Поиск по рецептам…</text>
+    <rect x="786" y="194" width="170" height="40" rx="10" fill="#F6F8FC"/><text x="810" y="220" class="muted small">Общая коллекция</text><path d="m932 212 4 4 4-4" fill="none" stroke="#8A95A7" stroke-width="1.5"/>
+    <rect x="972" y="194" width="168" height="40" rx="10" fill="#F6F8FC"/><text x="996" y="220" class="muted small">Сортировка: имя</text><path d="m1116 212 4 4 4-4" fill="none" stroke="#8A95A7" stroke-width="1.5"/>
+    <text x="1170" y="220" class="muted small">42 рецепта</text>
+
+    <!-- Category rail -->
+    <text x="288" y="300" class="ink h2">Категории</text><text x="1210" y="300" class="muted small">Все категории →</text>
+    <g transform="translate(288 324)"><rect width="144" height="92" rx="16" fill="#E2F7EB" stroke="#9EDDB9"/><circle cx="56" cy="360" r="22" fill="#fff"/><circle cx="56" cy="360" r="12" class="line"/><path d="M42 360h28M56 346v28" class="line"/><text x="94" y="354" fill="#329A63" class="small" font-weight="700">Основные</text><text x="94" y="374" fill="#3F6B54" class="small">18 блюд</text></g>
+    <g transform="translate(448 324)"><rect width="144" height="92" rx="16" fill="#fff" stroke="#E5EAF2"/><circle cx="56" cy="360" r="22" fill="#FFF1DE"/><circle cx="56" cy="363" r="12" class="line"/><path d="M56 351v12m-6-8h12" class="line"/><text x="94" y="354" class="ink small" font-weight="700">Завтраки</text><text x="94" y="374" class="muted small">9 блюд</text></g>
+    <g transform="translate(608 324)"><rect width="144" height="92" rx="16" fill="#fff" stroke="#E5EAF2"/><circle cx="56" cy="360" r="22" fill="#F0F1FF"/><path d="M44 356h24l-3 14H47l-3-14Zm4-5 16 16" class="line"/><text x="94" y="354" class="ink small" font-weight="700">Врапы</text><text x="94" y="374" class="muted small">4 блюда</text></g>
+    <g transform="translate(768 324)"><rect width="144" height="92" rx="16" fill="#fff" stroke="#E5EAF2"/><circle cx="56" cy="360" r="22" fill="#E2F7EB"/><path d="M42 363c0-10 28-10 28 0 0 8-28 8-28 0Zm6-4c2-5 5-7 8-9m8 9c-2-5-5-7-8-9" class="line"/><text x="94" y="354" class="ink small" font-weight="700">Салаты</text><text x="94" y="374" class="muted small">6 блюд</text></g>
+    <g transform="translate(928 324)"><rect width="144" height="92" rx="16" fill="#fff" stroke="#E5EAF2"/><circle cx="56" cy="360" r="22" fill="#FDE7E2"/><path d="M46 350h20v22H46zM46 355h20m-14 5h8" class="line"/><text x="94" y="354" class="ink small" font-weight="700">Десерты</text><text x="94" y="374" class="muted small">4 блюда</text></g>
+    <g transform="translate(1088 324)"><rect width="144" height="92" rx="16" fill="#fff" stroke="#E5EAF2"/><circle cx="56" cy="360" r="22" fill="#DFF2F7"/><path d="M47 349h18v22H47zM47 354h18m-8-5v-5h-3v5" class="line"/><text x="94" y="354" class="ink small" font-weight="700">Напитки</text><text x="94" y="374" class="muted small">5 блюд</text></g>
+
+    <!-- Cards -->
+    <text x="288" y="466" class="ink h2">Все рецепты</text><text x="1210" y="466" class="muted small">Последние обновления</text>
+    <!-- Card 1 -->
+    <g transform="translate(288 492)" filter="url(#shadow)"><rect width="326" height="268" rx="18" fill="#fff"/><rect x="16" y="16" width="294" height="94" rx="13" fill="#E2F7EB"/><text x="42" y="79" fill="#329A63" font-size="42">✦</text><rect x="226" y="28" width="68" height="24" rx="8" fill="#fff" fill-opacity=".82"/><text x="239" y="45" fill="#329A63" class="small" font-weight="700">2 порции</text><text x="20" y="142" class="ink h2">Боул с лососем</text><text x="20" y="164" class="muted small">Основные блюда · общая</text><line x1="20" y1="184" x2="306" y2="184" stroke="#EDF0F5"/><text x="20" y="210" fill="#6F82FF" class="small" font-weight="700">680 ккал</text><text x="116" y="210" class="muted small">Б 42 г</text><text x="180" y="210" class="muted small">Ж 35 г</text><text x="244" y="210" class="muted small">У 21 г</text><rect x="20" y="226" width="120" height="28" rx="8" fill="#172033"/><text x="45" y="245" fill="#fff" class="small" font-weight="700">Открыть</text><text x="278" y="246" class="muted" font-size="18">•••</text></g>
+    <!-- Card 2 -->
+    <g transform="translate(638 492)" filter="url(#shadow)"><rect width="326" height="268" rx="18" fill="#fff"/><rect x="16" y="16" width="294" height="94" rx="13" fill="#F0F1FF"/><text x="42" y="79" fill="#6F82FF" font-size="42">◒</text><rect x="226" y="28" width="68" height="24" rx="8" fill="#fff" fill-opacity=".82"/><text x="239" y="45" fill="#6F82FF" class="small" font-weight="700">1 порция</text><text x="20" y="142" class="ink h2">Омлет с зеленью</text><text x="20" y="164" class="muted small">Завтраки · общая</text><line x1="20" y1="184" x2="306" y2="184" stroke="#EDF0F5"/><text x="20" y="210" fill="#6F82FF" class="small" font-weight="700">410 ккал</text><text x="116" y="210" class="muted small">Б 29 г</text><text x="180" y="210" class="muted small">Ж 24 г</text><text x="244" y="210" class="muted small">У 7 г</text><rect x="20" y="226" width="120" height="28" rx="8" fill="#172033"/><text x="45" y="245" fill="#fff" class="small" font-weight="700">Открыть</text><text x="278" y="246" class="muted" font-size="18">•••</text></g>
+    <!-- Card 3 -->
+    <g transform="translate(988 492)" filter="url(#shadow)"><rect width="326" height="268" rx="18" fill="#fff"/><rect x="16" y="16" width="294" height="94" rx="13" fill="#FFF1DE"/><text x="42" y="79" fill="#C88731" font-size="42">◍</text><rect x="226" y="28" width="68" height="24" rx="8" fill="#fff" fill-opacity=".82"/><text x="239" y="45" fill="#C88731" class="small" font-weight="700">1 порция</text><text x="20" y="142" class="ink h2">Овсяная каша</text><text x="20" y="164" class="muted small">Завтраки · общая</text><line x1="20" y1="184" x2="306" y2="184" stroke="#EDF0F5"/><text x="20" y="210" fill="#6F82FF" class="small" font-weight="700">420 ккал</text><text x="116" y="210" class="muted small">Б 14 г</text><text x="180" y="210" class="muted small">Ж 12 г</text><text x="244" y="210" class="muted small">У 59 г</text><rect x="20" y="226" width="120" height="28" rx="8" fill="#172033"/><text x="45" y="245" fill="#fff" class="small" font-weight="700">Открыть</text><text x="278" y="246" class="muted" font-size="18">•••</text></g>
+    <!-- Card 4 -->
+    <g transform="translate(288 786)" filter="url(#shadow)"><rect width="326" height="268" rx="18" fill="#fff"/><rect x="16" y="16" width="294" height="94" rx="13" fill="#DFF2F7"/><text x="42" y="79" fill="#4B9DB0" font-size="42">◈</text><text x="20" y="142" class="ink h2">Тёплый салат</text><text x="20" y="164" class="muted small">Салаты · общая</text><line x1="20" y1="184" x2="306" y2="184" stroke="#EDF0F5"/><text x="20" y="210" fill="#6F82FF" class="small" font-weight="700">320 ккал</text><text x="116" y="210" class="muted small">Б 18 г</text><text x="180" y="210" class="muted small">Ж 16 г</text><text x="244" y="210" class="muted small">У 25 г</text><rect x="20" y="226" width="120" height="28" rx="8" fill="#172033"/><text x="45" y="245" fill="#fff" class="small" font-weight="700">Открыть</text><text x="278" y="246" class="muted" font-size="18">•••</text></g>
+    <!-- Card 5 -->
+    <g transform="translate(638 786)" filter="url(#shadow)"><rect width="326" height="268" rx="18" fill="#fff"/><rect x="16" y="16" width="294" height="94" rx="13" fill="#E2F7EB"/><text x="42" y="79" fill="#329A63" font-size="42">◌</text><text x="20" y="142" class="ink h2">Чечевица с овощами</text><text x="20" y="164" class="muted small">Основные блюда · личная</text><line x1="20" y1="184" x2="306" y2="184" stroke="#EDF0F5"/><text x="20" y="210" fill="#6F82FF" class="small" font-weight="700">510 ккал</text><text x="116" y="210" class="muted small">Б 26 г</text><text x="180" y="210" class="muted small">Ж 14 г</text><text x="244" y="210" class="muted small">У 61 г</text><rect x="20" y="226" width="120" height="28" rx="8" fill="#172033"/><text x="45" y="245" fill="#fff" class="small" font-weight="700">Открыть</text><text x="278" y="246" class="muted" font-size="18">•••</text></g>
+    <!-- Card 6 -->
+    <g transform="translate(988 786)" filter="url(#shadow)"><rect width="326" height="268" rx="18" fill="#fff"/><rect x="16" y="16" width="294" height="94" rx="13" fill="#FDE7E2"/><text x="42" y="79" fill="#D56666" font-size="42">♡</text><text x="20" y="142" class="ink h2">Творожный крем</text><text x="20" y="164" class="muted small">Десерты · личная</text><line x1="20" y1="184" x2="306" y2="184" stroke="#EDF0F5"/><text x="20" y="210" fill="#6F82FF" class="small" font-weight="700">280 ккал</text><text x="116" y="210" class="muted small">Б 22 г</text><text x="180" y="210" class="muted small">Ж 9 г</text><text x="244" y="210" class="muted small">У 24 г</text><rect x="20" y="226" width="120" height="28" rx="8" fill="#172033"/><text x="45" y="245" fill="#fff" class="small" font-weight="700">Открыть</text><text x="278" y="246" class="muted" font-size="18">•••</text></g>
+  </g>
+</svg>

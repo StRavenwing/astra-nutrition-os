@@ -154,6 +154,7 @@ async function removeRecipe(item: RecipeSummary) {
   <div v-if="loading" class="panel">Загрузка…</div>
   <div v-else-if="error" class="panel empty">{{ error }}</div>
   <template v-else>
+    <p class="recipes-page-subtitle">Коллекция блюд, которые легко повторить</p>
     <section v-if="notices.length" class="moderation-notices">
       <div v-for="item in notices" :key="`${item.id}-${item.moderation_status}`" :class="`notice-${item.moderation_status}`">
         <b v-if="item.moderation_status === 'accepted'">Ура! Твой рецепт добавлен в общую коллекцию!</b>
@@ -212,7 +213,7 @@ async function removeRecipe(item: RecipeSummary) {
         @click="category = item.key"
       >
         <span class="category-photo recipe-sprite"></span>
-        <span class="category-copy"><b>{{ item.label }}</b><small>{{ item.key }}</small></span>
+        <span class="category-copy"><b>{{ item.label }}</b><small>{{ counts[item.key] }} блюд</small></span>
         <strong>{{ counts[item.key] }}</strong>
       </button>
     </section>
@@ -240,10 +241,18 @@ async function removeRecipe(item: RecipeSummary) {
         <option value="cost_per_serving_rsd:1">Цена: меньше</option>
         <option value="cost_per_serving_rsd:-1">Цена: больше</option>
       </select>
+      <select :value="collection" aria-label="Коллекция рецептов" @change="collection = ($event.target as HTMLSelectElement).value as 'common' | 'local'; category = 'all'">
+        <option value="common">Общая коллекция</option>
+        <option value="local">Мои рецепты</option>
+      </select>
     </Toolbar>
 
     <div id="recipe-grid" class="recipe-grid">
       <article v-for="item in shown" :key="item.id" class="recipe-tile" tabindex="0" title="Открыть рецепт" @click="emit('openRecipe', item.id)" @keydown.enter.prevent="emit('openRecipe', item.id)" @keydown.space.prevent="emit('openRecipe', item.id)">
+        <div class="recipe-cover" :class="`recipe-cover-${item.category.toLowerCase()}`">
+          <span class="recipe-cover-icon">✦</span>
+          <span v-if="item.servings" class="recipe-serving">{{ item.servings }} порц.</span>
+        </div>
         <div class="recipe-tile-head">
           <span class="recipe-id">{{ item.code }}</span>
         </div>

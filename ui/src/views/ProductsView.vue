@@ -92,12 +92,19 @@ function productSpriteStyle(item: string) {
   const [centerX, centerY] = sourcePositions[item] || sourcePositions['Основа'];
   return { '--icon-x': `${x}%`, '--icon-y': `${y}%`, '--sprite-left': `${-(centerX - 29)}px`, '--sprite-top': `${-(centerY - 29)}px` };
 }
+
+function productCoverClass(category: string | null) {
+  const index = Object.keys(productSpritePositions).indexOf(category || '');
+  return `product-cover-tone-${Math.max(0, index) % 6}`;
+}
 </script>
 
 <template>
   <div v-if="loading" class="panel">Загрузка…</div>
   <div v-else-if="error" class="panel empty">{{ error }}</div>
   <template v-else>
+    <p class="products-page-subtitle">Общая база и ваша личная коллекция</p>
+    <div class="product-catalog-layout">
     <section class="product-categories" aria-label="Категории продуктов">
       <button type="button" class="product-category-card all" :class="{ active: category === 'all' }" @click="category = 'all'">
         <span class="product-category-photo all-products-photo"></span>
@@ -143,7 +150,14 @@ function productSpriteStyle(item: string) {
     </Toolbar>
 
     <div id="product-grid" class="product-grid">
+      <div class="product-table-head" aria-hidden="true">
+        <span>Название</span><span>Категория</span><span>Ккал</span><span>Белки</span><span>Жиры</span><span>Углеводы</span>
+      </div>
       <article v-for="item in shown" :key="item.id" class="product-tile">
+        <div class="product-cover" :class="productCoverClass(item.category)">
+          <span class="product-cover-label">{{ item.category || 'Продукты' }}</span>
+          <span class="product-cover-icon product-sprite" :style="productSpriteStyle(item.category || 'Основа')"></span>
+        </div>
         <div class="product-tile-head">
           <span class="recipe-id">{{ item.code }}</span>
         </div>
@@ -166,6 +180,7 @@ function productSpriteStyle(item: string) {
         </div>
       </article>
       <div v-if="!shown.length" class="panel empty">Ничего не найдено</div>
+    </div>
     </div>
   </template>
 </template>

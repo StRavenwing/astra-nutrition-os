@@ -32,6 +32,12 @@ class Settings:
     mcp_access_token_minutes: int
     mcp_refresh_token_days: int
     mcp_auth_code_minutes: int
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_use_tls: bool = True
 
 
 def _required_env(name: str) -> str:
@@ -76,6 +82,7 @@ def get_settings() -> Settings:
     host = os.environ.get("ASTRA_HOST", "127.0.0.1")
     port = int(os.environ.get("ASTRA_PORT", "8787"))
     public_base_url = os.environ.get("ASTRA_PUBLIC_BASE_URL", f"http://{host}:{port}").rstrip("/")
+    smtp_use_tls = os.environ.get("ASTRA_SMTP_USE_TLS", "true").strip().lower() not in {"0", "false", "no", "off"}
 
     return Settings(
         project_root=PROJECT_ROOT,
@@ -93,4 +100,10 @@ def get_settings() -> Settings:
         mcp_access_token_minutes=int(os.environ.get("ASTRA_MCP_ACCESS_TOKEN_MINUTES", "60")),
         mcp_refresh_token_days=int(os.environ.get("ASTRA_MCP_REFRESH_TOKEN_DAYS", "30")),
         mcp_auth_code_minutes=int(os.environ.get("ASTRA_MCP_AUTH_CODE_MINUTES", "5")),
+        smtp_host=os.environ.get("ASTRA_SMTP_HOST", "").strip(),
+        smtp_port=int(os.environ.get("ASTRA_SMTP_PORT", "587")),
+        smtp_username=os.environ.get("ASTRA_SMTP_USERNAME", "").strip(),
+        smtp_password=os.environ.get("ASTRA_SMTP_PASSWORD", ""),
+        smtp_from=os.environ.get("ASTRA_SMTP_FROM", "").strip(),
+        smtp_use_tls=smtp_use_tls,
     )

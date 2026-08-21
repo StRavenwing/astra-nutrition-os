@@ -98,6 +98,20 @@ class User(BaseModel):
         table_name = "users"
 
 
+class PasswordResetCode(BaseModel):
+    id = AutoField()
+    email = CharField(index=True)
+    code_hash = CharField()
+    expires_at = IntegerField(index=True)
+    attempts = IntegerField(default=0)
+    used_at = IntegerField(null=True)
+    created_at = IntegerField()
+
+    class Meta:
+        table_name = "password_reset_codes"
+        indexes = ((('email', 'used_at'), False),)
+
+
 class FeedbackMessage(BaseModel):
     id = AutoField()
     user = ForeignKeyField(User, backref="feedback_messages", on_delete="CASCADE")
@@ -460,6 +474,7 @@ MODELS = [
     IdSequence,
     Changelog,
     User,
+    PasswordResetCode,
     FeedbackMessage,
     ContentCategory,
     ArticleSection,

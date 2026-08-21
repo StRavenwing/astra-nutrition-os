@@ -25,12 +25,13 @@ defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
         :class="{ active: item.id === currentPage }"
         @click="$emit('navigate', item.id)"
       >
-        <span class="nav-icon">{{ item.icon }}</span>
+        <svg class="nav-icon" aria-hidden="true"><use :href="`/assets/astra-menu-icons.svg#${item.id}`" /></svg>
         {{ item.title }}
       </button>
     </nav>
 
     <button type="button" class="feedback-link" @click="$emit('feedback')">
+      <svg class="nav-icon feedback-icon" aria-hidden="true"><use href="/assets/astra-menu-icons.svg#feedback" /></svg>
       <span class="nav-icon">✉</span>
       <span class="feedback-label">Обратная связь</span>
       <strong v-if="feedbackUnread" class="feedback-count">{{ feedbackUnread > 99 ? '99+' : feedbackUnread }}</strong>
@@ -52,6 +53,33 @@ nav button {
   gap: 12px;
   align-items: center;
 }
+
+nav button .nav-icon {
+  display: block;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  color: currentColor;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feedback-icon {
+  display: block;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.feedback-link > .nav-icon:not(.feedback-icon) { display: none; }
 
 .feedback-link {
   display: flex;

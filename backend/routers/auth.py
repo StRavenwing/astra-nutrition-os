@@ -4,11 +4,13 @@ from fastapi import APIRouter, Depends, Request, status
 
 from backend.dependencies import get_current_user, require_admin
 from backend.models import User
-from backend.schemas import AuthInput, dump_model
+from backend.schemas import AuthInput, PasswordResetConfirmInput, PasswordResetRequestInput, dump_model
 from backend.services.auth import (
     authenticate_user,
     create_access_token,
     register_user,
+    confirm_password_reset,
+    request_password_reset,
     serialize_user,
 )
 
@@ -32,6 +34,16 @@ def register(payload: AuthInput, request: Request) -> dict:
 @router.post("/login")
 def login(payload: AuthInput, request: Request) -> dict:
     return _auth_response(authenticate_user(dump_model(payload)), request)
+
+
+@router.post("/password-reset/request")
+def password_reset_request(payload: PasswordResetRequestInput, request: Request) -> dict:
+    return request_password_reset(payload.email, request.app.state.settings)
+
+
+@router.post("/password-reset/confirm")
+def password_reset_confirm(payload: PasswordResetConfirmInput, request: Request) -> dict:
+    return confirm_password_reset(payload.email, payload.code, payload.password, request.app.state.settings)
 
 
 @router.post("/logout")
