@@ -109,7 +109,12 @@ def main() -> None:
             assert response.json() == {"status": "ok"}
 
             response = client.get("/api/v1/dashboard")
-            assert response.status_code == 401
+            assert response.status_code == 200
+            guest_dashboard = response.json()
+            assert guest_dashboard["latest"] is None
+            assert client.get("/api/v1/diary").json() == []
+            assert client.get("/api/v1/progress").json() == []
+            assert client.post("/api/v1/products", json={"name": "guest-write"}).status_code == 401
 
             response = client.post(
                 "/api/v1/auth/login",

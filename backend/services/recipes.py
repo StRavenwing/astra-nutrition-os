@@ -7,9 +7,11 @@ from backend.services.errors import ConflictError, ForbiddenError, NotFoundError
 from backend.services.serialization import serialize_recipe_detail, serialize_recipe_summary
 
 
-def list_recipes(current_user: User) -> list[dict]:
-    visibility = (Recipe.owner.is_null(True)) | (Recipe.owner == current_user)
-    if current_user.is_admin:
+def list_recipes(current_user: User | None) -> list[dict]:
+    visibility = Recipe.owner.is_null(True)
+    if current_user is not None:
+        visibility = visibility | (Recipe.owner == current_user)
+    if current_user is not None and current_user.is_admin:
         visibility = visibility | (Recipe.moderation_status == "pending")
     query = (
         Recipe.select()
@@ -19,7 +21,7 @@ def list_recipes(current_user: User) -> list[dict]:
     result = []
     for recipe in query:
         item = serialize_recipe_summary(recipe)
-        item["is_submitter"] = recipe.submitted_by_id == current_user.id
+        item["is_submitter"] = bool(current_user and recipe.submitted_by_id == current_user.id)
         result.append(item)
     return result
 
@@ -29,15 +31,15 @@ def get_recipe(recipe_id: int, current_user: User | None = None) -> Recipe:
     if recipe is None:
         raise NotFoundError("Рецепт не найден")
     admin_review = bool(current_user and current_user.is_admin and recipe.moderation_status == "pending")
-    if current_user is not None and recipe.owner_id is not None and recipe.owner_id != current_user.id and not admin_review:
+    if recipe.owner_id is not None and (current_user is None or recipe.owner_id != current_user.id) and not admin_review:
         raise NotFoundError("Рецепт не найден")
     return recipe
 
 
-def get_recipe_detail(recipe_id: int, current_user: User) -> dict:
+def get_recipe_detail(recipe_id: int, current_user: User | None) -> dict:
     recipe = get_recipe(recipe_id, current_user)
     result = serialize_recipe_detail(recipe)
-    result["recipe"]["is_submitter"] = recipe.submitted_by_id == current_user.id
+    result["recipe"]["is_submitter"] = bool(current_user and recipe.submitted_by_id == current_user.id)
     return result
 
 

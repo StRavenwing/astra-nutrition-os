@@ -7,7 +7,7 @@ import { compareValues, fmt, searchable } from '@/utils/format';
 import Toolbar from '@/components/shared/Toolbar.vue';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 
-const props = defineProps<{ refreshKey: number; isAdmin: boolean }>();
+const props = defineProps<{ refreshKey: number; isAdmin: boolean; readOnly?: boolean }>();
 const emit = defineEmits<{ openRecipe: [id: number]; edit: [id: number]; addCategory: [] }>();
 
 const data = ref<RecipeSummary[]>([]);
@@ -84,6 +84,15 @@ function setOrder(value: string) {
 function resetSort() {
   sort.value = { key: null, dir: 0 };
   orderValue.value = '';
+}
+
+function recipeSpriteStyle(key: string) {
+  const positions: Record<string, [number, number]> = {
+    Main: [158, 186], Breakfast: [382, 186], Wrap: [606, 186], Dessert: [830, 186], Garnish: [1054, 186],
+    Salad: [158, 362], Sauce: [382, 362], Snack: [606, 362], Drink: [830, 362], Ready: [1054, 362]
+  };
+  const [x, y] = positions[key] || positions.Main;
+  return { '--sprite-left': `${-(x - 29)}px`, '--sprite-top': `${-(y - 29)}px` };
 }
 
 async function confirmSubmission() {
@@ -189,7 +198,7 @@ async function removeRecipe(item: RecipeSummary) {
         <span class="category-copy"><b>Все рецепты</b><small>Полный каталог</small></span>
         <strong>{{ collectionItems.length }}</strong>
       </button>
-      <button type="button" class="category-card add-category-card" @click="emit('addCategory')">
+      <button v-if="!props.readOnly" type="button" class="category-card add-category-card" @click="emit('addCategory')">
         <span class="category-photo">＋</span>
         <span class="category-copy"><b>Добавить категорию</b><small>{{ isAdmin ? 'Общая коллекция' : 'Личная коллекция' }}</small></span>
       </button>
@@ -199,7 +208,7 @@ async function removeRecipe(item: RecipeSummary) {
         type="button"
         class="category-card"
         :class="[`category-${item.key.toLowerCase()}`, { active: category === item.key }]"
-        :style="{ '--icon-x': `${item.x}%`, '--icon-y': `${item.y}%` }"
+        :style="recipeSpriteStyle(item.key)"
         @click="category = item.key"
       >
         <span class="category-photo recipe-sprite"></span>
@@ -252,12 +261,12 @@ async function removeRecipe(item: RecipeSummary) {
           <b>{{ fmt(item.cost_per_serving_rsd) }} RSD <small v-if="item.manual_price_per_serving_rsd != null">фикс.</small></b>
         </div>
         <button
-          v-if="item.collection === 'local'"
+          v-if="!props.readOnly && item.collection === 'local'"
           type="button"
           class="submit-to-common"
           @click.stop="item.submission_requested ? cancelSubmission(item) : submissionRecipe = item"
         >{{ item.submission_requested ? 'Отменить отправку' : 'Добавить в общую коллекцию' }}</button>
-        <div v-if="isAdmin || item.collection === 'local'" class="recipe-tile-actions" @click.stop>
+        <div v-if="!props.readOnly && (isAdmin || item.collection === 'local')" class="recipe-tile-actions" @click.stop>
           <button type="button" class="edit-recipe" @click="emit('edit', item.id)">✎ Редактировать</button>
           <button type="button" class="delete-recipe" @click="removeRecipe(item)">Удалить</button>
         </div>

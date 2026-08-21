@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
 
-from backend.dependencies import get_current_user
+from backend.dependencies import get_current_user, get_optional_user
 from backend.models import User
 from backend.schemas import DiaryCreateInput, DiaryUpdateInput, dump_model
 from backend.services.diary import (
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/v1/diary", tags=["diary"])
 
 
 @router.get("")
-def get_diary(current_user: User = Depends(get_current_user)) -> list[dict]:
+def get_diary(current_user: User | None = Depends(get_optional_user)) -> list[dict]:
     return list_diary(current_user)
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
 
-from backend.dependencies import get_current_user
+from backend.dependencies import get_current_user, get_optional_user
 from backend.models import User
 from backend.schemas import RecipeInput, RecipeModerationInput, dump_model
 from backend.services.recipes import (
@@ -21,12 +21,12 @@ router = APIRouter(prefix="/api/v1/recipes", tags=["recipes"])
 
 
 @router.get("")
-def get_recipes(current_user: User = Depends(get_current_user)) -> list[dict]:
+def get_recipes(current_user: User | None = Depends(get_optional_user)) -> list[dict]:
     return list_recipes(current_user)
 
 
 @router.get("/{recipe_id}")
-def get_recipe(recipe_id: int, current_user: User = Depends(get_current_user)) -> dict:
+def get_recipe(recipe_id: int, current_user: User | None = Depends(get_optional_user)) -> dict:
     return get_recipe_detail(recipe_id, current_user)
 
 

@@ -6,7 +6,9 @@ from backend.services.errors import NotFoundError
 from backend.services.serialization import serialize_diary_entry
 
 
-def list_diary(user: User) -> list[dict]:
+def list_diary(user: User | None) -> list[dict]:
+    if user is None:
+        return []
     query = (
         DiaryEntry
         .select()

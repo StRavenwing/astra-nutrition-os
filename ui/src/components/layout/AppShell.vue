@@ -9,6 +9,7 @@ defineProps<{
   canAdd: boolean;
   addLabel?: string;
   user: AuthUser;
+  guestMode: boolean;
   feedbackUnread: number;
 }>();
 
@@ -17,14 +18,15 @@ defineEmits<{
   add: [];
   logout: [];
   feedback: [];
+  login: [];
 }>();
 </script>
 
 <template>
   <div class="app-shell">
-    <SideNav :current-page="currentPage" :feedback-unread="feedbackUnread" @navigate="$emit('navigate', $event)" @feedback="$emit('feedback')" />
+    <SideNav :current-page="currentPage" :feedback-unread="feedbackUnread" :user="user" @navigate="$emit('navigate', $event)" @feedback="$emit('feedback')" />
     <main>
-      <TopBar :title="title" :can-add="canAdd" :add-label="addLabel" :user="user" @add="$emit('add')" @logout="$emit('logout')" />
+    <TopBar :title="title" :can-add="canAdd" :add-label="addLabel" :user="user" :guest="guestMode" @add="$emit('add')" @logout="$emit('logout')" @login="$emit('login')" />
       <slot />
     </main>
   </div>

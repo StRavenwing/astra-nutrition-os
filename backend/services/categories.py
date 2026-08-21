@@ -18,15 +18,14 @@ def serialize_category(item: ContentCategory) -> dict:
     }
 
 
-def list_categories(kind: str, user: User) -> list[dict]:
+def list_categories(kind: str, user: User | None) -> list[dict]:
     if kind not in VALID_KINDS:
         raise ValueError("Неизвестный тип категории")
     _seed_existing_categories(kind)
-    query = (
-        ContentCategory.select()
-        .where((ContentCategory.kind == kind) & ((ContentCategory.owner.is_null(True)) | (ContentCategory.owner == user)))
-        .order_by(ContentCategory.name)
-    )
+    visibility = ContentCategory.owner.is_null(True)
+    if user is not None:
+        visibility = visibility | (ContentCategory.owner == user)
+    query = ContentCategory.select().where((ContentCategory.kind == kind) & visibility).order_by(ContentCategory.name)
     return [serialize_category(item) for item in query]
 
 

@@ -1,21 +1,22 @@
 <script setup lang="ts">
 import { pages } from '@/constants';
-import type { PageId } from '@/types';
+import type { AuthUser, PageId } from '@/types';
 
-defineProps<{ currentPage: PageId; feedbackUnread: number }>();
+defineProps<{ currentPage: PageId; feedbackUnread: number; user: AuthUser }>();
 defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
 </script>
 
 <template>
   <aside>
     <div class="brand">
-      <span>✦</span>
+      <span class="brand-mark">✦</span>
       <div>
         Astra
         <small>Nutrition OS</small>
       </div>
     </div>
 
+    <p class="nav-caption">ОСНОВНАЯ НАВИГАЦИЯ</p>
     <nav aria-label="Основная навигация">
       <button
         v-for="item in pages"
@@ -24,20 +25,23 @@ defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
         :class="{ active: item.id === currentPage }"
         @click="$emit('navigate', item.id)"
       >
-        <span>{{ item.icon }}</span>
+        <span class="nav-icon">{{ item.icon }}</span>
         {{ item.title }}
       </button>
     </nav>
 
     <button type="button" class="feedback-link" @click="$emit('feedback')">
-      <span>✉</span>
+      <span class="nav-icon">✉</span>
       <span class="feedback-label">Обратная связь</span>
       <strong v-if="feedbackUnread" class="feedback-count">{{ feedbackUnread > 99 ? '99+' : feedbackUnread }}</strong>
     </button>
 
-    <div class="aside-note">
-      Личная база питания<br>
-      <b>v7 · SQLite</b>
+    <div class="aside-user">
+      <span class="avatar">{{ user.email.slice(0, 1).toUpperCase() }}</span>
+      <div>
+        <b>{{ user.email }}</b>
+        <small>{{ user.id === 0 ? 'Режим чтения' : 'Личная база питания · v7' }}</small>
+      </div>
     </div>
   </aside>
 </template>

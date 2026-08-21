@@ -318,7 +318,9 @@ def delete_exercise(exercise_id: int) -> dict:
         return {"deleted": True, "id": exercise_id}
 
 
-def list_workouts(user: User) -> list[dict]:
+def list_workouts(user: User | None) -> list[dict]:
+    if user is None:
+        return []
     query = (
         WorkoutLog
         .select(WorkoutLog, Exercise)
@@ -396,7 +398,9 @@ def delete_workout(log_id: int, user: User) -> dict:
         return {"deleted": True, "id": log_id}
 
 
-def list_workout_plans(user: User) -> list[dict]:
+def list_workout_plans(user: User | None) -> list[dict]:
+    if user is None:
+        return []
     query = (
         WorkoutPlan
         .select()

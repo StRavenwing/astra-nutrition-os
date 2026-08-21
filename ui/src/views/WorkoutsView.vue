@@ -7,6 +7,7 @@ import { formatDate, fmt } from '@/utils/format';
 const props = defineProps<{
   refreshKey: number;
   isAdmin: boolean;
+  readOnly?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -119,7 +120,7 @@ async function removeExercise(id: number) {
           <p class="eyebrow">ПЛАН ТРЕНИРОВОК</p>
           <h2>Запланированные тренировки</h2>
         </div>
-        <button type="button" class="primary" @click="emit('build')">＋ Собрать тренировку</button>
+        <button v-if="!props.readOnly" type="button" class="primary" @click="emit('build')">＋ Собрать тренировку</button>
       </div>
 
       <div v-if="plannedPlans.length" class="workout-grid scheduled-grid">

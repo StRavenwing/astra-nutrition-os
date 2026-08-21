@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
 
-from backend.dependencies import get_current_user, require_admin
+from backend.dependencies import get_current_user, get_optional_user, require_admin
 from backend.models import User
 from backend.schemas import ArticleFlagsInput, ArticleInput, ArticleSectionInfoInput, ArticleSectionInput, CategoryInput, dump_model
 from backend.services.articles import create_article, create_section, delete_article as remove_article, list_articles, list_sections, update_article, update_article_flags, update_section_info
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/api/v1", tags=["content"])
 
 
 @router.get("/categories")
-def get_categories(kind: str, current_user: User = Depends(get_current_user)) -> list[dict]:
+def get_categories(kind: str, current_user: User | None = Depends(get_optional_user)) -> list[dict]:
     return list_categories(kind, current_user)
 
 
@@ -23,7 +23,7 @@ def post_category(payload: CategoryInput, current_user: User = Depends(get_curre
 
 
 @router.get("/article-sections")
-def get_article_sections(current_user: User = Depends(get_current_user)) -> list[dict]:
+def get_article_sections(current_user: User | None = Depends(get_optional_user)) -> list[dict]:
     return list_sections(current_user)
 
 
@@ -38,7 +38,7 @@ def put_article_section_info(section_id: int, payload: ArticleSectionInfoInput, 
 
 
 @router.get("/articles")
-def get_articles(current_user: User = Depends(get_current_user)) -> list[dict]:
+def get_articles(current_user: User | None = Depends(get_optional_user)) -> list[dict]:
     return list_articles(current_user)
 
 

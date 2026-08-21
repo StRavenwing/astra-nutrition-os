@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, UploadFile, status
 from starlette.concurrency import run_in_threadpool
 
-from backend.dependencies import get_current_user, require_admin
+from backend.dependencies import require_admin
 from backend.models import User
 from backend.recognition.nutrition import NutritionNotFoundError
 from backend.recognition.ocr import OCRUnavailableError, recognize_nutrition_label_image
@@ -31,12 +31,12 @@ NUTRITION_LABEL_IMAGE_TYPES = {
 
 
 @router.get("/products")
-def get_products(current_user: User = Depends(get_current_user)) -> list[dict]:
+def get_products() -> list[dict]:
     return list_products()
 
 
 @router.get("/product-measures")
-def get_product_measures(current_user: User = Depends(get_current_user)) -> list[dict]:
+def get_product_measures() -> list[dict]:
     return list_product_measures()
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
 
-from backend.dependencies import get_current_user, require_admin
+from backend.dependencies import get_current_user, get_optional_user, require_admin
 from backend.models import User
 from backend.schemas import ExerciseInput, WorkoutComplexInput, WorkoutEquipmentInput, WorkoutInput, WorkoutPlanInput, dump_model
 from backend.services.workouts import (
@@ -33,7 +33,7 @@ router = APIRouter(prefix="/api/v1", tags=["workouts"])
 
 
 @router.get("/exercises")
-def get_exercises(current_user: User = Depends(get_current_user)) -> list[dict]:
+def get_exercises() -> list[dict]:
     return list_exercises()
 
 
@@ -53,7 +53,7 @@ def put_exercise(exercise_id: int, payload: ExerciseInput, current_user: User = 
 
 
 @router.get("/workout-equipment")
-def get_workout_equipment_list(current_user: User = Depends(get_current_user)) -> list[dict]:
+def get_workout_equipment_list() -> list[dict]:
     return list_workout_equipment()
 
 
@@ -68,7 +68,7 @@ def put_workout_equipment(equipment_id: int, payload: WorkoutEquipmentInput, cur
 
 
 @router.get("/workout-complexes")
-def get_workout_complexes(current_user: User = Depends(get_current_user)) -> list[dict]:
+def get_workout_complexes() -> list[dict]:
     return list_workout_complexes()
 
 
@@ -83,7 +83,7 @@ def put_workout_complex(complex_id: int, payload: WorkoutComplexInput, current_u
 
 
 @router.get("/workouts")
-def get_workouts(current_user: User = Depends(get_current_user)) -> list[dict]:
+def get_workouts(current_user: User | None = Depends(get_optional_user)) -> list[dict]:
     return list_workouts(current_user)
 
 
@@ -103,7 +103,7 @@ def remove_workout(log_id: int, current_user: User = Depends(get_current_user)) 
 
 
 @router.get("/workout-plans")
-def get_workout_plans(current_user: User = Depends(get_current_user)) -> list[dict]:
+def get_workout_plans(current_user: User | None = Depends(get_optional_user)) -> list[dict]:
     return list_workout_plans(current_user)
 
 

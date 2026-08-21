@@ -40,6 +40,8 @@ const hashPage = () => {
 const currentPage = ref<PageId>(hashPage());
 const authLoading = ref(true);
 const currentUser = ref<AuthUser | null>(null);
+const guestMode = ref(false);
+const authOpen = ref(false);
 const reloadKey = ref(0);
 const modal = ref<ModalState | null>(null);
 const recipeDetailId = ref<number | null>(null);
@@ -64,9 +66,10 @@ const articleFormKey = ref(0);
 
 const title = computed(() => pages.find((page) => page.id === currentPage.value)?.title || 'Обзор');
 const isAdmin = computed(() => Boolean(currentUser.value?.is_admin));
-const activeUser = computed(() => currentUser.value as AuthUser);
+const isGuest = computed(() => guestMode.value && !currentUser.value);
+const activeUser = computed<AuthUser>(() => currentUser.value || { id: 0, email: 'Гостевой режим', is_admin: false });
 const canAdd = computed(() => {
-  if (currentPage.value === 'dashboard' || currentPage.value === 'theory') return false;
+  if (isGuest.value || currentPage.value === 'dashboard' || currentPage.value === 'theory') return false;
   if (currentPage.value === 'workouts') return false;
   if (currentPage.value === 'products') return isAdmin.value;
   return true;
@@ -111,7 +114,21 @@ function openAdd() {
 }
 
 function openFeedback() {
+  if (isGuest.value) {
+    openLogin();
+    return;
+  }
   feedbackOpen.value = true;
+}
+
+function openLogin() {
+  authOpen.value = true;
+  guestMode.value = false;
+}
+
+function continueAsGuest() {
+  authOpen.value = false;
+  guestMode.value = true;
 }
 
 function openCategory(kind: 'product' | 'recipe') {
@@ -249,13 +266,20 @@ async function cancelWorkoutFromDetail(plan: WorkoutPlan) {
 
 function authenticated(user: AuthUser) {
   currentUser.value = user;
+  guestMode.value = false;
+  authOpen.value = false;
   refresh();
   startFeedbackPolling();
 }
 
 function clearSession() {
+  const hadSession = Boolean(currentUser.value || getAccessToken());
   clearAccessToken();
   currentUser.value = null;
+  if (hadSession) {
+    guestMode.value = true;
+    authOpen.value = false;
+  }
   modal.value = null;
   recipeDetailId.value = null;
   exerciseManagerOpen.value = false;
@@ -287,6 +311,7 @@ onMounted(async () => {
   navigate(currentPage.value);
   window.addEventListener('hashchange', onHashChange);
   if (!getAccessToken()) {
+    guestMode.value = true;
     authLoading.value = false;
     return;
   }
@@ -312,29 +337,32 @@ onBeforeUnmount(() => {
   <div v-if="authLoading" class="auth-page">
     <div class="panel auth-loading">Загрузка…</div>
   </div>
-  <AuthView v-else-if="!currentUser" @authenticated="authenticated" />
+  <AuthView v-else-if="authOpen || (!currentUser && !guestMode)" allow-guest @authenticated="authenticated" @guest="continueAsGuest" />
   <AppShell
-    v-else
+    v-else-if="currentUser || guestMode"
     :current-page="currentPage"
     :title="title"
     :can-add="canAdd"
     :add-label="addLabel"
     :user="activeUser"
+    :guest-mode="isGuest"
     :feedback-unread="feedbackUnread"
     @navigate="navigate"
     @add="openAdd"
     @logout="logout"
     @feedback="openFeedback"
+    @login="openLogin"
   >
     <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" :is-admin="isAdmin" @navigate="navigate" @open-recipe="openRecipe" />
-    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" @edit="modal = { kind: 'products', id: $event }" @add-category="openCategory('product')" />
-    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" @open-recipe="openRecipe" @edit="editRecipe" @add-category="openCategory('recipe')" />
+    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @add-category="openCategory('product')" />
+    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" :read-only="isGuest" @open-recipe="openRecipe" @edit="editRecipe" @add-category="openCategory('recipe')" />
     <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" @edit="modal = { kind: 'diary', id: $event }" />
     <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" @edit="modal = { kind: 'progress', id: $event }" />
     <WorkoutsView
       v-else-if="currentPage === 'workouts'"
       :refresh-key="reloadKey"
       :is-admin="isAdmin"
+      :read-only="isGuest"
       @edit="modal = { kind: 'workouts', id: $event }"
       @add-exercise="openExerciseAdd"
       @edit-exercise="editExercise"
@@ -2442,4 +2470,111 @@ dialog {
     grid-template-columns: 1fr 90px 110px 36px;
   }
 }
+</style>
+
+<style lang="scss">
+:root {
+  --ink: #172033;
+  --blue: #6f82ff;
+  --bg: #f6f8fc;
+  --line: #e5eaf2;
+  --muted: #7d879b;
+  --green: #329a63;
+  --purple: #aa9cff;
+  --orange: #f4b96b;
+  --nav: #0e1728;
+  --nav-surface: #26364a;
+  --mint: #bdf2d3;
+}
+
+body { background: var(--bg); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+aside { width: 248px; padding: 28px 16px 22px; border: 0; background: var(--nav); color: #f4f7fc; }
+.brand { padding: 0 8px 42px; color: #fff; }
+.brand .brand-mark { width: 34px; height: 34px; border-radius: 50%; background: var(--mint); color: var(--ink); }
+.brand small { color: #8190a6; }
+.nav-caption { margin: 0 8px 12px; color: #647189; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+nav { gap: 4px; }
+nav button, .feedback-link { color: #aab4c4; border-radius: 12px; }
+nav button { min-height: 48px; padding: 11px 14px; }
+nav button:hover, nav button.active { background: var(--nav-surface); color: #f9fbff; }
+.nav-icon { display: inline-grid; flex: 0 0 28px; place-items: center; color: inherit; font-size: 18px; }
+.feedback-link { margin-top: 18px; border-top-color: #26344a; padding: 18px 12px 11px; }
+.feedback-link:hover { color: var(--mint); }
+.aside-note { display: none; }
+.aside-user { display: flex; align-items: center; gap: 10px; margin-top: auto; padding: 14px 10px; border-radius: 16px; background: #17243a; }
+.aside-user .avatar { display: grid; flex: 0 0 40px; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #f3c6a9; color: var(--ink); font-weight: 800; }
+.aside-user b, .aside-user small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.aside-user b { max-width: 140px; color: #f4f7fc; font-size: 12px; }
+.aside-user small { max-width: 140px; margin-top: 3px; color: #8190a6; font-size: 10px; }
+main { margin-left: 248px; max-width: 1520px; padding: 52px 40px 64px; }
+header { margin-bottom: 34px; }
+h1 { font-size: 30px; letter-spacing: -.04em; }
+.eyebrow { color: var(--muted); letter-spacing: .12em; }
+.primary { border-radius: 10px; background: var(--ink); padding: 12px 16px; }
+.primary:hover { background: #26364a; }
+.login-button { border: 1px solid var(--line); border-radius: 10px; padding: 11px 15px; background: #fff; color: var(--ink); font-weight: 800; cursor: pointer; }
+.login-button:hover { border-color: var(--blue); color: var(--blue); }
+.guest-badge { color: var(--muted); font-size: 11px; font-weight: 800; }
+.user-chip { border-color: var(--line); border-radius: 12px; }
+.card, .panel { border-color: var(--line); border-radius: 18px; box-shadow: none; }
+.card { padding: 20px; }
+.card .label { color: var(--muted); }
+.card strong { color: var(--ink); }
+.card small { color: var(--blue); font-size: 11px; font-weight: 800; }
+.panel { padding: 24px; }
+.toolbar { margin: 18px 0; }
+input, select, textarea, .toolbar input, .toolbar select { border-color: var(--line); border-radius: 10px; padding: 11px 12px; background: #fff; }
+.reset-sort { border-color: var(--line); border-radius: 10px; }
+.recipe-grid, .product-grid, .workout-grid, .progress-grid { gap: 16px; }
+.recipe-tile, .product-tile, .workout-tile, .progress-tile, .current-progress-card { border-color: var(--line); border-radius: 18px; box-shadow: none; }
+.recipe-tile:hover, .product-tile:hover, .workout-tile:hover, .progress-tile:hover { border-color: #aab6ff; box-shadow: 0 12px 30px #17203312; }
+.recipe-tile::before, .product-tile::before, .workout-tile::before, .progress-tile::before { height: 0; }
+.recipe-tile h3, .product-tile h3, .workout-tile h3 { font-size: 18px; }
+.tile-macros span, .product-macros span, .workout-stats span { background: #f7f8fc; }
+.category-card, .product-category-card, .workout-category-card { border-color: var(--line); border-radius: 16px; box-shadow: none; }
+.category-card:hover, .product-category-card:hover, .workout-category-card:hover { border-color: #aab6ff; box-shadow: 0 10px 25px #17203312; }
+.category-card.active, .product-category-card.active { border-color: var(--blue); box-shadow: 0 0 0 2px #6f82ff22; }
+.legend, .diary-days-panel { border-color: var(--line); border-radius: 18px; box-shadow: none; }
+.current-day-card, .current-progress-card { border: 0; border-radius: 22px; background: var(--nav); color: #fff; box-shadow: none; }
+.current-day-card .eyebrow, .current-progress-card .eyebrow { color: var(--mint); }
+.current-day-head h2, .current-progress-head h2 { color: #fff; }
+.current-day-head > span, .current-badge { background: var(--mint); color: var(--ink); }
+.today-meal-row, .today-kbju span { border-color: #34445b; background: #17243a; }
+.today-meal-row > span { color: var(--mint); }
+.today-meal-row > b, .today-kbju b { color: #fff; }
+.today-kbju small { color: #aab6c8; }
+.diary-summary > div { border-color: var(--line); border-radius: 14px; }
+.diary-day-card { border-color: var(--line); border-radius: 12px; }
+.diary-day-card.filled { border-color: #aab6ff; background: #f4f3ff; box-shadow: inset 0 4px var(--blue); }
+.progress-history-head { margin-top: 28px; }
+dialog { border-radius: 22px; box-shadow: 0 24px 80px #17203340; }
+dialog::backdrop { background: #0e172880; }
+.dialog-panel { padding: 30px; }
+.modal-head { margin-bottom: 24px; }
+.icon { border-radius: 10px; background: #f1f3f8; }
+.actions button { border-color: var(--line); border-radius: 10px; }
+.actions .primary { color: #fff; }
+.ready-recipe-fields, .product-measure-fields { border-color: #d8d1ff; border-radius: 16px; background: #f8f7ff; }
+.exercise-toolbar { border-color: #d8d1ff; border-radius: 16px; background: #f8f7ff; box-shadow: none; }
+.day-total { border-radius: 16px; background: var(--nav); }
+.product-sprite, .recipe-sprite { position: relative; display: grid; place-items: center; background: #f6f8fc; }
+.product-sprite::before, .recipe-sprite::before { content: ''; display: block; width: 58px; height: 58px; border-radius: 50%; background-repeat: no-repeat; }
+.product-sprite::before { background-image: url('/assets/astra-category-icons-products.svg'); background-size: 1260px 760px; background-position: var(--sprite-left) var(--sprite-top); }
+.recipe-sprite::before { background-image: url('/assets/astra-category-icons-recipes.svg'); background-size: 1260px 600px; background-position: var(--sprite-left) var(--sprite-top); }
+.product-category-card .product-category-photo.product-sprite, .category-card .category-photo.recipe-sprite { background-image: none; }
+.product-category-card .product-category-photo.product-sprite::before, .category-card .category-photo.recipe-sprite::before { margin-top: 0; }
+.workout-section-icon { width: 48px; height: 48px; border-radius: 50%; background-image: url('/assets/astra-category-icons-workouts.svg'); background-size: 1260px 600px; background-position: -140px -157px; background-color: #e6e7ff; font-size: 0; }
+.workout-section-tile:nth-child(2) .workout-section-icon { background-position: -330px -333px; background-color: #e2f7eb; }
+.workout-section-tile:nth-child(3) .workout-section-icon { background-position: -710px -333px; background-color: #e6e7ff; }
+.workout-section-tile:nth-child(4) .workout-section-icon { background-position: -900px -333px; background-color: #fff1de; }
+.article-section-card { position: relative; padding-left: 78px; }
+.article-section-card::before { content: ''; position: absolute; left: 15px; top: 15px; width: 54px; height: 54px; border-radius: 50%; background: #e2f7eb url('/assets/astra-category-icons-articles.svg') -116px -157px no-repeat; }
+.article-section-card:nth-child(2)::before { background-color: #f0f1ff; background-position: -306px -157px; }
+.article-section-card:nth-child(3)::before { background-color: #dff2f7; background-position: -496px -157px; }
+.article-section-card:nth-child(4)::before { background-color: #e6e7ff; background-position: -686px -157px; }
+.article-section-card:nth-child(5)::before { background-color: #fff1de; background-position: -876px -157px; }
+.article-section-card:nth-child(6)::before { background-color: #fde7e2; background-position: -1066px -157px; }
+.add-section-card::before { display: none; }
+@media (max-width: 900px) { aside { width: auto; } main { margin-left: 0; padding: 32px 24px 48px; } }
+@media (max-width: 560px) { main { padding: 24px 16px 40px; } }
 </style>

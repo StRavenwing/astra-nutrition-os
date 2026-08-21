@@ -4,7 +4,8 @@ import { api, setAccessToken } from '@/api/client';
 import type { AuthUser } from '@/types';
 import PwaInstallButton from '@/components/shared/PwaInstallButton.vue';
 
-const emit = defineEmits<{ authenticated: [user: AuthUser] }>();
+const props = withDefaults(defineProps<{ allowGuest?: boolean }>(), { allowGuest: false });
+const emit = defineEmits<{ authenticated: [user: AuthUser]; guest: [] }>();
 
 const mode = ref<'login' | 'register'>('login');
 const loading = ref(false);
@@ -68,6 +69,7 @@ async function submit() {
         </button>
       </form>
       <PwaInstallButton wide />
+      <button v-if="props.allowGuest" type="button" class="guest-entry" @click="$emit('guest')">Продолжить без входа</button>
     </section>
   </div>
 </template>
@@ -136,5 +138,17 @@ async function submit() {
     opacity: .7;
     cursor: wait;
   }
+}
+
+.guest-entry {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
 }
 </style>

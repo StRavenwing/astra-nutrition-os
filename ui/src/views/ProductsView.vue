@@ -9,6 +9,7 @@ import Toolbar from '@/components/shared/Toolbar.vue';
 const props = defineProps<{
   refreshKey: number;
   isAdmin: boolean;
+  readOnly?: boolean;
 }>();
 const emit = defineEmits<{ edit: [id: number]; addCategory: [] }>();
 
@@ -83,7 +84,13 @@ async function remove(id: number) {
 
 function productSpriteStyle(item: string) {
   const [x, y] = productSpritePositions[item] || productSpritePositions['Основа'];
-  return { '--icon-x': `${x}%`, '--icon-y': `${y}%` };
+  const sourcePositions: Record<string, [number, number]> = {
+    Белковые: [143, 180], Добавки: [333, 180], Зелень: [523, 180], Крупы: [713, 180], Масла: [903, 180], Молочные: [1093, 180],
+    Морепродукты: [143, 340], Мясо: [333, 340], Напитки: [523, 340], Овощи: [713, 340], Основа: [903, 340], Перекусы: [1093, 340],
+    Рыба: [143, 500], Соусы: [333, 500], Сыры: [523, 500], Фрукты: [713, 500], Хлеб: [903, 500], Ягоды: [1093, 500]
+  };
+  const [centerX, centerY] = sourcePositions[item] || sourcePositions['Основа'];
+  return { '--icon-x': `${x}%`, '--icon-y': `${y}%`, '--sprite-left': `${-(centerX - 29)}px`, '--sprite-top': `${-(centerY - 29)}px` };
 }
 </script>
 
@@ -97,7 +104,7 @@ function productSpriteStyle(item: string) {
         <span class="product-category-copy"><b>Все продукты</b><small>Полный каталог</small></span>
         <strong>{{ data.length }}</strong>
       </button>
-      <button type="button" class="product-category-card add-category-card" @click="emit('addCategory')">
+      <button v-if="!props.readOnly" type="button" class="product-category-card add-category-card" @click="emit('addCategory')">
         <span class="product-category-photo">＋</span>
         <span class="product-category-copy"><b>Добавить категорию</b><small>{{ props.isAdmin ? 'Общая коллекция' : 'Личная коллекция' }}</small></span>
       </button>

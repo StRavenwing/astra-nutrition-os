@@ -7,11 +7,13 @@ defineProps<{
   canAdd: boolean;
   addLabel?: string;
   user: AuthUser;
+  guest?: boolean;
 }>();
 
 defineEmits<{
   add: [];
   logout: [];
+  login: [];
 }>();
 </script>
 
@@ -23,8 +25,10 @@ defineEmits<{
     </div>
     <div class="header-actions">
       <PwaInstallButton />
+      <span v-if="guest" class="guest-badge">Режим чтения</span>
+      <button v-if="guest" type="button" class="login-button" @click="$emit('login')">Войти</button>
       <button v-if="canAdd" type="button" class="primary" @click="$emit('add')">＋ {{ addLabel || 'Добавить' }}</button>
-      <div class="user-chip">
+      <div v-if="!guest" class="user-chip">
         <span>{{ user.email }}</span>
         <button type="button" title="Выйти" @click="$emit('logout')">Выйти</button>
       </div>

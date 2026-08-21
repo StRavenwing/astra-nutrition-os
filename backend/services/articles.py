@@ -36,9 +36,9 @@ def generate_article_tags(title: str, body: str) -> str | None:
     return " ".join(tags[:6]) or None
 
 
-def serialize_section(item: ArticleSection, user: User) -> dict:
+def serialize_section(item: ArticleSection, user: User | None) -> dict:
     query = item.articles
-    if not user.is_admin:
+    if user is None or not user.is_admin:
         query = query.where(Article.is_hidden == False)
     return {"id": item.id, "name": item.name, "description": item.description, "article_count": query.count()}
 
@@ -65,7 +65,7 @@ def serialize_article(item: Article) -> dict:
     }
 
 
-def list_sections(user: User) -> list[dict]:
+def list_sections(user: User | None) -> list[dict]:
     ensure_default_sections()
     return [serialize_section(item, user) for item in ArticleSection.select().order_by(ArticleSection.id)]
 
@@ -89,10 +89,10 @@ def update_section_info(section_id: int, data: dict, user: User) -> dict:
     return serialize_section(item, user)
 
 
-def list_articles(user: User) -> list[dict]:
+def list_articles(user: User | None) -> list[dict]:
     ensure_default_sections()
     query = Article.select(Article, ArticleSection).join(ArticleSection).order_by(Article.created_at.desc(), Article.id.desc())
-    if not user.is_admin:
+    if user is None or not user.is_admin:
         query = query.where(Article.is_hidden == False)
     return [serialize_article(item) for item in query]
 
