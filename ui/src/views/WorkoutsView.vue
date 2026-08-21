@@ -62,9 +62,35 @@ const exerciseGroups = computed(() => [...new Set(exercises.value.map((exercise)
 const visibleExercises = computed(() => exercises.value.filter((exercise) => exerciseGroup.value === 'all' || (exercise.muscle_group || 'Другое') === exerciseGroup.value));
 const machineCards = computed(() => equipment.value.filter((item) => item.kind === 'machine'));
 const equipmentCards = computed(() => equipment.value.filter((item) => item.kind === 'equipment'));
+const historyStats = computed(() => {
+  const history = archivedPlans.value;
+  const latestDate = history.map((plan) => plan.completed_at || plan.scheduled_at).filter(Boolean).sort().at(-1);
+  const month = latestDate
+    ? new Date(latestDate).toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' })
+    : new Date().toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+  return {
+    total: history.length,
+    completed: completedPlans.value.length,
+    canceled: canceledPlans.value.length,
+    exercises: history.reduce((total, plan) => total + plan.items.length, 0),
+    month,
+  };
+});
 
 function planSummary(plan: WorkoutPlan) {
   return plan.items.map((item) => item.name).join(' · ');
+}
+
+function planTitle(plan: WorkoutPlan) {
+  return plan.items.map((item) => item.name).filter(Boolean).slice(0, 2).join(' · ') || 'Тренировка';
+}
+
+function planHistoryMeta(plan: WorkoutPlan) {
+  if (plan.status === 'canceled') return 'Тренировка отменена';
+  const parts = [`${plan.items.length} упражнений`];
+  const duration = plan.items.reduce((total, item) => total + (item.duration_minutes || 0), 0);
+  if (duration) parts.push(`${duration} минут`);
+  return parts.join(' · ');
 }
 
 function planMetric(item: WorkoutPlan['items'][number]) {
@@ -126,7 +152,7 @@ async function removeExercise(id: number) {
 
       <div v-if="plannedPlans.length" class="workout-grid scheduled-grid">
         <article v-for="plan in plannedPlans" :key="plan.id" class="workout-tile planned-plan-tile" tabindex="0" @click="emit('openPlan', plan)" @keydown.enter.prevent="emit('openPlan', plan)" @keydown.space.prevent="emit('openPlan', plan)">
-          <button type="button" class="complete-plan workout-complete-action" @click.stop="completePlan(plan.id)">Выполнено</button>
+          <button type="button" class="primary complete-plan workout-complete-action" @click.stop="completePlan(plan.id)">Выполнено</button>
           <div class="workout-tile-head">
             <span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span>
             <span class="workout-group planned-badge">Запланирована</span>
@@ -140,8 +166,8 @@ async function removeExercise(id: number) {
             </div>
           </div>
           <div class="workout-tile-actions workout-card-actions planned-tile-actions">
-            <button type="button" class="edit-workout" @click.stop="emit('editPlan', plan)">✎ Редактировать</button>
-            <button type="button" class="delete-workout" @click.stop="cancelPlan(plan.id)">Отменить</button>
+            <button type="button" class="icon-action edit-workout" aria-label="Редактировать тренировку" title="Редактировать тренировку" @click.stop="emit('editPlan', plan)">✎</button>
+            <button type="button" class="icon-action danger-icon delete-workout" aria-label="Отменить тренировку" title="Отменить тренировку" @click.stop="cancelPlan(plan.id)">×</button>
           </div>
         </article>
       </div>
@@ -169,13 +195,13 @@ async function removeExercise(id: number) {
 
     <section v-if="section === 'workouts'" class="workout-subsection">
       <div class="subsection-heading"><p class="eyebrow">ТРЕНИРОВКИ</p><h2>Комплексы</h2></div>
-      <div class="recipe-categories workout-complex-grid">
+      <div class="workout-complex-grid">
         <article v-for="complex in workoutComplexes" :key="complex.id" class="category-card workout-complex-card">
           <span class="workout-complex-photo">🏋️</span>
           <span class="category-copy"><b>{{ complex.name }}</b><small>{{ complex.comment || 'Комплекс тренировок' }}</small></span>
           <div class="workout-complex-actions">
-            <button v-if="props.isAdmin" type="button" class="create-complex-button" @click="emit('buildComplex', { complex: null, mode: 'create' })">＋ Создать тренировку</button>
-            <button v-if="props.isAdmin" type="button" class="edit-complex-button" @click="emit('buildComplex', { complex, mode: 'edit' })">✎ Редактировать</button>
+            <button v-if="props.isAdmin" type="button" class="primary create-complex-button" @click="emit('buildComplex', { complex: null, mode: 'create' })">＋ Создать тренировку</button>
+            <button v-if="props.isAdmin" type="button" class="icon-action edit-complex-button" aria-label="Редактировать комплекс" title="Редактировать комплекс" @click="emit('buildComplex', { complex, mode: 'edit' })">✎</button>
           </div>
         </article>
         <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card workout-complex-card" tabindex="0" role="button" @click="emit('buildComplex', { complex: null, mode: 'create' })" @keydown.enter.prevent="emit('buildComplex', { complex: null, mode: 'create' })">
@@ -206,8 +232,8 @@ async function removeExercise(id: number) {
             <span v-if="exercise.video">Видео</span>
           </div>
           <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions exercise-card-actions">
-            <button type="button" class="edit-workout" @click.stop="emit('editExercise', exercise.id)">✎ Редактировать</button>
-            <button type="button" class="delete-workout" @click.stop="removeExercise(exercise.id)">Удалить</button>
+            <button type="button" class="primary edit-workout" @click.stop="emit('editExercise', exercise.id)">Редактировать</button>
+            <button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить упражнение" title="Удалить упражнение" @click.stop="removeExercise(exercise.id)">×</button>
           </div>
         </article>
         <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card exercise-card add-exercise-card" tabindex="0" role="button" @click="emit('addExercise')" @keydown.enter.prevent="emit('addExercise')">
@@ -225,12 +251,11 @@ async function removeExercise(id: number) {
         <div class="equipment-group-head"><div><p class="eyebrow">ТРЕНАЖЁРЫ</p><h3>Тренажёры</h3></div><span class="subtle">{{ machineCards.length }}</span></div>
         <div class="exercise-grid equipment-grid">
           <article v-for="(machine, index) in machineCards" :key="machine.id" class="workout-tile exercise-card equipment-card">
-            <div class="workout-tile-head"><span class="workout-group">ТРЕНАЖЁР</span><span class="exercise-code">Т-{{ String(index + 1).padStart(2, '0') }}</span></div>
-            <img v-if="machine.photo" :src="machine.photo" :alt="machine.name" class="equipment-card-photo">
+            <div class="equipment-card-visual"><img v-if="machine.photo" :src="machine.photo" :alt="machine.name" class="equipment-card-photo"><span v-else class="equipment-card-mark">⚙️</span></div>
+            <div class="workout-tile-head"><span class="workout-group machine-badge">ТРЕНАЖЁР</span><span class="exercise-code">Т-{{ String(index + 1).padStart(2, '0') }}</span></div>
             <h3>{{ machine.name }}</h3>
             <p>{{ machine.description || 'Оборудование для выполнения упражнений и настройки нагрузки.' }}</p>
-            <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="edit-workout" @click.stop="emit('editEquipment', machine.id)">✎ Редактировать</button></div>
-            <div v-if="!machine.photo" class="equipment-card-mark">⚙️</div>
+            <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="primary edit-workout" @click.stop="emit('editEquipment', machine.id)">Редактировать</button></div>
           </article>
           <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'machine')" @keydown.enter.prevent="emit('addEquipment', 'machine')">
             <span class="workout-create-icon">＋</span><div class="workout-create-copy"><h3>Добавить тренажёр</h3><p>или свободный инвентарь</p></div><button type="button" class="primary" @click.stop="emit('addEquipment', 'machine')">＋ Добавить элемент</button>
@@ -241,12 +266,11 @@ async function removeExercise(id: number) {
         <div class="equipment-group-head"><div><p class="eyebrow">ИНВЕНТАРЬ</p><h3>Инвентарь</h3></div><span class="subtle">{{ equipmentCards.length }}</span></div>
         <div class="exercise-grid equipment-grid">
           <article v-for="(equipmentItem, index) in equipmentCards" :key="equipmentItem.id" class="workout-tile exercise-card equipment-card">
+            <div class="equipment-card-visual"><img v-if="equipmentItem.photo" :src="equipmentItem.photo" :alt="equipmentItem.name" class="equipment-card-photo"><span v-else class="equipment-card-mark">🏋️</span></div>
             <div class="workout-tile-head"><span class="workout-group equipment-badge">ИНВЕНТАРЬ</span><span class="exercise-code">И-{{ String(index + 1).padStart(2, '0') }}</span></div>
-            <img v-if="equipmentItem.photo" :src="equipmentItem.photo" :alt="equipmentItem.name" class="equipment-card-photo">
             <h3>{{ equipmentItem.name }}</h3>
             <p>{{ equipmentItem.description || 'Инвентарь для выполнения упражнений, усложнения или разнообразия тренировки.' }}</p>
-            <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="edit-workout" @click.stop="emit('editEquipment', equipmentItem.id)">✎ Редактировать</button></div>
-            <div v-if="!equipmentItem.photo" class="equipment-card-mark">🏋️</div>
+            <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="primary edit-workout" @click.stop="emit('editEquipment', equipmentItem.id)">Редактировать</button></div>
           </article>
           <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'equipment')" @keydown.enter.prevent="emit('addEquipment', 'equipment')">
             <span class="workout-create-icon">＋</span><div class="workout-create-copy"><h3>Добавить инвентарь</h3><p>Свободный вес и аксессуары</p></div><button type="button" class="primary" @click.stop="emit('addEquipment', 'equipment')">＋ Добавить элемент</button>
@@ -257,15 +281,20 @@ async function removeExercise(id: number) {
 
     <section v-else-if="section === 'archive'" class="workout-subsection">
       <div class="subsection-heading"><p class="eyebrow">ИСТОРИЯ</p><h2>История тренировок</h2></div>
+      <div class="archive-history-layout">
+      <div class="archive-history-groups">
       <div class="archive-group">
         <div class="archive-group-head"><div><p class="eyebrow">ЗАВЕРШЕНО</p><h3>Пройденные тренировки</h3></div><span class="subtle">{{ completedPlans.length }}</span></div>
         <div class="workout-grid archive-workout-grid">
-        <article v-for="plan in completedPlans" :key="plan.id" class="workout-tile archive-plan-tile" tabindex="0" @click="emit('openPlan', plan)" @keydown.enter.prevent="emit('openPlan', plan)" @keydown.space.prevent="emit('openPlan', plan)">
+        <article v-for="plan in completedPlans" :key="plan.id" class="workout-tile archive-plan-tile history-workout-card" tabindex="0" @click="emit('openPlan', plan)" @keydown.enter.prevent="emit('openPlan', plan)" @keydown.space.prevent="emit('openPlan', plan)">
           <div class="workout-tile-head"><span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span><span class="workout-group" :class="plan.status === 'canceled' ? 'canceled-badge' : 'completed-badge'">{{ planStatus(plan) }}</span></div>
-          <h3>Тренировка</h3>
-          <p>{{ planSummary(plan) }}</p>
+          <h3>{{ planTitle(plan) }}</h3>
+          <p>{{ planHistoryMeta(plan) }}</p>
           <div class="planned-plan-items"><div v-for="item in plan.items" :key="item.id || item.exercise_id"><b>{{ item.name }}</b><small>{{ planMetric(item) }}</small></div></div>
-          <div class="workout-tile-actions workout-card-actions"><button type="button" class="edit-workout" @click.stop="emit('repeat', plan)">↻ Повторить</button></div>
+          <div class="workout-tile-actions workout-card-actions history-card-actions">
+            <button type="button" class="icon-action history-details-action" aria-label="Открыть детали тренировки" title="Открыть детали тренировки" @click.stop="emit('openPlan', plan)">↗</button>
+            <button type="button" class="primary edit-workout" @click.stop="emit('repeat', plan)">↻ Повторить</button>
+          </div>
         </article>
         <div v-if="!completedPlans.length" class="panel empty">Пройденных тренировок пока нет</div>
         </div>
@@ -273,15 +302,30 @@ async function removeExercise(id: number) {
       <div class="archive-group canceled-archive-group">
         <div class="archive-group-head"><div><p class="eyebrow">ОТМЕНЕНО</p><h3>Отменённые тренировки</h3></div><span class="subtle">{{ canceledPlans.length }}</span></div>
         <div class="workout-grid archive-workout-grid">
-        <article v-for="plan in canceledPlans" :key="plan.id" class="workout-tile archive-plan-tile" tabindex="0" @click="emit('openPlan', plan)" @keydown.enter.prevent="emit('openPlan', plan)" @keydown.space.prevent="emit('openPlan', plan)">
+        <article v-for="plan in canceledPlans" :key="plan.id" class="workout-tile archive-plan-tile history-workout-card" tabindex="0" @click="emit('openPlan', plan)" @keydown.enter.prevent="emit('openPlan', plan)" @keydown.space.prevent="emit('openPlan', plan)">
           <div class="workout-tile-head"><span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span><span class="workout-group canceled-badge">Отменена</span></div>
-          <h3>Тренировка</h3>
-          <p>{{ planSummary(plan) }}</p>
+          <h3>{{ planTitle(plan) }}</h3>
+          <p>{{ planHistoryMeta(plan) }}</p>
           <div class="planned-plan-items"><div v-for="item in plan.items" :key="item.id || item.exercise_id"><b>{{ item.name }}</b><small>{{ planMetric(item) }}</small></div></div>
-          <div class="workout-tile-actions workout-card-actions"><button type="button" class="edit-workout" @click.stop="emit('repeat', plan)">↻ Повторить</button></div>
+          <div class="workout-tile-actions workout-card-actions history-card-actions">
+            <button type="button" class="icon-action history-details-action" aria-label="Открыть детали тренировки" title="Открыть детали тренировки" @click.stop="emit('openPlan', plan)">↗</button>
+            <button type="button" class="primary edit-workout" @click.stop="emit('repeat', plan)">↻ Повторить</button>
+          </div>
         </article>
         <div v-if="!canceledPlans.length" class="panel empty">Отменённых тренировок пока нет</div>
         </div>
+      </div>
+      </div>
+      <aside class="history-statistics-card">
+        <p class="eyebrow">СТАТИСТИКА ИСТОРИИ</p>
+        <h3>{{ historyStats.total }} тренировок</h3>
+        <p class="history-statistics-period">за {{ historyStats.month }}</p>
+        <div class="history-statistics-metrics">
+          <div><b>{{ historyStats.completed }}</b><span>ПРОЙДЕНО</span></div>
+          <div><b>{{ historyStats.canceled }}</b><span>ОТМЕНЕНО</span></div>
+          <div><b>{{ historyStats.exercises }}</b><span>УПРАЖНЕНИЙ</span></div>
+        </div>
+      </aside>
       </div>
     </section>
   </template>

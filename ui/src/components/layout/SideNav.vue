@@ -7,7 +7,7 @@ defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
 </script>
 
 <template>
-  <aside>
+  <aside class="side-nav">
     <div class="brand">
       <span class="brand-mark">✦</span>
       <div>

@@ -5,6 +5,7 @@ import PwaInstallButton from '@/components/shared/PwaInstallButton.vue';
 defineProps<{
   title: string;
   canAdd: boolean;
+  canAddCategory?: boolean;
   addLabel?: string;
   user: AuthUser;
   guest?: boolean;
@@ -12,6 +13,7 @@ defineProps<{
 
 defineEmits<{
   add: [];
+  addCategory: [];
   logout: [];
   login: [];
 }>();
@@ -27,6 +29,7 @@ defineEmits<{
       <PwaInstallButton />
       <span v-if="guest" class="guest-badge">Режим чтения</span>
       <button v-if="guest" type="button" class="login-button" @click="$emit('login')">Войти</button>
+      <button v-if="canAddCategory" type="button" class="secondary-header-action" @click="$emit('addCategory')">＋ Категория</button>
       <button v-if="canAdd" type="button" class="primary" @click="$emit('add')">＋ {{ addLabel || 'Добавить' }}</button>
       <div v-if="!guest" class="user-chip">
         <span>{{ user.email }}</span>
@@ -64,5 +67,21 @@ defineEmits<{
     color: #44546f;
     cursor: pointer;
   }
+}
+
+.secondary-header-action {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 12px;
+  background: #e2f7eb;
+  color: #329a63;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.secondary-header-action:hover {
+  background: #d1f8df;
 }
 </style>

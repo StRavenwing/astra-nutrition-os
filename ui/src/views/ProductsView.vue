@@ -176,8 +176,8 @@ function productCoverClass(category: string | null) {
           <b>{{ fmt(item.price_per_100_or_unit_rsd) }} RSD</b>
         </div>
         <div v-if="props.isAdmin" class="product-tile-actions">
-          <button type="button" class="edit-product" @click="emit('edit', item.id)">✎ Редактировать</button>
-          <button type="button" class="delete-product" @click="remove(item.id)">Удалить</button>
+          <button type="button" class="primary card-primary edit-product" @click="emit('edit', item.id)">Редактировать</button>
+          <button type="button" class="icon-action danger-icon delete-product" aria-label="Удалить продукт" title="Удалить продукт" @click="remove(item.id)">×</button>
         </div>
       </article>
       <article v-if="!props.readOnly" class="product-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">

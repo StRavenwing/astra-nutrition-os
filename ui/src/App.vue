@@ -76,6 +76,7 @@ const canAdd = computed(() => {
 });
 const articleModalTitle = computed(() => articleEditor.value ? 'Редактировать статью' : 'Добавить статью');
 const addLabel = computed(() => currentPage.value === 'workouts' ? 'Собрать тренировку' : currentPage.value === 'progress' ? 'Добавить показатели' : 'Добавить');
+const canAddCategory = computed(() => currentPage.value === 'recipes' && !isGuest.value);
 const modalTitle = computed(() => {
   if (!modal.value) return '';
   const editing = modal.value.id != null;
@@ -343,12 +344,14 @@ onBeforeUnmount(() => {
     :current-page="currentPage"
     :title="title"
     :can-add="canAdd"
+    :can-add-category="canAddCategory"
     :add-label="addLabel"
     :user="activeUser"
     :guest-mode="isGuest"
     :feedback-unread="feedbackUnread"
     @navigate="navigate"
     @add="openAdd"
+    @add-category="openCategory('recipe')"
     @logout="logout"
     @feedback="openFeedback"
     @login="openLogin"
@@ -436,7 +439,7 @@ textarea {
   font: inherit;
 }
 
-aside {
+.side-nav {
   position: fixed;
   inset: 0 auto 0 0;
   width: 238px;
@@ -2282,7 +2285,7 @@ dialog {
 }
 
 @media (max-width: 900px) {
-  aside {
+  .side-nav {
     position: static;
     width: auto;
   }
@@ -2644,7 +2647,7 @@ body .actions button:hover { transform: translateY(-1px); }
 }
 
 body { background: var(--bg); color: var(--ink); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-aside { width: 248px; padding: 28px 16px 22px; border: 0; background: var(--nav); color: #f4f7fc; }
+.side-nav { width: 248px; padding: 28px 16px 22px; border: 0; background: var(--nav); color: #f4f7fc; }
 .brand { padding: 0 8px 42px; color: #fff; }
 .brand .brand-mark { width: 34px; height: 34px; border-radius: 50%; background: var(--mint); color: var(--ink); }
 .brand small { color: #8190a6; }
@@ -2817,7 +2820,7 @@ dialog::backdrop { background: #0e172880; }
 .product-tile .product-tile-actions { grid-column: 1 / -1; grid-row: 3; display: flex; justify-content: flex-end; min-height: 30px; margin: 4px 0 0; }
 .product-tile .product-tile-actions button { width: auto; min-height: 28px; height: 28px; }
 .product-catalog-layout > .product-grid > .empty { margin: 16px; }
-@media (max-width: 900px) { aside { width: auto; } main { margin-left: 0; padding: 32px 24px 48px; } }
+@media (max-width: 900px) { .side-nav { width: auto; } main { margin-left: 0; padding: 32px 24px 48px; } }
 @media (max-width: 760px) { .product-catalog-layout { grid-template-columns: 1fr; } .product-catalog-layout .product-categories { grid-column: 1; grid-row: auto; flex-direction: row; overflow-x: auto; padding: 0 0 8px; border-right: 0; border-bottom: 1px solid var(--line); } .product-catalog-layout .product-category-card { min-width: 150px; } .product-catalog-layout .toolbar, .product-catalog-layout .product-grid { grid-column: 1; grid-row: auto; } .product-catalog-layout .product-grid { margin-top: 0; overflow-x: auto; } .product-table-head, .product-tile { min-width: 720px; } }
 .product-catalog-layout { display: block; }
 .product-catalog-layout .product-categories { display: grid; grid-template-columns: repeat(auto-fit, minmax(144px, 1fr)); grid-column: auto; grid-row: auto; gap: 16px; margin-bottom: 24px; padding: 0; border: 0; }
@@ -3274,6 +3277,43 @@ body .archive-workout-grid .archive-plan-tile > .workout-card-actions { display:
 body .archive-workout-grid .archive-plan-tile > .workout-card-actions .edit-workout { flex: 1; }
 body .completed-badge { background: #f0ecff; color: #6652c7; }
 body .canceled-badge { background: #f7eaea; color: #d55555; }
+
+/* Workouts v2 final layout: keep workout collections independent from recipe/category grids. */
+body main .workout-subsection { display: block !important; width: 100% !important; min-width: 0; }
+body main .workout-subsection > .subsection-heading { display: flex !important; width: 100%; align-items: flex-end; justify-content: flex-start; }
+body main .workout-subsection > .subsection-heading > h2 { margin-right: auto; }
+body main .workout-subsection > .subsection-heading:has(> .eyebrow) { flex-wrap: wrap; }
+body main .workout-subsection > .subsection-heading:has(> .eyebrow) > h2 { flex: 0 0 100%; margin-right: 0; }
+body main .workout-complex-grid,
+body main .exercise-grid,
+body main .archive-workout-grid {
+  display: grid !important;
+  width: 100% !important;
+  min-width: 0;
+  gap: 16px !important;
+}
+body main .workout-complex-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)) !important; }
+body main .exercise-grid { grid-template-columns: repeat(auto-fill, minmax(265px, 1fr)) !important; }
+body main .archive-workout-grid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)) !important; }
+body main .workout-complex-grid > .workout-complex-card,
+body main .exercise-grid > .exercise-card,
+body main .archive-workout-grid > .archive-plan-tile {
+  min-width: 0;
+  width: auto;
+}
+body main .workout-complex-grid > .workout-complex-card { min-height: 260px; }
+body main .workout-complex-grid > .workout-create-card.workout-complex-card { min-height: 154px; }
+
+@media (max-width: 900px) {
+  body main .workout-complex-grid,
+  body main .exercise-grid,
+  body main .archive-workout-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 600px) {
+  body main .workout-complex-grid,
+  body main .exercise-grid,
+  body main .archive-workout-grid { grid-template-columns: 1fr !important; }
+}
 
 @media (max-width: 700px) {
   body .workout-create-card.workout-complex-card { grid-template-columns: 62px minmax(0, 1fr); padding: 20px; }
@@ -3761,6 +3801,8 @@ body .progress-tile-actions { grid-template-columns: minmax(0, 1fr) 78px 62px; g
 body .progress-tile-actions button { min-height: 30px; height: 30px; padding: 0 8px; border-radius: 8px; font-size: 10px; }
 body .progress-tile-actions .progress-open-button { border: 1px solid #79a8ff; background: #eaf2ff; color: #6f82ff; }
 body .progress-tile-actions .progress-open-button:only-child { grid-column: 1 / -1; }
+body .progress-tile-actions .progress-open-button { border-color: #172033; background: #172033; color: #fff; }
+body .progress-latest-edit { background: #bdf2d3; color: #172033; }
 body .progress-add-card { display: grid; min-height: 274px; place-items: center; align-content: center; padding: 24px; border: 1px dashed #d9e2ff; border-radius: 18px; background: #f8faff; text-align: center; }
 body .progress-add-card:hover { border-color: #9aa7ff; background: #f0f1ff; }
 body .progress-add-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: #eef0ff; color: #6f82ff; font-size: 30px; }
@@ -3771,6 +3813,36 @@ body .progress-tip { display: grid; gap: 5px; margin-top: 48px; padding: 28px 32
 body .progress-tip span { color: #329a63; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
 body .progress-tip b { color: #172033; font-size: 16px; }
 body .progress-tip small { color: #7d879b; font-size: 11px; }
+
+/* Card action rule: one primary action, all secondary actions are icon actions. */
+body .icon-action { display: inline-grid; place-items: center; width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; border: 1px solid #d9e2ec; border-radius: 10px; background: #f6f8fc; color: #172033; font-size: 16px; line-height: 1; cursor: pointer; }
+body .icon-action:hover, body .icon-action:focus-visible { border-color: #6f82ff; background: #eef0ff; color: #6f82ff; outline: none; }
+body .icon-action.danger-icon { border-color: #f0caca; background: #fff7f7; color: #d55555; }
+body .icon-action.danger-icon:hover, body .icon-action.danger-icon:focus-visible { border-color: #d55555; background: #fff0ed; color: #d55555; }
+body .card-primary { min-height: 36px; height: 36px; border-radius: 10px; font-size: 11px; }
+body .product-tile .product-tile-actions { display: grid; grid-template-columns: minmax(0, 1fr) 36px; align-items: center; gap: 8px; min-height: 36px; margin-top: 10px; }
+body .product-tile .product-tile-actions .card-primary { width: 100%; }
+body .recipe-tile .recipe-open-primary { width: 100%; margin-top: 10px; }
+body .recipe-tile .submit-to-common { align-self: flex-end; margin-top: 8px; }
+body .recipe-tile .recipe-tile-actions { display: flex; justify-content: flex-end; gap: 8px; min-height: 36px; margin-top: 8px; }
+body .workout-card-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; min-height: 36px; }
+body .workout-card-actions .primary { min-height: 36px; height: 36px; border-radius: 10px; font-size: 11px; }
+body .planned-tile-actions .icon-action { margin-left: 0; }
+body .workout-complex-actions { display: flex; align-items: center; gap: 8px; }
+body .workout-complex-actions .create-complex-button { flex: 1; min-height: 36px; height: 36px; border-radius: 10px; font-size: 11px; }
+body .workout-complex-actions .icon-action { flex: 0 0 36px; }
+body .exercise-card-actions .primary { flex: 1; }
+body .equipment-card-actions .primary { width: 100%; }
+body .progress-latest-card .progress-details-link { width: 36px; min-width: 36px; height: 36px; min-height: 36px; margin-top: 18px; padding: 0; border: 1px solid #344057; border-radius: 10px; background: #222d42; color: #bdf2d3; font-size: 16px; }
+body .progress-latest-card .progress-details-link:hover { border-color: #bdf2d3; background: #2d3a52; }
+body .article-card-primary { width: 100%; margin-top: 12px; }
+body .article-card .article-card-actions { display: flex; justify-content: flex-end; gap: 8px; min-height: 36px; margin-top: 8px; }
+body .article-card .article-card-actions .icon-action { flex: 0 0 36px; width: 36px; min-height: 36px; height: 36px; padding: 0; }
+body .article-card .article-pin-action { top: 15px; right: 15px; width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; border: 1px solid #d9e2ec; border-radius: 10px; background: #f6f8fc; color: #6f82ff; font-size: 15px; }
+body .article-card .article-pin-action.pinned { border-color: #7bc8a4; background: #e3fcef; color: #216e4e; }
+body .review-card .review-actions { display: flex; align-items: center; gap: 8px; }
+body .review-card .review-actions .icon-action { flex: 0 0 36px; width: 36px; min-width: 36px; padding: 0; }
+body .review-card .cancel-submission { display: inline-grid; place-items: center; width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; border: 1px solid #f0caca; border-radius: 10px; background: #fff7f7; color: #d55555; font-size: 16px; }
 
 @media (max-width: 1050px) {
   body .progress-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -3792,5 +3864,117 @@ body .progress-tip small { color: #7d879b; font-size: 11px; }
   body dialog.popup-form > .dialog-panel { padding: 26px 20px; }
   body dialog.popup-food-day.recipe-dialog { width: min(630px, calc(100vw - 32px)); }
   body dialog.popup-food-day > .dialog-panel { padding: 26px 20px; }
+}
+
+/* Only the navigation aside is fixed. Content cards that use <aside> stay in the page flow. */
+body main aside { position: static; inset: auto; width: auto; }
+
+/* Product v3 final layout: never collapse the catalogue into the legacy sidebar/table column. */
+body main .product-catalog-layout { display: flex !important; flex-direction: column !important; width: 100% !important; min-width: 0; }
+body main .product-catalog-layout > .product-toolbar { order: 1; width: 100%; }
+body main .product-catalog-layout > .product-categories { order: 2; display: grid !important; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important; width: 100%; min-width: 0; }
+body main .product-catalog-layout > .product-results-head { order: 3; width: 100%; }
+body main .product-catalog-layout > .product-grid { order: 4; display: grid !important; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important; width: 100%; min-width: 0; }
+body main .product-catalog-layout > .product-grid > .product-tile { display: flex !important; min-width: 0; width: auto; }
+body main .product-catalog-layout > .product-grid > .product-add-card { grid-column: 1 / -1; width: auto; }
+
+/* Workout history component sheet: two compact cards beside the history statistics widget. */
+body main .archive-history-layout { display: grid !important; grid-template-columns: minmax(0, 1fr) 408px; align-items: start; gap: 24px; width: 100%; min-width: 0; }
+body main .archive-history-groups { min-width: 0; }
+body main .archive-history-groups .archive-workout-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 16px !important; }
+body main .archive-history-groups .archive-workout-grid .panel.empty { grid-column: 1 / -1; }
+body main .history-workout-card { display: flex !important; min-width: 0; width: auto; min-height: 264px !important; height: 264px; padding: 24px !important; border-radius: 18px !important; box-shadow: 0 6px 20px #1720330d; }
+body main .history-workout-card .workout-tile-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 24px; }
+body main .history-workout-card .workout-date { color: var(--v2-ink); font-size: 14px; font-weight: 700; }
+body main .history-workout-card .workout-group { flex: 0 0 auto; padding: 5px 9px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+body main .history-workout-card h3 { display: -webkit-box; min-height: 46px; margin: 18px 0 6px; overflow: hidden; font-size: 19px; line-height: 1.22; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+body main .history-workout-card > p { min-height: 18px; margin: 0; color: var(--v2-muted); font-size: 12px; }
+body main .history-workout-card .planned-plan-items { min-height: 52px; max-height: 52px; margin: 16px 0 10px; overflow: hidden; }
+body main .history-workout-card .planned-plan-items div { padding: 0; border-top: 1px solid var(--v2-line); background: transparent; }
+body main .history-workout-card .planned-plan-items div:first-child { padding-top: 10px; }
+body main .history-workout-card .planned-plan-items div:nth-child(n + 2) { display: none; }
+body main .history-card-actions { display: flex !important; align-items: center; justify-content: flex-start !important; gap: 10px; min-height: 36px; margin-top: auto; }
+body main .history-card-actions .history-details-action { flex: 0 0 36px; }
+body main .history-card-actions .edit-workout { flex: 0 0 auto; min-width: 126px; }
+body main .history-statistics-card { display: flex; flex-direction: column; min-height: 264px; padding: 24px; border: 0; border-radius: 18px; background: #172033; color: #fff; }
+body main .history-statistics-card .eyebrow { margin: 0 0 18px; color: #bdf2d3; }
+body main .history-statistics-card h3 { margin: 0; color: #fff; font-size: 20px; line-height: 1.25; }
+body main .history-statistics-period { margin: 7px 0 22px; color: #aab6c8; font-size: 12px; }
+body main .history-statistics-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: auto; }
+body main .history-statistics-metrics > div { min-width: 0; padding: 12px; border-radius: 10px; background: #222d42; }
+body main .history-statistics-metrics b { display: block; color: #fff; font-size: 19px; line-height: 1; }
+body main .history-statistics-metrics span { display: block; margin-top: 8px; color: #aab6c8; font-size: 9px; font-weight: 800; letter-spacing: .06em; }
+
+@media (max-width: 1100px) {
+  body main .archive-history-layout { grid-template-columns: 1fr; }
+  body main .history-statistics-card { min-height: 220px; }
+}
+@media (max-width: 700px) {
+  body main .archive-history-groups .archive-workout-grid { grid-template-columns: 1fr !important; }
+  body main .history-workout-card { height: auto; min-height: 264px !important; }
+  body main .history-statistics-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* Workout component sheet: equipment and machine cards. */
+body main .equipment-grid { grid-template-columns: repeat(auto-fill, minmax(296px, 1fr)) !important; gap: 16px !important; }
+body main .equipment-grid > .equipment-card:not(.workout-create-card) { display: flex !important; flex-direction: column; min-width: 0; min-height: 290px !important; height: 290px; padding: 18px !important; border-radius: 18px !important; }
+body main .equipment-grid > .equipment-card:not(.workout-create-card)::before { display: none; }
+body main .equipment-card-visual { display: grid; flex: 0 0 108px; place-items: center; width: calc(100% + 36px); height: 108px; margin: -18px -18px 0; overflow: hidden; background: #e2f7eb; }
+body main .equipment-card-photo { width: 100%; height: 108px; margin: 0; border-radius: 0; object-fit: cover; }
+body main .equipment-card-mark { display: grid; place-items: center; width: 100%; height: 108px; margin: 0; border-radius: 0; background: transparent; color: #329a63; font-size: 40px; }
+body main .equipment-card .workout-tile-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 18px; }
+body main .equipment-card .workout-group { padding: 5px 9px; border-radius: 999px; background: #f0ecff; color: #6652c7; font-size: 10px; font-weight: 800; letter-spacing: .06em; }
+body main .equipment-card .equipment-badge { background: #fff1da; color: #d88927; }
+body main .equipment-card h3 { display: -webkit-box; min-height: 39px; margin: 12px 0 6px; overflow: hidden; font-size: 16px; line-height: 1.25; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+body main .equipment-card > p { display: -webkit-box; min-height: 36px; margin: 0; overflow: hidden; color: var(--v2-muted); font-size: 12px; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+body main .equipment-card-actions { display: flex !important; align-items: center; justify-content: flex-start; min-height: 32px; margin-top: auto; }
+body main .equipment-card-actions .edit-workout { flex: 0 0 auto; width: 130px; min-height: 32px; height: 32px; padding: 0 12px; border-radius: 9px; background: #eaf2ff; color: #6f82ff; font-size: 11px; }
+body main .equipment-card-actions .edit-workout:hover { border-color: #6f82ff; background: #eaf2ff; color: #6f82ff; }
+
+@media (max-width: 700px) {
+  body main .equipment-grid { grid-template-columns: 1fr !important; }
+}
+
+/* Recipes page v2 final layout: 250×272 cards, compact category rail and one clear card CTA. */
+body main .recipe-toolbar { grid-template-columns: minmax(260px, 1fr) 168px 170px auto !important; min-height: 68px; }
+body main .recipe-categories.visual { grid-template-columns: repeat(auto-fit, minmax(154px, 1fr)) !important; gap: 16px !important; margin-bottom: 26px; }
+body main .recipe-categories.visual .category-card { min-width: 0; min-height: 86px; padding: 12px 14px; border-radius: 16px; }
+body main .recipes-results-head { margin-bottom: 14px; }
+body main .recipe-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)) !important; gap: 20px !important; }
+body main .recipe-tile,
+body main .recipe-add-card { min-width: 0; min-height: 272px !important; height: auto; padding: 14px !important; border-radius: 18px !important; }
+body main .recipe-tile { min-width: 0; min-height: 272px !important; height: auto; padding: 14px !important; border-radius: 18px !important; }
+body main .recipe-tile { display: flex !important; flex-direction: column; }
+body main .recipe-tile::before { display: none !important; }
+body main .recipe-cover { flex: 0 0 82px; height: 82px; min-height: 82px; padding: 0 20px; border-radius: 12px; }
+body main .recipe-tile .recipe-tile-head { display: none; }
+body main .recipe-tile .recipe-category { margin-top: 15px; font-size: 10px; }
+body main .recipe-tile h3 { display: -webkit-box; min-height: 39px; margin: 6px 0 4px; overflow: hidden; font-size: 18px; line-height: 1.22; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+body main .recipe-tile > p { display: -webkit-box; min-height: 18px; margin: 0; overflow: hidden; color: var(--v2-muted); font-size: 11px; line-height: 1.35; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
+body main .recipe-tile .tile-macros { grid-template-columns: 1fr !important; gap: 3px; margin: 12px 0 0; padding-top: 12px; border-top: 1px solid #edf0f5; }
+body main .recipe-tile .tile-macros span { display: inline; padding: 0; background: transparent; text-align: left; }
+body main .recipe-tile .tile-macros span:not(:first-child) { display: inline-block; margin-right: 9px; }
+body main .recipe-tile .tile-macros b { color: var(--v2-muted); font-size: 11px; }
+body main .recipe-tile .tile-macros span:first-child b { color: var(--v2-blue); }
+body main .recipe-tile .tile-macros small { display: inline; margin-left: 3px; font-size: 9px; }
+body main .recipe-tile .recipe-tile-foot { display: none !important; }
+body main .recipe-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 32px; margin-top: auto; }
+body main .recipe-card-footer .recipe-open-primary { flex: 0 0 auto; width: 90px; min-height: 26px; height: 26px; margin: 0; padding: 0 12px; border-radius: 8px; font-size: 10px; }
+body main .recipe-card-footer .recipe-tile-actions { display: flex; align-items: center; gap: 6px; min-height: 26px; margin: 0; }
+body main .recipe-card-footer .icon-action { flex: 0 0 26px; width: 26px; min-width: 26px; height: 26px; min-height: 26px; border-radius: 8px; font-size: 13px; }
+body main .recipe-add-card { display: flex; align-items: center; flex-direction: column; justify-content: center; border: 1px dashed #d6dde8; background: #f8fafd; text-align: center; }
+body main .recipe-add-card .recipe-add-icon { width: 60px; height: 60px; }
+body main .recipe-add-card h3 { margin: 18px 0 5px; font-size: 16px; }
+body main .recipe-add-card p { margin: 0; color: var(--v2-muted); font-size: 11px; }
+body main .recipe-add-card .primary { min-height: 32px; height: 32px; margin-top: 18px; border-radius: 9px; padding: 0 14px; font-size: 11px; }
+
+@media (max-width: 800px) {
+  body main .recipe-toolbar { grid-template-columns: 1fr 1fr !important; }
+  body main .recipe-toolbar input { grid-column: 1 / -1; }
+}
+@media (max-width: 560px) {
+  body main .recipe-toolbar { grid-template-columns: 1fr !important; padding: 12px; }
+  body main .recipe-categories.visual { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; }
+  body main .recipe-grid { grid-template-columns: 1fr !important; }
 }
 </style>

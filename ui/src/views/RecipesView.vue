@@ -172,10 +172,10 @@ async function removeRecipe(item: RecipeSummary) {
           <p v-if="item.moderation_note">{{ item.moderation_note }}</p>
           <div v-if="isAdmin" class="review-actions" @click.stop>
             <button class="primary" @click="moderate(item, 'accept')">Принять</button>
-            <button @click="moderate(item, 'reject')">Отклонить</button>
-            <button @click="moderationRecipe = item">Отправить на доработку</button>
+            <button class="icon-action danger-icon" aria-label="Отклонить рецепт" title="Отклонить рецепт" @click="moderate(item, 'reject')">×</button>
+            <button class="icon-action" aria-label="Отправить рецепт на доработку" title="Отправить рецепт на доработку" @click="moderationRecipe = item">↻</button>
           </div>
-          <button v-else class="cancel-submission" @click.stop="cancelSubmission(item)">Отменить отправку</button>
+          <button v-else class="icon-action danger-icon cancel-submission" aria-label="Отменить отправку рецепта" title="Отменить отправку рецепта" @click.stop="cancelSubmission(item)">×</button>
         </article>
       </div>
     </section>
@@ -267,19 +267,20 @@ async function removeRecipe(item: RecipeSummary) {
           <span><b>{{ fmt(item.fat_per_serving_g) }}</b><small>жиры</small></span>
           <span><b>{{ fmt(item.carbs_per_serving_g) }}</b><small>углев.</small></span>
         </div>
-        <div class="recipe-tile-foot">
-          <span>v{{ item.version }}</span>
-          <b>{{ fmt(item.cost_per_serving_rsd) }} RSD <small v-if="item.manual_price_per_serving_rsd != null">фикс.</small></b>
-        </div>
-        <button
-          v-if="!props.readOnly && item.collection === 'local'"
-          type="button"
-          class="submit-to-common"
-          @click.stop="item.submission_requested ? cancelSubmission(item) : submissionRecipe = item"
-        >{{ item.submission_requested ? 'Отменить отправку' : 'Добавить в общую коллекцию' }}</button>
-        <div v-if="!props.readOnly && (isAdmin || item.collection === 'local')" class="recipe-tile-actions" @click.stop>
-          <button type="button" class="edit-recipe" @click="emit('edit', item.id)">✎ Редактировать</button>
-          <button type="button" class="delete-recipe" @click="removeRecipe(item)">Удалить</button>
+        <div class="recipe-card-footer">
+          <button type="button" class="primary card-primary recipe-open-primary" @click.stop="emit('openRecipe', item.id)">Просмотр</button>
+          <div v-if="!props.readOnly && (isAdmin || item.collection === 'local')" class="recipe-tile-actions" @click.stop>
+            <button
+              v-if="item.collection === 'local'"
+              type="button"
+              class="icon-action submit-to-common"
+              :aria-label="item.submission_requested ? 'Отменить отправку' : 'Добавить в общую коллекцию'"
+              :title="item.submission_requested ? 'Отменить отправку' : 'Добавить в общую коллекцию'"
+              @click="item.submission_requested ? cancelSubmission(item) : submissionRecipe = item"
+            >⇧</button>
+            <button type="button" class="icon-action edit-recipe" aria-label="Редактировать рецепт" title="Редактировать рецепт" @click="emit('edit', item.id)">✎</button>
+            <button type="button" class="icon-action danger-icon delete-recipe" aria-label="Удалить рецепт" title="Удалить рецепт" @click="removeRecipe(item)">×</button>
+          </div>
         </div>
       </article>
       <article v-if="!props.readOnly" class="recipe-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">

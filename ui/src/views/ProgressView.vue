@@ -136,8 +136,8 @@ async function remove(id: number) {
           <div><dt>ИМТ</dt><dd>{{ fmtValue(latest.bmi) }}</dd></div>
           <div><dt>Самочувствие</dt><dd>{{ wellbeingLabel }}</dd></div>
         </dl>
-        <button v-if="!props.readOnly" type="button" class="progress-latest-edit" @click="emit('edit', latest.id)">Редактировать</button>
-        <button type="button" class="progress-details-link" @click="emit('edit', latest.id)">Открыть подробности →</button>
+        <button v-if="!props.readOnly" type="button" class="primary card-primary progress-latest-edit" @click="emit('edit', latest.id)">Редактировать</button>
+        <button type="button" class="icon-action progress-details-link" aria-label="Открыть подробности текущего замера" title="Открыть подробности текущего замера" @click="emit('edit', latest.id)">↗</button>
       </aside>
     </div>
     <div v-else class="panel empty">Замеров пока нет</div>
@@ -177,9 +177,9 @@ async function remove(id: number) {
           <div><span>Самочувствие</span><b>{{ fmtValue(item.wellbeing_score) }} / 5</b></div>
         </div>
         <div class="progress-tile-actions">
-          <button type="button" class="progress-open-button" @click="emit('edit', item.id)">Открыть</button>
-          <button v-if="!props.readOnly" type="button" class="edit-progress-tile" @click="emit('edit', item.id)">Изменить</button>
-          <button v-if="!props.readOnly" type="button" class="delete-progress-tile" @click="remove(item.id)">Удалить</button>
+          <button type="button" class="primary card-primary progress-open-button" @click="emit('edit', item.id)">Открыть</button>
+          <button v-if="!props.readOnly" type="button" class="icon-action edit-progress-tile" aria-label="Изменить замер" title="Изменить замер" @click="emit('edit', item.id)">✎</button>
+          <button v-if="!props.readOnly" type="button" class="icon-action danger-icon delete-progress-tile" aria-label="Удалить замер" title="Удалить замер" @click="remove(item.id)">×</button>
         </div>
       </article>
       <article v-if="!props.readOnly" class="progress-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">
