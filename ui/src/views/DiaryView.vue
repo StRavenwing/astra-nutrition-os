@@ -41,8 +41,27 @@ const todayIso = computed(() => localToday());
 const todayItems = computed(() => data.value.filter((item) => item.entry_date === todayIso.value));
 const todayTotals = computed(() => diaryTotals(todayItems.value));
 const latestProgress = computed(() => progress.value[0]);
-const proteinTarget = computed(() => Number(latestProgress.value?.protein_target_g) || 0);
-const fatTarget = computed(() => Number(latestProgress.value?.fat_target_g) || 0);
+function targetValue(value: number | null | undefined) {
+  return value != null && Number.isFinite(Number(value)) ? Number(value) : null;
+}
+
+const weightTarget = computed(() => {
+  const weight = targetValue(latestProgress.value?.weight_kg);
+  return weight != null && weight > 0 ? weight : null;
+});
+const kcalTarget = computed(() => targetValue(latestProgress.value?.kcal_target));
+const proteinTarget = computed(() => targetValue(latestProgress.value?.protein_target_g) ?? (weightTarget.value != null ? weightTarget.value * 2 : null));
+const fatTarget = computed(() => targetValue(latestProgress.value?.fat_target_g) ?? weightTarget.value);
+const carbsTarget = computed(() => targetValue(latestProgress.value?.carbs_target_g) ?? (weightTarget.value != null ? weightTarget.value * 3 : null));
+const calculatedMacroTargets = computed(() => weightTarget.value != null && (
+  targetValue(latestProgress.value?.protein_target_g) == null
+  || targetValue(latestProgress.value?.fat_target_g) == null
+  || targetValue(latestProgress.value?.carbs_target_g) == null
+));
+const hasNutritionTargets = computed(() => [kcalTarget.value, proteinTarget.value, fatTarget.value, carbsTarget.value].some((target) => target != null));
+const targetSourceNote = computed(() => calculatedMacroTargets.value
+  ? 'Для незаданных макронутриентов использован расчёт по весу: белки — 2, жиры — 1, углеводы — 3 г на кг массы тела.'
+  : '');
 const todayLabel = computed(() => new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()));
 
 const monthKeys = computed(() => {
@@ -65,19 +84,32 @@ const monthOffset = computed(() => (new Date(monthDate.value.year, monthDate.val
 const selectedDayItems = computed(() => data.value.filter((item) => item.entry_date === selectedDate.value));
 const selectedDayTotals = computed(() => diaryTotals(selectedDayItems.value));
 const selectedDayLabel = computed(() => new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${selectedDate.value}T12:00:00`)));
-const kcalTarget = 2100;
-const effectiveProteinTarget = computed(() => proteinTarget.value || 110);
-const effectiveFatTarget = computed(() => fatTarget.value || 70);
 const averageKcal = computed(() => filledDays.value ? monthTotals.value.kcal / filledDays.value : 0);
 const averageProtein = computed(() => filledDays.value ? monthTotals.value.protein / filledDays.value : 0);
-const kcalDelta = computed(() => Math.round(kcalTarget - averageKcal.value));
-const proteinDelta = computed(() => Math.round(effectiveProteinTarget.value - averageProtein.value));
+const kcalDelta = computed(() => kcalTarget.value == null ? null : Math.round(kcalTarget.value - averageKcal.value));
+const proteinDelta = computed(() => proteinTarget.value == null ? null : Math.round(proteinTarget.value - averageProtein.value));
+
+function progressWidth(current: number, target: number | null) {
+  return target != null && target > 0 ? Math.min(current / target * 100, 100) : 0;
+}
+
+function remaining(current: number, target: number | null) {
+  return target == null ? 0 : Math.max(target - current, 0);
+}
+
+function isExceeded(current: number, target: number | null) {
+  return target != null && current > target;
+}
+
+function targetStatus(current: number, target: number | null, doneLabel: string) {
+  return target != null && current >= target ? doneLabel : `осталось ${fmt(remaining(current, target))} г`;
+}
 
 function dayProgress(day: number) {
   const items = itemsForDay(day);
   if (!items.length) return 'empty';
   const kcal = diaryTotals(items).kcal;
-  return kcal >= kcalTarget * 0.8 ? 'complete' : 'partial';
+  return kcalTarget.value != null && kcal >= kcalTarget.value * 0.8 ? 'complete' : 'partial';
 }
 
 function openMonthChooser() {
@@ -193,12 +225,14 @@ function editEntry(id: number) {
         </div>
       </section>
 
-      <aside class="diary-norm-card">
+      <aside v-if="hasNutritionTargets" class="diary-norm-card">
         <h2>Норма за день</h2>
         <p>Остаток показывается при наличии нормы</p>
-        <div class="diary-norm-item norm-kcal"><span>КАЛОРИИ</span><b>{{ fmt(todayTotals.kcal) }} / {{ fmt(kcalTarget) }} ккал</b><small>Осталось {{ fmt(Math.max(kcalTarget - todayTotals.kcal, 0)) }} ккал</small><i><em :style="{ width: `${Math.min(todayTotals.kcal / kcalTarget * 100, 100)}%` }"></em></i></div>
-        <div class="diary-norm-item norm-protein"><span>БЕЛОК</span><b>{{ fmt(todayTotals.protein) }} / {{ fmt(effectiveProteinTarget) }} г</b><small>Осталось {{ fmt(Math.max(effectiveProteinTarget - todayTotals.protein, 0)) }} г</small><i><em :style="{ width: `${Math.min(todayTotals.protein / effectiveProteinTarget * 100, 100)}%` }"></em></i></div>
-        <div class="diary-norm-item norm-fat" :class="{ exceeded: todayTotals.fat > effectiveFatTarget }"><span>ЖИРЫ · МАКСИМУМ</span><b>{{ fmt(todayTotals.fat) }} / {{ fmt(effectiveFatTarget) }} г</b><small>{{ todayTotals.fat > effectiveFatTarget ? `Превышено на ${fmt(todayTotals.fat - effectiveFatTarget)} г` : `Осталось ${fmt(effectiveFatTarget - todayTotals.fat)} г` }}</small><i><em :style="{ width: `${Math.min(todayTotals.fat / effectiveFatTarget * 100, 100)}%` }"></em></i></div>
+        <div v-if="kcalTarget != null" class="diary-norm-item norm-kcal"><span>КАЛОРИИ</span><b>{{ fmt(todayTotals.kcal) }} / {{ fmt(kcalTarget) }} ккал</b><small>Осталось {{ fmt(remaining(todayTotals.kcal, kcalTarget)) }} ккал</small><i><em :style="{ width: `${progressWidth(todayTotals.kcal, kcalTarget)}%` }"></em></i></div>
+        <div v-if="proteinTarget != null" class="diary-norm-item norm-protein"><span>БЕЛОК</span><b>{{ fmt(todayTotals.protein) }} / {{ fmt(proteinTarget) }} г</b><small>Осталось {{ fmt(remaining(todayTotals.protein, proteinTarget)) }} г</small><i><em :style="{ width: `${progressWidth(todayTotals.protein, proteinTarget)}%` }"></em></i></div>
+        <div v-if="fatTarget != null" class="diary-norm-item norm-fat" :class="{ exceeded: isExceeded(todayTotals.fat, fatTarget) }"><span>ЖИРЫ · МАКСИМУМ</span><b>{{ fmt(todayTotals.fat) }} / {{ fmt(fatTarget) }} г</b><small>{{ isExceeded(todayTotals.fat, fatTarget) ? `Превышено на ${fmt(todayTotals.fat - (fatTarget || 0))} г` : `Осталось ${fmt(remaining(todayTotals.fat, fatTarget))} г` }}</small><i><em :style="{ width: `${progressWidth(todayTotals.fat, fatTarget)}%` }"></em></i></div>
+        <div v-if="carbsTarget != null" class="diary-norm-item norm-carbs"><span>УГЛЕВОДЫ</span><b>{{ fmt(todayTotals.carbs) }} / {{ fmt(carbsTarget) }} г</b><small>Осталось {{ fmt(remaining(todayTotals.carbs, carbsTarget)) }} г</small><i><em :style="{ width: `${progressWidth(todayTotals.carbs, carbsTarget)}%` }"></em></i></div>
+        <small v-if="targetSourceNote" class="diary-norm-note">{{ targetSourceNote }}</small>
       </aside>
     </div>
 
@@ -207,12 +241,12 @@ function editEntry(id: number) {
       <span>{{ filledDays }} заполненных дней</span>
     </div>
     <div class="diary-average-grid">
-      <article class="diary-average-card average-kcal">
-        <span>СРЕДНЯЯ КАЛОРИЙНОСТЬ</span><b>{{ fmt(averageKcal) }} ккал</b><small>в день · цель {{ fmt(kcalTarget) }} ккал</small><strong>{{ kcalDelta >= 0 ? '−' : '+' }}{{ fmt(Math.abs(kcalDelta)) }}</strong>
+      <article v-if="kcalTarget != null" class="diary-average-card average-kcal">
+        <span>СРЕДНЯЯ КАЛОРИЙНОСТЬ</span><b>{{ fmt(averageKcal) }} ккал</b><small>в день · цель {{ fmt(kcalTarget) }} ккал</small><strong>{{ kcalDelta != null && kcalDelta >= 0 ? '−' : '+' }}{{ fmt(Math.abs(kcalDelta || 0)) }}</strong>
         <svg viewBox="0 0 420 64" aria-hidden="true"><path d="M2 48H418M2 26H418"/><polyline points="2,38 32,28 62,36 92,22 122,31 152,25 182,16 212,30 242,19 272,25 302,12 332,22 362,8 392,18 418,6"/></svg>
       </article>
-      <article class="diary-average-card average-protein">
-        <span>СРЕДНИЙ БЕЛОК</span><b>{{ fmt(averageProtein) }} г</b><small>в день · цель {{ fmt(effectiveProteinTarget) }} г</small><strong>{{ proteinDelta >= 0 ? '−' : '+' }}{{ fmt(Math.abs(proteinDelta)) }} г</strong>
+      <article v-if="proteinTarget != null" class="diary-average-card average-protein">
+        <span>СРЕДНИЙ БЕЛОК</span><b>{{ fmt(averageProtein) }} г</b><small>в день · цель {{ fmt(proteinTarget) }} г</small><strong>{{ proteinDelta != null && proteinDelta >= 0 ? '−' : '+' }}{{ fmt(Math.abs(proteinDelta || 0)) }} г</strong>
         <svg viewBox="0 0 420 64" aria-hidden="true"><path d="M2 48H418M2 26H418"/><polyline points="2,42 32,35 62,29 92,38 122,24 152,33 182,18 212,28 242,16 272,23 302,12 332,20 362,8 392,16 418,5"/></svg>
       </article>
     </div>
@@ -291,13 +325,15 @@ function editEntry(id: number) {
       </section>
     </template>
     <div v-if="!selectedDayItems.length" class="empty day-empty">В этот день записей пока нет</div>
-    <div class="day-total diary-popup-nutrients">
+    <div v-if="hasNutritionTargets" class="day-total diary-popup-nutrients">
       <h3>Нутриенты дня</h3>
       <div>
-        <span><b>{{ fmt(selectedDayTotals.kcal) }} / {{ fmt(kcalTarget) }}</b><small>калории · осталось {{ fmt(Math.max(kcalTarget - selectedDayTotals.kcal, 0)) }}</small></span>
-        <span class="nutrient-protein"><b>{{ fmt(selectedDayTotals.protein) }} / {{ fmt(effectiveProteinTarget) }} г</b><small>белок · {{ selectedDayTotals.protein >= effectiveProteinTarget ? 'норма достигнута' : `осталось ${fmt(effectiveProteinTarget - selectedDayTotals.protein)} г` }}</small></span>
-        <span class="nutrient-fat"><b>{{ fmt(selectedDayTotals.fat) }} / {{ fmt(effectiveFatTarget) }} г</b><small>жиры · {{ selectedDayTotals.fat >= effectiveFatTarget ? 'максимум достигнут' : `осталось ${fmt(effectiveFatTarget - selectedDayTotals.fat)} г` }}</small></span>
+        <span v-if="kcalTarget != null"><b>{{ fmt(selectedDayTotals.kcal) }} / {{ fmt(kcalTarget) }}</b><small>калории · осталось {{ fmt(remaining(selectedDayTotals.kcal, kcalTarget)) }}</small></span>
+        <span v-if="proteinTarget != null" class="nutrient-protein"><b>{{ fmt(selectedDayTotals.protein) }} / {{ fmt(proteinTarget) }} г</b><small>белок · {{ targetStatus(selectedDayTotals.protein, proteinTarget, 'норма достигнута') }}</small></span>
+        <span v-if="fatTarget != null" class="nutrient-fat"><b>{{ fmt(selectedDayTotals.fat) }} / {{ fmt(fatTarget) }} г</b><small>жиры · {{ targetStatus(selectedDayTotals.fat, fatTarget, 'максимум достигнут') }}</small></span>
+        <span v-if="carbsTarget != null" class="nutrient-carbs"><b>{{ fmt(selectedDayTotals.carbs) }} / {{ fmt(carbsTarget) }} г</b><small>углеводы · {{ targetStatus(selectedDayTotals.carbs, carbsTarget, 'норма достигнута') }}</small></span>
       </div>
+      <small v-if="targetSourceNote" class="diary-norm-note">{{ targetSourceNote }}</small>
     </div>
     <div class="diary-popup-footer">
       <button type="button" class="secondary-button" @click="calendarMode = null">Отмена</button>

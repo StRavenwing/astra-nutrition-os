@@ -286,7 +286,7 @@ CREATE TABLE progress (
   sleep_score INTEGER CHECK(sleep_score BETWEEN 1 AND 5 OR sleep_score IS NULL),
   wellbeing_score INTEGER CHECK(wellbeing_score BETWEEN 1 AND 5 OR wellbeing_score IS NULL),
   comment TEXT
-, height_cm REAL, bmi REAL, body_fat_pct REAL, fat_mass_kg REAL, muscle_pct REAL, muscle_mass_kg REAL, protein_target_g REAL, fat_target_g REAL);
+, height_cm REAL, bmi REAL, body_fat_pct REAL, fat_mass_kg REAL, muscle_pct REAL, muscle_mass_kg REAL, kcal_target REAL, protein_target_g REAL, fat_target_g REAL, carbs_target_g REAL);
 CREATE TABLE recipe_ingredients (
   recipe_ingredient_id INTEGER PRIMARY KEY AUTOINCREMENT,
   recipe_id TEXT NOT NULL REFERENCES recipes(recipe_id) ON DELETE CASCADE,

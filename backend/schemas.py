@@ -162,8 +162,10 @@ class ProgressInput(BaseModel):
     fat_mass_kg: Any = None
     muscle_pct: Any = None
     muscle_mass_kg: Any = None
+    kcal_target: Any = None
     protein_target_g: Any = None
     fat_target_g: Any = None
+    carbs_target_g: Any = None
     waist_cm: Any = None
     chest_cm: Any = None
     hips_cm: Any = None

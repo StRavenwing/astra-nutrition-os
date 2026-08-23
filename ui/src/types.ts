@@ -175,8 +175,10 @@ export interface ProgressEntry {
   fat_mass_kg: number | null;
   muscle_pct: number | null;
   muscle_mass_kg: number | null;
+  kcal_target: number | null;
   protein_target_g: number | null;
   fat_target_g: number | null;
+  carbs_target_g: number | null;
   waist_cm: number | null;
   chest_cm: number | null;
   hips_cm: number | null;

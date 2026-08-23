@@ -16,8 +16,10 @@ const form = reactive<Record<string, string>>({
   fat_mass_kg: '',
   muscle_pct: '',
   muscle_mass_kg: '',
+  kcal_target: '',
   protein_target_g: '',
   fat_target_g: '',
+  carbs_target_g: '',
   waist_cm: '',
   chest_cm: '',
   hips_cm: '',
@@ -82,8 +84,10 @@ async function save() {
         <div class="field"><label>Масса жира, кг</label><input v-model="form.fat_mass_kg" type="number" step="0.01" readonly tabindex="-1"></div>
         <div class="field"><label>Процент мышечной массы</label><input v-model="form.muscle_pct" type="number" min="0" max="100" step="0.1"></div>
         <div class="field"><label>Мышечная масса, кг</label><input v-model="form.muscle_mass_kg" type="number" step="0.01" readonly tabindex="-1"></div>
+        <div class="field"><label>Норма калорий, ккал</label><input v-model="form.kcal_target" type="number" min="0" step="1"></div>
         <div class="field"><label>Норма белка, г</label><input v-model="form.protein_target_g" type="number" min="0" step="1"></div>
         <div class="field"><label>Норма жиров, г</label><input v-model="form.fat_target_g" type="number" min="0" step="1"></div>
+        <div class="field"><label>Норма углеводов, г</label><input v-model="form.carbs_target_g" type="number" min="0" step="1"></div>
         <div class="field"><label>Талия, см</label><input v-model="form.waist_cm" type="number" step="0.1"></div>
         <div class="field"><label>Грудь, см</label><input v-model="form.chest_cm" type="number" step="0.1"></div>
         <div class="field"><label>Бёдра, см</label><input v-model="form.hips_cm" type="number" step="0.1"></div>

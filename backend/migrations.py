@@ -95,6 +95,13 @@ def _ensure_workout_equipment_table(connection: sqlite3.Connection) -> None:
     )
 
 
+def _ensure_progress_target_columns(connection: sqlite3.Connection) -> None:
+    columns = _columns(connection, "progress_entries")
+    for column in ("kcal_target", "carbs_target_g"):
+        if column not in columns:
+            connection.execute(f"ALTER TABLE progress_entries ADD COLUMN {column} REAL")
+
+
 def _ensure_feedback_columns(connection: sqlite3.Connection) -> None:
     columns = _columns(connection, "feedback_messages")
     if columns and "is_read" not in columns:
@@ -239,8 +246,10 @@ def _upgrade_legacy_schema(connection: sqlite3.Connection) -> None:
         "fat_mass_kg": "REAL",
         "muscle_pct": "REAL",
         "muscle_mass_kg": "REAL",
+        "kcal_target": "REAL",
         "protein_target_g": "REAL",
         "fat_target_g": "REAL",
+        "carbs_target_g": "REAL",
     }
     for column, column_type in progress_additions.items():
         if column not in progress_columns:
@@ -409,8 +418,10 @@ def _migrate_legacy_rows(source: sqlite3.Connection, destination, settings: Sett
                 fat_mass_kg=_row_value(row, "fat_mass_kg"),
                 muscle_pct=_row_value(row, "muscle_pct"),
                 muscle_mass_kg=_row_value(row, "muscle_mass_kg"),
+                kcal_target=_row_value(row, "kcal_target"),
                 protein_target_g=_row_value(row, "protein_target_g"),
                 fat_target_g=_row_value(row, "fat_target_g"),
+                carbs_target_g=_row_value(row, "carbs_target_g"),
                 waist_cm=_row_value(row, "waist_cm"),
                 chest_cm=_row_value(row, "chest_cm"),
                 hips_cm=_row_value(row, "hips_cm"),
@@ -778,6 +789,7 @@ def migrate_v2_database(settings: Settings, backup_existing: bool) -> None:
         admin = _admin_row(connection, settings)
         _rebuild_diary_entries(connection, admin["id"])
         _rebuild_progress_entries(connection, admin["id"])
+        _ensure_progress_target_columns(connection)
         _rebuild_workout_logs(connection, admin["id"])
         _create_oauth_tables(connection)
         _add_recipe_ownership(connection)
@@ -801,6 +813,7 @@ def migrate_v3_database(settings: Settings, backup_existing: bool) -> None:
     connection = _connect_raw(settings.db_path)
     try:
         _ensure_exercise_columns(connection)
+        _ensure_progress_target_columns(connection)
         _create_oauth_tables(connection)
         _add_recipe_ownership(connection)
         _ensure_feedback_columns(connection)
@@ -821,6 +834,7 @@ def migrate_v4_database(settings: Settings, backup_existing: bool) -> None:
     connection = _connect_raw(settings.db_path)
     try:
         _ensure_exercise_columns(connection)
+        _ensure_progress_target_columns(connection)
         _add_recipe_ownership(connection)
         _ensure_feedback_columns(connection)
         _ensure_article_columns(connection)
@@ -848,6 +862,7 @@ def ensure_database(settings: Settings) -> None:
         try:
             _ensure_exercise_columns(connection)
             _ensure_workout_equipment_table(connection)
+            _ensure_progress_target_columns(connection)
             _ensure_feedback_columns(connection)
             _ensure_article_columns(connection)
             connection.commit()

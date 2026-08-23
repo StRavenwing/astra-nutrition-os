@@ -35,8 +35,10 @@ def _assign_progress(entry: ProgressEntry, data: dict) -> ProgressEntry:
     entry.fat_mass_kg = fat_mass
     entry.muscle_pct = muscle
     entry.muscle_mass_kg = muscle_mass
+    entry.kcal_target = number(data.get("kcal_target"))
     entry.protein_target_g = number(data.get("protein_target_g"))
     entry.fat_target_g = number(data.get("fat_target_g"))
+    entry.carbs_target_g = number(data.get("carbs_target_g"))
     entry.waist_cm = number(data.get("waist_cm"))
     entry.chest_cm = number(data.get("chest_cm"))
     entry.hips_cm = number(data.get("hips_cm"))
