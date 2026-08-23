@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { nextTick, reactive, ref, watch } from 'vue';
 import { api } from '@/api/client';
-import type { Exercise, WorkoutPlan } from '@/types';
+import type { Exercise, WorkoutComplex, WorkoutPlan } from '@/types';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 
 type BuilderItem = {
@@ -16,6 +16,7 @@ const props = defineProps<{
   open: boolean;
   repeatPlan?: WorkoutPlan | null;
   editPlan?: WorkoutPlan | null;
+  complex?: WorkoutComplex | null;
 }>();
 
 const emit = defineEmits<{
@@ -42,8 +43,9 @@ function today() {
 
 function resetForm() {
   const plan = sourcePlan();
+  const complex = props.complex;
   form.scheduled_at = props.editPlan?.scheduled_at || today();
-  form.items = plan?.items.map((item) => ({
+  form.items = (plan?.items || complex?.items)?.map((item) => ({
     exercise_id: item.exercise_id,
     working_weight: item.working_weight ?? '',
     sets: item.sets ?? '',
@@ -77,6 +79,10 @@ watch(() => props.repeatPlan, () => {
 });
 
 watch(() => props.editPlan, () => {
+  if (props.open && exercises.value.length) resetForm();
+});
+
+watch(() => props.complex, () => {
   if (props.open && exercises.value.length) resetForm();
 });
 

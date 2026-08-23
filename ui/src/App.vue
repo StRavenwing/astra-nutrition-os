@@ -50,6 +50,7 @@ const exerciseManagerOpen = ref(false);
 const workoutBuilderOpen = ref(false);
 const repeatPlan = ref<WorkoutPlan | null>(null);
 const editPlan = ref<WorkoutPlan | null>(null);
+const workoutComplexForBuilder = ref<WorkoutComplex | null>(null);
 const workoutDetailPlan = ref<WorkoutPlan | null>(null);
 const exerciseDetail = ref<Exercise | null>(null);
 const equipmentKind = ref<'machine' | 'equipment'>('machine');
@@ -105,15 +106,16 @@ function onHashChange() {
   currentPage.value = hashPage();
 }
 
-function openAdd() {
+function openAdd(mealType?: string) {
   if (!canAdd.value || currentPage.value === 'dashboard') return;
   if (currentPage.value === 'workouts') {
     repeatPlan.value = null;
     editPlan.value = null;
+    workoutComplexForBuilder.value = null;
     workoutBuilderOpen.value = true;
     return;
   }
-  modal.value = { kind: currentPage.value as ModalState['kind'] };
+  modal.value = { kind: currentPage.value as ModalState['kind'], ...(mealType ? { mealType } : {}) };
 }
 
 function openFeedback() {
@@ -241,9 +243,19 @@ function buildWorkoutFromComplex(payload: { complex: WorkoutComplex | null; mode
   exerciseDetail.value = null;
   repeatPlan.value = null;
   editPlan.value = null;
+  workoutComplexForBuilder.value = null;
   complexEditor.value = payload.complex;
   complexEditorMode.value = payload.mode;
   complexEditorOpen.value = true;
+}
+
+function scheduleWorkoutFromComplex(complex: WorkoutComplex) {
+  workoutDetailPlan.value = null;
+  exerciseDetail.value = null;
+  repeatPlan.value = null;
+  editPlan.value = null;
+  workoutComplexForBuilder.value = complex;
+  workoutBuilderOpen.value = true;
 }
 
 function openWorkoutComplexDetail(complex: WorkoutComplex) {
@@ -306,6 +318,7 @@ function clearSession() {
   complexEditor.value = null;
   repeatPlan.value = null;
   editPlan.value = null;
+  workoutComplexForBuilder.value = null;
 }
 
 async function logout() {
@@ -386,6 +399,7 @@ onBeforeUnmount(() => {
       @open-exercise="openExerciseDetail"
       @open-complex="openWorkoutComplexDetail"
       @build-complex="buildWorkoutFromComplex"
+      @schedule-from-complex="scheduleWorkoutFromComplex"
       @manage-exercises="exerciseManagerOpen = true"
       @build="repeatPlan = null; editPlan = null; workoutBuilderOpen = true"
       @edit-plan="editPlan = $event; repeatPlan = null; workoutBuilderOpen = true"
@@ -396,7 +410,7 @@ onBeforeUnmount(() => {
 
   <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
   <ExerciseManagerModal v-if="isAdmin" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @edit="editExercise" @changed="refresh" />
-  <WorkoutBuilderModal :open="workoutBuilderOpen" :repeat-plan="repeatPlan" :edit-plan="editPlan" @close="workoutBuilderOpen = false; repeatPlan = null; editPlan = null" @saved="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; refresh()" />
+  <WorkoutBuilderModal :open="workoutBuilderOpen" :repeat-plan="repeatPlan" :edit-plan="editPlan" :complex="workoutComplexForBuilder" @close="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; workoutComplexForBuilder = null" @saved="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; workoutComplexForBuilder = null; refresh()" />
   <WorkoutComplexModal :open="complexEditorOpen" :complex="complexEditor" :mode="complexEditorMode" @close="complexEditorOpen = false" @saved="complexEditorOpen = false; complexEditor = null; refresh()" @open-exercise="openExerciseDetail" />
   <WorkoutComplexDetailModal :open="Boolean(workoutComplexDetail)" :complex="workoutComplexDetail" :is-admin="isAdmin" :read-only="isGuest" @close="workoutComplexDetail = null" @edit="editWorkoutComplexFromDetail" />
   <WorkoutDetailModal :plan="workoutDetailPlan" @close="workoutDetailPlan = null" @edit="editWorkoutFromDetail" @repeat="repeatPlan = $event; editPlan = null; workoutDetailPlan = null; workoutBuilderOpen = true" @complete="completeWorkoutFromDetail" @cancel="cancelWorkoutFromDetail" />
@@ -413,7 +427,7 @@ onBeforeUnmount(() => {
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">
     <ProductForm v-if="modal?.kind === 'products'" :product-id="modal.id" @saved="saved" @deleted="saved" @cancel="closeModal" />
     <RecipeForm v-else-if="modal?.kind === 'recipes'" :recipe-id="modal.id" @saved="saved" @cancel="closeModal" />
-    <DiaryEntryForm v-else-if="modal?.kind === 'diary'" :diary-id="modal.id as number | undefined" @saved="saved" @deleted="saved" @cancel="closeModal" />
+    <DiaryEntryForm v-else-if="modal?.kind === 'diary'" :diary-id="modal.id as number | undefined" :initial-meal-type="modal.mealType" @saved="saved" @deleted="saved" @cancel="closeModal" />
     <ProgressForm v-else-if="modal?.kind === 'progress'" :progress-id="modal.id as number | undefined" @saved="saved" @cancel="closeModal" />
     <WorkoutForm v-else-if="modal?.kind === 'workouts'" :workout-log-id="modal.id as number | undefined" @saved="saved" @deleted="saved" @cancel="closeModal" />
     <ExerciseForm v-else-if="modal?.kind === 'exercises'" :exercise-id="modal.id" @saved="saved" @cancel="closeModal" />

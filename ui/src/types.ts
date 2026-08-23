@@ -324,4 +324,5 @@ export type ModalKind = 'products' | 'recipes' | 'diary' | 'progress' | 'workout
 export interface ModalState {
   kind: ModalKind;
   id?: number;
+  mealType?: string;
 }

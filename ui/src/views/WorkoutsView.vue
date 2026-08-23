@@ -22,6 +22,7 @@ const emit = defineEmits<{
   openExercise: [exercise: Exercise];
   openComplex: [complex: WorkoutComplex];
   buildComplex: [payload: { complex: WorkoutComplex | null; mode: 'create' | 'edit' }];
+  scheduleFromComplex: [complex: WorkoutComplex];
   editPlan: [plan: WorkoutPlan];
   repeat: [plan: WorkoutPlan];
 }>();
@@ -231,7 +232,7 @@ async function removeExercise(id: number) {
             <div class="workout-complex-divider"></div>
             <div class="workout-complex-meta"><span>{{ complex.comment || 'Повторяемая программа' }}</span><strong>{{ complex.items.length }} упражн.</strong></div>
             <div class="workout-complex-actions">
-              <button type="button" class="primary create-complex-button" @click.stop="emit('openComplex', complex)">Открыть комплекс</button>
+              <button v-if="!props.readOnly" type="button" class="primary create-complex-button" @click.stop="emit('scheduleFromComplex', complex)">Добавить в запланированную тренировку</button>
               <button v-if="props.isAdmin" type="button" class="icon-action edit-complex-button" aria-label="Редактировать комплекс" title="Редактировать комплекс" @click.stop="emit('buildComplex', { complex, mode: 'edit' })">✎</button>
             </div>
           </div>

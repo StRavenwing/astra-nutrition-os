@@ -5,7 +5,7 @@ import { api } from '@/api/client';
 import type { DiaryEntry, Product, ProductMeasure, RecipeSummary } from '@/types';
 import { localToday } from '@/utils/format';
 
-const props = defineProps<{ diaryId?: number }>();
+const props = defineProps<{ diaryId?: number; initialMealType?: string }>();
 const emit = defineEmits<{ saved: []; deleted: []; cancel: [] }>();
 
 type RowKind = 'recipe' | 'product';
@@ -101,7 +101,7 @@ onMounted(async () => {
         rows.value = [rowFromEntry(item)];
       }
     }
-    if (!rows.value.length) addRecipeRow('Завтрак');
+    if (!rows.value.length) addRecipeRow(props.initialMealType || mealOrder[0]);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {

@@ -7,7 +7,7 @@ import { dayIso, diaryTotals, fmt, localToday } from '@/utils/format';
 import CalendarModal from '@/components/modals/CalendarModal.vue';
 
 const props = defineProps<{ refreshKey: number; readOnly?: boolean }>();
-const emit = defineEmits<{ edit: [id: number]; add: [] }>();
+const emit = defineEmits<{ edit: [id: number]; add: [mealType?: string] }>();
 
 const data = ref<DiaryEntry[]>([]);
 const progress = ref<ProgressEntry[]>([]);
@@ -49,19 +49,28 @@ const weightTarget = computed(() => {
   const weight = targetValue(latestProgress.value?.weight_kg);
   return weight != null && weight > 0 ? weight : null;
 });
-const kcalTarget = computed(() => targetValue(latestProgress.value?.kcal_target));
+const enteredKcalTarget = computed(() => targetValue(latestProgress.value?.kcal_target));
 const proteinTarget = computed(() => targetValue(latestProgress.value?.protein_target_g) ?? (weightTarget.value != null ? weightTarget.value * 2 : null));
 const fatTarget = computed(() => targetValue(latestProgress.value?.fat_target_g) ?? weightTarget.value);
 const carbsTarget = computed(() => targetValue(latestProgress.value?.carbs_target_g) ?? (weightTarget.value != null ? weightTarget.value * 3 : null));
+const calculatedKcalTarget = computed(() => (
+  proteinTarget.value != null && fatTarget.value != null && carbsTarget.value != null
+    ? proteinTarget.value * 4 + fatTarget.value * 9 + carbsTarget.value * 4
+    : null
+));
+const kcalTarget = computed(() => enteredKcalTarget.value ?? calculatedKcalTarget.value);
 const calculatedMacroTargets = computed(() => weightTarget.value != null && (
   targetValue(latestProgress.value?.protein_target_g) == null
   || targetValue(latestProgress.value?.fat_target_g) == null
   || targetValue(latestProgress.value?.carbs_target_g) == null
 ));
 const hasNutritionTargets = computed(() => [kcalTarget.value, proteinTarget.value, fatTarget.value, carbsTarget.value].some((target) => target != null));
-const targetSourceNote = computed(() => calculatedMacroTargets.value
-  ? 'Для незаданных макронутриентов использован расчёт по весу: белки — 2, жиры — 1, углеводы — 3 г на кг массы тела.'
-  : '');
+const targetSourceNote = computed(() => {
+  const notes = [];
+  if (calculatedMacroTargets.value) notes.push('для незаданных макронутриентов: белки — 2, жиры — 1, углеводы — 3 г на кг массы тела');
+  if (enteredKcalTarget.value == null && calculatedKcalTarget.value != null) notes.push('калории: белки × 4 + жиры × 9 + углеводы × 4');
+  return notes.length ? `Расчёт: ${notes.join('; ')}.` : '';
+});
 const todayLabel = computed(() => new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()));
 
 const monthKeys = computed(() => {
@@ -218,7 +227,7 @@ function editEntry(id: number) {
             <article v-if="!todayItems.filter((item) => item.meal_type === meal).length && (meal === 'Ужин' || meal === 'Перекус')" class="diary-meal-card diary-meal-empty">
               <span class="diary-meal-icon">{{ meal.slice(0, 1) }}</span>
               <div><b>{{ meal }}</b><small>Ещё не добавлен</small></div>
-              <button v-if="!props.readOnly" type="button" class="diary-add-meal" @click="emit('add')">＋ Добавить</button>
+              <button v-if="!props.readOnly" type="button" class="diary-add-meal" @click="emit('add', meal)">＋ Добавить</button>
             </article>
           </template>
           <div v-if="!todayItems.length" class="today-empty"><b>Записей пока нет</b><small>Добавьте блюдо через кнопку «Запись»</small></div>
@@ -321,7 +330,7 @@ function editEntry(id: number) {
             <button type="button" class="delete-diary-entry" @click="removeEntry(item.id)">Удалить</button>
           </div>
         </template>
-        <button v-if="!props.readOnly" type="button" class="diary-calendar-add" @click="emit('add'); calendarMode = null">＋ Добавить блюдо в {{ meal.toLowerCase() }}</button>
+        <button v-if="!props.readOnly" type="button" class="diary-calendar-add" @click="emit('add', meal); calendarMode = null">＋ Добавить блюдо в {{ meal.toLowerCase() }}</button>
       </section>
     </template>
     <div v-if="!selectedDayItems.length" class="empty day-empty">В этот день записей пока нет</div>
