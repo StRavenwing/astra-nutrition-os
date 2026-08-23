@@ -97,7 +97,7 @@ def _ensure_workout_equipment_table(connection: sqlite3.Connection) -> None:
 
 def _ensure_progress_target_columns(connection: sqlite3.Connection) -> None:
     columns = _columns(connection, "progress_entries")
-    for column in ("kcal_target", "carbs_target_g"):
+    for column in ("desired_weight_kg", "kcal_target", "carbs_target_g"):
         if column not in columns:
             connection.execute(f"ALTER TABLE progress_entries ADD COLUMN {column} REAL")
 
@@ -240,6 +240,7 @@ def _upgrade_legacy_schema(connection: sqlite3.Connection) -> None:
 
     progress_columns = _columns(connection, "progress")
     progress_additions = {
+        "desired_weight_kg": "REAL",
         "height_cm": "REAL",
         "bmi": "REAL",
         "body_fat_pct": "REAL",
@@ -412,6 +413,7 @@ def _migrate_legacy_rows(source: sqlite3.Connection, destination, settings: Sett
                 user=admin,
                 measured_at=row["measured_at"],
                 weight_kg=_row_value(row, "weight_kg"),
+                desired_weight_kg=_row_value(row, "desired_weight_kg"),
                 height_cm=_row_value(row, "height_cm"),
                 bmi=_row_value(row, "bmi"),
                 body_fat_pct=_row_value(row, "body_fat_pct"),

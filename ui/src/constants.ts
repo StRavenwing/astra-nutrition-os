@@ -17,7 +17,7 @@ export const productCategoryOptions = [
 ];
 
 export const productUnitOptions = ['г', 'мл', 'шт', 'бут.'];
-export const mealOrder = ['Завтрак', 'Обед', 'Ужин', 'Перекус', 'Напиток'];
+export const mealOrder = ['Завтрак', 'Обед', 'Ужин', 'Перекус', 'Напиток', 'Десерт'];
 export const recipeCategories = [
   { key: 'Main', label: 'Основные блюда', prefix: 'M', x: 50, y: 0 },
   { key: 'Breakfast', label: 'Завтраки', prefix: 'B', x: 0, y: 0 },

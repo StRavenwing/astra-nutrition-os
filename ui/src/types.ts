@@ -169,6 +169,7 @@ export interface ProgressEntry {
   id: number;
   measured_at: string;
   weight_kg: number | null;
+  desired_weight_kg: number | null;
   height_cm: number | null;
   bmi: number | null;
   body_fat_pct: number | null;

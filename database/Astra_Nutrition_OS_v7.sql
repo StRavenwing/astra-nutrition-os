@@ -280,6 +280,7 @@ CREATE TABLE progress (
   progress_id INTEGER PRIMARY KEY AUTOINCREMENT,
   measured_at TEXT NOT NULL UNIQUE,
   weight_kg REAL,
+  desired_weight_kg REAL,
   waist_cm REAL,
   chest_cm REAL,
   hips_cm REAL,

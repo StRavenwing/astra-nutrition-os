@@ -10,6 +10,7 @@ const loading = ref(false);
 const form = reactive<Record<string, string>>({
   measured_at: '',
   weight_kg: '',
+  desired_weight_kg: '',
   height_cm: '169',
   bmi: '',
   body_fat_pct: '',
@@ -78,6 +79,7 @@ async function save() {
       <div class="grid">
         <div class="field"><label>Дата</label><input v-model="form.measured_at" type="date" required></div>
         <div class="field"><label>Вес, кг</label><input v-model="form.weight_kg" type="number" min="0" step="0.1"></div>
+        <div class="field"><label>Желаемый вес, кг</label><input v-model="form.desired_weight_kg" type="number" min="0" step="0.1"></div>
         <div class="field"><label>Рост, см</label><input v-model="form.height_cm" type="number" min="50" max="250" step="0.1"></div>
         <div class="field"><label>ИМТ</label><input v-model="form.bmi" type="number" step="0.01" readonly tabindex="-1"></div>
         <div class="field"><label>Процент жира</label><input v-model="form.body_fat_pct" type="number" min="0" max="100" step="0.1"></div>

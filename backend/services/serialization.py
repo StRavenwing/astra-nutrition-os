@@ -240,6 +240,7 @@ def serialize_progress(entry: ProgressEntry) -> dict:
         "id": entry.id,
         "measured_at": entry.measured_at,
         "weight_kg": entry.weight_kg,
+        "desired_weight_kg": entry.desired_weight_kg,
         "height_cm": entry.height_cm,
         "bmi": entry.bmi,
         "body_fat_pct": entry.body_fat_pct,

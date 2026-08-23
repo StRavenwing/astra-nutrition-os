@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
 import { mealOrder } from '@/constants';
-import type { DiaryEntry, ProgressEntry } from '@/types';
+import type { DiaryEntry, ProgressEntry, RecipeSummary } from '@/types';
 import { dayIso, diaryTotals, fmt, localToday } from '@/utils/format';
 import CalendarModal from '@/components/modals/CalendarModal.vue';
 
@@ -16,17 +16,22 @@ const error = ref('');
 const now = new Date();
 const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 const month = ref(currentMonthKey);
-const calendarMode = ref<'month' | 'day' | null>(null);
+const calendarMode = ref<'month' | 'day' | 'menu-day' | 'menu-week' | null>(null);
 const selectedDate = ref(localToday());
 const monthInput = ref(currentMonthKey);
+const recipes = ref<RecipeSummary[]>([]);
+const menuStartDate = ref(localToday());
+const menuOptions = ref({ drink: false, snack: false, dessert: false });
+const menuSaving = ref(false);
 
 async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [diaryData, progressData] = await Promise.all([api.diary(), api.progress()]);
+    const [diaryData, progressData, recipeData] = await Promise.all([api.diary(), api.progress(), api.recipes()]);
     data.value = diaryData;
     progress.value = progressData;
+    recipes.value = recipeData;
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -45,21 +50,27 @@ function targetValue(value: number | null | undefined) {
   return value != null && Number.isFinite(Number(value)) ? Number(value) : null;
 }
 
-const weightTarget = computed(() => {
+const currentWeightTarget = computed(() => {
   const weight = targetValue(latestProgress.value?.weight_kg);
   return weight != null && weight > 0 ? weight : null;
 });
+const desiredWeightTarget = computed(() => {
+  const weight = targetValue(latestProgress.value?.desired_weight_kg);
+  return weight != null && weight > 0 ? weight : null;
+});
+const calculationWeight = computed(() => desiredWeightTarget.value ?? currentWeightTarget.value);
+const calculationWeightSource = computed(() => desiredWeightTarget.value != null ? 'желаемого веса' : currentWeightTarget.value != null ? 'текущего веса' : null);
 const enteredKcalTarget = computed(() => targetValue(latestProgress.value?.kcal_target));
-const proteinTarget = computed(() => targetValue(latestProgress.value?.protein_target_g) ?? (weightTarget.value != null ? weightTarget.value * 2 : null));
-const fatTarget = computed(() => targetValue(latestProgress.value?.fat_target_g) ?? weightTarget.value);
-const carbsTarget = computed(() => targetValue(latestProgress.value?.carbs_target_g) ?? (weightTarget.value != null ? weightTarget.value * 3 : null));
+const proteinTarget = computed(() => targetValue(latestProgress.value?.protein_target_g) ?? (calculationWeight.value != null ? calculationWeight.value * 2 : null));
+const fatTarget = computed(() => targetValue(latestProgress.value?.fat_target_g) ?? calculationWeight.value);
+const carbsTarget = computed(() => targetValue(latestProgress.value?.carbs_target_g) ?? (calculationWeight.value != null ? calculationWeight.value * 3 : null));
 const calculatedKcalTarget = computed(() => (
   proteinTarget.value != null && fatTarget.value != null && carbsTarget.value != null
     ? proteinTarget.value * 4 + fatTarget.value * 9 + carbsTarget.value * 4
     : null
 ));
 const kcalTarget = computed(() => enteredKcalTarget.value ?? calculatedKcalTarget.value);
-const calculatedMacroTargets = computed(() => weightTarget.value != null && (
+const calculatedMacroTargets = computed(() => calculationWeight.value != null && (
   targetValue(latestProgress.value?.protein_target_g) == null
   || targetValue(latestProgress.value?.fat_target_g) == null
   || targetValue(latestProgress.value?.carbs_target_g) == null
@@ -67,7 +78,7 @@ const calculatedMacroTargets = computed(() => weightTarget.value != null && (
 const hasNutritionTargets = computed(() => [kcalTarget.value, proteinTarget.value, fatTarget.value, carbsTarget.value].some((target) => target != null));
 const targetSourceNote = computed(() => {
   const notes = [];
-  if (calculatedMacroTargets.value) notes.push('для незаданных макронутриентов: белки — 2, жиры — 1, углеводы — 3 г на кг массы тела');
+  if (calculatedMacroTargets.value) notes.push(`для незаданных макронутриентов — расчёт из ${calculationWeightSource.value}: белки — 2, жиры — 1, углеводы — 3 г на кг массы тела`);
   if (enteredKcalTarget.value == null && calculatedKcalTarget.value != null) notes.push('калории: белки × 4 + жиры × 9 + углеводы × 4');
   return notes.length ? `Расчёт: ${notes.join('; ')}.` : '';
 });
@@ -144,6 +155,153 @@ function selectCurrentMonth() {
 function openDay(iso: string) {
   selectedDate.value = iso;
   calendarMode.value = 'day';
+}
+
+function openMenuPicker(kind: 'day' | 'week') {
+  if (props.readOnly) return;
+  menuStartDate.value = todayIso.value;
+  month.value = currentMonthKey;
+  menuOptions.value = { drink: false, snack: false, dessert: false };
+  calendarMode.value = kind === 'day' ? 'menu-day' : 'menu-week';
+}
+
+function shiftMenuMonth(delta: number) {
+  const date = new Date(monthDate.value.year, monthDate.value.monthIndex + delta, 1);
+  month.value = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function selectMenuDate(day: number) {
+  menuStartDate.value = dayIso(monthDate.value.year, monthDate.value.monthIndex, day);
+}
+
+function shiftIsoDate(iso: string, days: number) {
+  const date = new Date(`${iso}T12:00:00`);
+  date.setDate(date.getDate() + days);
+  return dayIso(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function recipePool(category: string, source: RecipeSummary[]) {
+  return source.filter((recipe) => recipe.category === category);
+}
+
+type MenuItem = { meal_type: string; recipe_id: number; servings: number };
+type MenuNutrition = { kcal: number; protein: number; fat: number; carbs: number };
+type MenuRole = { mealType: string; preferred: RecipeSummary[]; fallback: RecipeSummary[] };
+type MenuState = { items: MenuItem[]; used: Set<number>; nutrition: MenuNutrition };
+
+function recipeNutrition(recipe: RecipeSummary): MenuNutrition {
+  return {
+    kcal: Number(recipe.kcal_per_serving) || 0,
+    protein: Number(recipe.protein_per_serving_g) || 0,
+    fat: Number(recipe.fat_per_serving_g) || 0,
+    carbs: Number(recipe.carbs_per_serving_g) || 0,
+  };
+}
+
+function addNutrition(left: MenuNutrition, right: MenuNutrition): MenuNutrition {
+  return {
+    kcal: left.kcal + right.kcal,
+    protein: left.protein + right.protein,
+    fat: left.fat + right.fat,
+    carbs: left.carbs + right.carbs,
+  };
+}
+
+function menuTargets() {
+  const targets: [keyof MenuNutrition, number | null][] = [
+    ['kcal', kcalTarget.value],
+    ['protein', proteinTarget.value],
+    ['fat', fatTarget.value],
+    ['carbs', carbsTarget.value],
+  ];
+  return targets.filter((item): item is [keyof MenuNutrition, number] => item[1] != null && item[1] > 0);
+}
+
+function menuScore(nutrition: MenuNutrition) {
+  return menuTargets().reduce((score, [key, target]) => score + Math.abs(nutrition[key] - target) / target, 0);
+}
+
+function menuFitsNorms(nutrition: MenuNutrition) {
+  return menuTargets().every(([key, target]) => Math.abs(nutrition[key] - target) / target <= 0.05);
+}
+
+function candidateRecipes(role: MenuRole, globalUsed: Set<number>, localUsed: Set<number>, dayIndex: number) {
+  const pool = [...role.preferred, ...role.fallback.filter((recipe) => !role.preferred.some((item) => item.id === recipe.id))]
+    .filter((recipe) => !globalUsed.has(recipe.id) && !localUsed.has(recipe.id));
+  if (pool.length > 1) {
+    const offset = dayIndex % pool.length;
+    return [...pool.slice(offset), ...pool.slice(0, offset)];
+  }
+  return pool;
+}
+
+function menuForDate(dayIndex: number, globalUsed: Set<number>) {
+  const mainRecipes = recipes.value.filter((recipe) => recipe.category !== 'Ready');
+  if (mainRecipes.length < 3) throw new Error('Нужно минимум 3 блюда вне категории «Готовые блюда» для дневного меню.');
+
+  const roles: MenuRole[] = [
+    { mealType: mealOrder[0], preferred: recipePool('Breakfast', mainRecipes), fallback: mainRecipes },
+    { mealType: mealOrder[1], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes },
+    { mealType: mealOrder[2], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes },
+  ];
+  const optionalRecipes = recipes.value;
+  if (menuOptions.value.drink) roles.push({ mealType: mealOrder[4], preferred: recipePool('Drink', optionalRecipes), fallback: optionalRecipes });
+  if (menuOptions.value.snack) roles.push({ mealType: mealOrder[3], preferred: recipePool('Snack', optionalRecipes), fallback: optionalRecipes });
+  if (menuOptions.value.dessert) roles.push({ mealType: mealOrder[5], preferred: recipePool('Dessert', optionalRecipes), fallback: optionalRecipes });
+
+  let beam: MenuState[] = [{ items: [], used: new Set(), nutrition: { kcal: 0, protein: 0, fat: 0, carbs: 0 } }];
+  for (const role of roles) {
+    const expanded: MenuState[] = [];
+    for (const state of beam) {
+      for (const recipe of candidateRecipes(role, globalUsed, state.used, dayIndex)) {
+        const nextUsed = new Set(state.used);
+        nextUsed.add(recipe.id);
+        expanded.push({
+          items: [...state.items, { meal_type: role.mealType, recipe_id: recipe.id, servings: 1 }],
+          used: nextUsed,
+          nutrition: addNutrition(state.nutrition, recipeNutrition(recipe)),
+        });
+      }
+    }
+    if (!expanded.length) throw new Error('Недостаточно уникальных блюд для выбранного периода.');
+    expanded.sort((left, right) => menuScore(left.nutrition) - menuScore(right.nutrition));
+    beam = expanded.slice(0, 600);
+  }
+
+  const fitting = beam.filter((state) => menuFitsNorms(state.nutrition));
+  if (!fitting.length) throw new Error('Не удалось собрать меню в пределах 5% от заданных норм. Попробуйте изменить дополнительные приёмы пищи или нормы.');
+  return fitting[0].items;
+}
+
+async function collectMenu() {
+  if (menuSaving.value) return;
+  const dates = Array.from(
+    { length: calendarMode.value === 'menu-week' ? 7 : 1 },
+    (_, index) => shiftIsoDate(menuStartDate.value, index),
+  );
+  if (data.value.some((item) => dates.includes(item.entry_date)) && !confirm('В выбранных днях уже есть записи. Добавить собранное меню к ним?')) return;
+
+  menuSaving.value = true;
+  error.value = '';
+  try {
+    const globalUsed = new Set<number>();
+    const menus: { entryDate: string; items: MenuItem[] }[] = [];
+    for (const [index, entryDate] of dates.entries()) {
+      const items = menuForDate(index, globalUsed);
+      menus.push({ entryDate, items });
+      items.forEach((item) => globalUsed.add(item.recipe_id));
+    }
+    for (const menu of menus) {
+      await api.post('diary', { entry_date: menu.entryDate, items: menu.items });
+    }
+    await load();
+    selectedDate.value = menuStartDate.value;
+    calendarMode.value = 'day';
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    menuSaving.value = false;
+  }
 }
 
 function itemsForDay(day: number) {
@@ -260,6 +418,11 @@ function editEntry(id: number) {
       </article>
     </div>
 
+    <div v-if="!props.readOnly" class="diary-menu-actions">
+      <button type="button" class="primary" @click="openMenuPicker('day')">Собрать дневное меню</button>
+      <button type="button" class="secondary-button" @click="openMenuPicker('week')">Собрать недельное меню</button>
+    </div>
+
     <div class="diary-month-head diary-calendar-heading">
       <div>
         <h2>Календарь питания</h2>
@@ -296,6 +459,49 @@ function editEntry(id: number) {
       </div>
     </section>
   </template>
+
+  <CalendarModal
+    :open="calendarMode === 'menu-day' || calendarMode === 'menu-week'"
+    :title="calendarMode === 'menu-week' ? 'Выберите первый день недели' : 'Выберите день для меню'"
+    @close="calendarMode = null"
+  >
+    <div class="diary-menu-picker">
+      <div class="diary-menu-picker-head">
+        <button type="button" class="change-month" aria-label="Предыдущий месяц" @click="shiftMenuMonth(-1)">‹</button>
+        <b>{{ monthLabel }}</b>
+        <button type="button" class="change-month" aria-label="Следующий месяц" @click="shiftMenuMonth(1)">›</button>
+      </div>
+      <p class="subtle">{{ calendarMode === 'menu-week' ? 'Выберите понедельник или любой другой первый день недели.' : 'Выберите день, для которого нужно собрать меню.' }}</p>
+      <div class="diary-weekdays">
+        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+      </div>
+      <div class="diary-day-grid menu-picker-grid">
+        <span v-for="blank in monthOffset" :key="`menu-blank-${blank}`" class="diary-day-blank"></span>
+        <button
+          v-for="day in monthDays"
+          :key="`menu-day-${day}`"
+          type="button"
+          class="diary-day-card"
+          :class="{ today: dayIso(monthDate.year, monthDate.monthIndex, day) === todayIso, active: dayIso(monthDate.year, monthDate.monthIndex, day) === menuStartDate }"
+          @click="selectMenuDate(day)"
+        >
+          <span class="diary-day-number">{{ day }}</span>
+          <span class="diary-day-copy"><b>{{ itemsForDay(day).length ? `${itemsForDay(day).length} записей` : 'Свободный день' }}</b><small>{{ dayIso(monthDate.year, monthDate.monthIndex, day) === menuStartDate ? 'Выбрано' : 'Выбрать' }}</small></span>
+        </button>
+      </div>
+      <div class="diary-menu-options">
+        <b>Дополнительно</b>
+        <label><input v-model="menuOptions.drink" type="checkbox"> Напиток</label>
+        <label><input v-model="menuOptions.snack" type="checkbox"> Перекус</label>
+        <label><input v-model="menuOptions.dessert" type="checkbox"> Десерт</label>
+      </div>
+      <p v-if="error" id="form-error">{{ error }}</p>
+      <div class="actions">
+        <button type="button" @click="calendarMode = null">Отмена</button>
+        <button type="button" class="primary" :disabled="menuSaving" @click="collectMenu">{{ menuSaving ? 'Сборка…' : calendarMode === 'menu-week' ? 'Собрать 7 дней' : 'Собрать меню' }}</button>
+      </div>
+    </div>
+  </CalendarModal>
 
   <CalendarModal :open="calendarMode === 'month'" title="Выберите месяц" @close="calendarMode = null">
     <div class="month-picker-row">
@@ -352,6 +558,54 @@ function editEntry(id: number) {
 </template>
 
 <style lang="scss">
+.diary-menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.diary-menu-picker {
+  padding: 20px;
+}
+
+.diary-menu-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.diary-menu-picker-head b {
+  font-size: 18px;
+  text-transform: capitalize;
+}
+
+.menu-picker-grid .diary-day-card.active {
+  border-color: var(--blue);
+  background: #e9f2ff;
+  box-shadow: inset 0 0 0 2px #85b8ff;
+}
+
+.diary-menu-options {
+  display: grid;
+  gap: 9px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fafbfc;
+}
+
+.diary-menu-options label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
 .diary-day-grid {
   align-items: stretch;
 }

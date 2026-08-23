@@ -156,6 +156,7 @@ class DiaryUpdateInput(DiaryItemInput):
 class ProgressInput(BaseModel):
     measured_at: str
     weight_kg: Any = None
+    desired_weight_kg: Any = None
     height_cm: Any = None
     bmi: Any = None
     body_fat_pct: Any = None

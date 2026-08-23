@@ -29,6 +29,7 @@ def _assign_progress(entry: ProgressEntry, data: dict) -> ProgressEntry:
     height, bmi, body_fat, fat_mass, muscle, muscle_mass = progress_values(data)
     entry.measured_at = data["measured_at"]
     entry.weight_kg = number(data.get("weight_kg"))
+    entry.desired_weight_kg = number(data.get("desired_weight_kg"))
     entry.height_cm = height
     entry.bmi = bmi
     entry.body_fat_pct = body_fat

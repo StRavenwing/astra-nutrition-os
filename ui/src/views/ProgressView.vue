@@ -132,6 +132,7 @@ async function remove(id: number) {
         <h2>{{ formatDate(latest.measured_at) }}</h2>
         <dl>
           <div><dt>Вес</dt><dd>{{ fmtValue(latest.weight_kg) }} кг</dd></div>
+          <div><dt>Желаемый вес</dt><dd>{{ fmtValue(latest.desired_weight_kg) }} кг</dd></div>
           <div><dt>Талия</dt><dd>{{ fmtValue(latest.waist_cm) }} см</dd></div>
           <div><dt>ИМТ</dt><dd>{{ fmtValue(latest.bmi) }}</dd></div>
           <div><dt>Самочувствие</dt><dd>{{ wellbeingLabel }}</dd></div>
@@ -172,6 +173,7 @@ async function remove(id: number) {
         <div class="progress-tile-head"><strong>{{ formatDate(item.measured_at) }}</strong><span>ЗАМЕР</span></div>
         <div class="progress-history-rows">
           <div><span>Вес</span><b>{{ fmtValue(item.weight_kg) }} кг</b></div>
+          <div><span>Желаемый вес</span><b>{{ fmtValue(item.desired_weight_kg) }} кг</b></div>
           <div><span>Талия</span><b>{{ fmtValue(item.waist_cm) }} см</b></div>
           <div><span>ИМТ</span><b>{{ fmtValue(item.bmi) }}</b></div>
           <div><span>Самочувствие</span><b>{{ fmtValue(item.wellbeing_score) }} / 5</b></div>

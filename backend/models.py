@@ -336,6 +336,7 @@ class ProgressEntry(BaseModel):
     user = ForeignKeyField(User, backref="progress_entries", on_delete="CASCADE")
     measured_at = CharField()
     weight_kg = FloatField(null=True)
+    desired_weight_kg = FloatField(null=True)
     height_cm = FloatField(null=True)
     bmi = FloatField(null=True)
     body_fat_pct = FloatField(null=True)
