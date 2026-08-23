@@ -6,12 +6,15 @@ defineProps<{
   canAdd: boolean;
   canAddCategory?: boolean;
   addLabel?: string;
+  showDiaryMenuActions?: boolean;
   user: AuthUser;
   guest?: boolean;
 }>();
 
 defineEmits<{
   add: [];
+  collectDayMenu: [];
+  collectWeekMenu: [];
   addCategory: [];
   logout: [];
   login: [];
@@ -29,6 +32,10 @@ defineEmits<{
       <button v-if="guest" type="button" class="login-button" @click="$emit('login')">Войти</button>
       <button v-if="canAddCategory" type="button" class="secondary-header-action" @click="$emit('addCategory')">＋ Категория</button>
       <button v-if="canAdd" type="button" class="primary" @click="$emit('add')">＋ {{ addLabel || 'Добавить' }}</button>
+      <template v-if="showDiaryMenuActions">
+        <button type="button" class="secondary-header-action" @click="$emit('collectDayMenu')">Собрать дневное меню</button>
+        <button type="button" class="secondary-header-action" @click="$emit('collectWeekMenu')">Собрать недельное меню</button>
+      </template>
       <div v-if="!guest" class="user-chip">
         <span>{{ user.email }}</span>
         <button type="button" title="Выйти" @click="$emit('logout')">Выйти</button>

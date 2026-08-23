@@ -45,6 +45,7 @@ const guestMode = ref(false);
 const authOpen = ref(false);
 const reloadKey = ref(0);
 const modal = ref<ModalState | null>(null);
+const diaryMenuAction = ref<{ kind: 'day' | 'week'; token: number } | null>(null);
 const recipeDetailId = ref<number | null>(null);
 const exerciseManagerOpen = ref(false);
 const workoutBuilderOpen = ref(false);
@@ -116,6 +117,10 @@ function openAdd(mealType?: string) {
     return;
   }
   modal.value = { kind: currentPage.value as ModalState['kind'], ...(mealType ? { mealType } : {}) };
+}
+
+function openDiaryMenu(kind: 'day' | 'week') {
+  diaryMenuAction.value = { kind, token: (diaryMenuAction.value?.token || 0) + 1 };
 }
 
 function openFeedback() {
@@ -370,11 +375,14 @@ onBeforeUnmount(() => {
     :can-add="canAdd"
     :can-add-category="canAddCategory"
     :add-label="addLabel"
+    :show-diary-menu-actions="currentPage === 'diary' && canAdd"
     :user="activeUser"
     :guest-mode="isGuest"
     :feedback-unread="feedbackUnread"
     @navigate="navigate"
     @add="openAdd"
+    @collect-day-menu="openDiaryMenu('day')"
+    @collect-week-menu="openDiaryMenu('week')"
     @add-category="openCategory(currentPage === 'products' ? 'product' : 'recipe')"
     @logout="logout"
     @feedback="openFeedback"
@@ -383,7 +391,7 @@ onBeforeUnmount(() => {
     <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" :is-admin="isAdmin" @navigate="navigate" @open-recipe="openRecipe" />
     <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @add="openAdd" @add-category="openCategory('product')" />
     <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" :read-only="isGuest" @open-recipe="openRecipe" @edit="editRecipe" @add="openAdd" @add-category="openCategory('recipe')" />
-    <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" :read-only="isGuest" @edit="modal = { kind: 'diary', id: $event }" @add="openAdd" />
+    <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" :read-only="isGuest" :menu-action="diaryMenuAction" @edit="modal = { kind: 'diary', id: $event }" @add="openAdd" />
     <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" :read-only="isGuest" @edit="modal = { kind: 'progress', id: $event }" @add="openAdd" />
     <WorkoutsView
       v-else-if="currentPage === 'workouts'"

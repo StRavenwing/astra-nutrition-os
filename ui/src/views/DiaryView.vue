@@ -2,11 +2,15 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
 import { mealOrder } from '@/constants';
-import type { DiaryEntry, ProgressEntry, RecipeSummary } from '@/types';
+import type { DiaryEntry, Product, ProgressEntry, RecipeSummary } from '@/types';
 import { dayIso, diaryTotals, fmt, localToday } from '@/utils/format';
 import CalendarModal from '@/components/modals/CalendarModal.vue';
 
-const props = defineProps<{ refreshKey: number; readOnly?: boolean }>();
+const props = defineProps<{
+  refreshKey: number;
+  readOnly?: boolean;
+  menuAction?: { kind: 'day' | 'week'; token: number } | null;
+}>();
 const emit = defineEmits<{ edit: [id: number]; add: [mealType?: string] }>();
 
 const data = ref<DiaryEntry[]>([]);
@@ -20,6 +24,7 @@ const calendarMode = ref<'month' | 'day' | 'menu-day' | 'menu-week' | null>(null
 const selectedDate = ref(localToday());
 const monthInput = ref(currentMonthKey);
 const recipes = ref<RecipeSummary[]>([]);
+const products = ref<Product[]>([]);
 const menuStartDate = ref(localToday());
 const menuOptions = ref({ drink: false, snack: false, dessert: false });
 const menuSaving = ref(false);
@@ -28,10 +33,13 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [diaryData, progressData, recipeData] = await Promise.all([api.diary(), api.progress(), api.recipes()]);
+    const recipeRequest = props.readOnly ? Promise.resolve([] as RecipeSummary[]) : api.recipes();
+    const productRequest = props.readOnly ? Promise.resolve([] as Product[]) : api.products();
+    const [diaryData, progressData, recipeData, productData] = await Promise.all([api.diary(), api.progress(), recipeRequest, productRequest]);
     data.value = diaryData;
     progress.value = progressData;
     recipes.value = recipeData;
+    products.value = productData;
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -41,6 +49,9 @@ async function load() {
 
 onMounted(load);
 watch(() => props.refreshKey, load);
+watch(() => props.menuAction?.token, () => {
+  if (props.menuAction) openMenuPicker(props.menuAction.kind);
+});
 
 const todayIso = computed(() => localToday());
 const todayItems = computed(() => data.value.filter((item) => item.entry_date === todayIso.value));
@@ -184,10 +195,20 @@ function recipePool(category: string, source: RecipeSummary[]) {
   return source.filter((recipe) => recipe.category === category);
 }
 
-type MenuItem = { meal_type: string; recipe_id: number; servings: number };
+type MenuItem = {
+  meal_type: string;
+  recipe_id?: number;
+  product_id?: number;
+  servings?: number;
+  quantity?: number;
+  measurement_quantity?: number;
+  measurement_name?: string | null;
+  comment?: string;
+};
 type MenuNutrition = { kcal: number; protein: number; fat: number; carbs: number };
 type MenuRole = { mealType: string; preferred: RecipeSummary[]; fallback: RecipeSummary[] };
-type MenuState = { items: MenuItem[]; used: Set<number>; nutrition: MenuNutrition };
+type MenuCandidate = { item: MenuItem; nutrition: MenuNutrition; recipeId?: number; productId?: number };
+type MenuState = { items: MenuItem[]; usedRecipes: Set<number>; usedProducts: Set<number>; nutrition: MenuNutrition };
 
 function recipeNutrition(recipe: RecipeSummary): MenuNutrition {
   return {
@@ -204,6 +225,49 @@ function addNutrition(left: MenuNutrition, right: MenuNutrition): MenuNutrition 
     protein: left.protein + right.protein,
     fat: left.fat + right.fat,
     carbs: left.carbs + right.carbs,
+  };
+}
+
+function recipeCandidate(recipe: RecipeSummary, mealType: string, comment?: string): MenuCandidate {
+  return {
+    item: { meal_type: mealType, recipe_id: recipe.id, servings: 1, ...(comment ? { comment } : {}) },
+    nutrition: recipeNutrition(recipe),
+    recipeId: recipe.id,
+  };
+}
+
+function productNutrition(product: Product, quantity: number): MenuNutrition {
+  const factor = product.unit === 'шт' || product.unit === 'бут.' ? quantity : quantity / 100;
+  const protein = Number(product.protein_g) || 0;
+  const fat = Number(product.fat_g) || 0;
+  const carbs = Number(product.carbs_g) || 0;
+  const kcal = Number(product.kcal) || protein * 4 + fat * 9 + carbs * 4;
+  return {
+    kcal: kcal * factor,
+    protein: protein * factor,
+    fat: fat * factor,
+    carbs: carbs * factor,
+  };
+}
+
+function productQuantities(product: Product) {
+  if (!product.unit) return [];
+  return product.unit === 'шт' || product.unit === 'бут.' ? [1, 2] : [50, 100, 150, 200];
+}
+
+function productCandidate(product: Product, mealType: string, quantity: number): MenuCandidate {
+  return {
+    item: {
+      meal_type: mealType,
+      product_id: product.id,
+      quantity,
+      measurement_quantity: quantity,
+      measurement_name: product.unit,
+      servings: 1,
+      comment: 'Дополнение для добора нормы',
+    },
+    nutrition: productNutrition(product, quantity),
+    productId: product.id,
   };
 }
 
@@ -225,14 +289,83 @@ function menuFitsNorms(nutrition: MenuNutrition) {
   return menuTargets().every(([key, target]) => Math.abs(nutrition[key] - target) / target <= 0.05);
 }
 
-function candidateRecipes(role: MenuRole, globalUsed: Set<number>, localUsed: Set<number>, dayIndex: number) {
+function candidateRecipes(role: MenuRole, globalUsed: Set<number>, state: MenuState, dayIndex: number) {
   const pool = [...role.preferred, ...role.fallback.filter((recipe) => !role.preferred.some((item) => item.id === recipe.id))]
-    .filter((recipe) => !globalUsed.has(recipe.id) && !localUsed.has(recipe.id));
+    .filter((recipe) => !globalUsed.has(recipe.id) && !state.usedRecipes.has(recipe.id));
   if (pool.length > 1) {
     const offset = dayIndex % pool.length;
-    return [...pool.slice(offset), ...pool.slice(0, offset)];
+    return [...pool.slice(offset), ...pool.slice(0, offset)].map((recipe) => recipeCandidate(recipe, role.mealType));
   }
-  return pool;
+  return pool.map((recipe) => recipeCandidate(recipe, role.mealType));
+}
+
+function canUseCandidate(candidate: MenuCandidate, state: MenuState, globalUsed: Set<number>) {
+  if (candidate.recipeId != null && (globalUsed.has(candidate.recipeId) || state.usedRecipes.has(candidate.recipeId))) return false;
+  if (candidate.productId != null && state.usedProducts.has(candidate.productId)) return false;
+  return true;
+}
+
+function addCandidate(state: MenuState, candidate: MenuCandidate): MenuState {
+  const usedRecipes = new Set(state.usedRecipes);
+  const usedProducts = new Set(state.usedProducts);
+  if (candidate.recipeId != null) usedRecipes.add(candidate.recipeId);
+  if (candidate.productId != null) usedProducts.add(candidate.productId);
+  return {
+    items: [...state.items, candidate.item],
+    usedRecipes,
+    usedProducts,
+    nutrition: addNutrition(state.nutrition, candidate.nutrition),
+  };
+}
+
+function extraCandidates(dayIndex: number, globalUsed: Set<number>) {
+  const candidates: MenuCandidate[] = [];
+  const availableRecipes = recipes.value.filter((recipe) => recipe.category !== 'Ready' && !globalUsed.has(recipe.id));
+  const optionalRoles = [
+    { enabled: menuOptions.value.drink, category: 'Drink', mealType: mealOrder[4] },
+    { enabled: menuOptions.value.snack, category: 'Snack', mealType: mealOrder[3] },
+    { enabled: menuOptions.value.dessert, category: 'Dessert', mealType: mealOrder[5] },
+  ];
+
+  for (const role of optionalRoles.filter((item) => !item.enabled)) {
+    const preferred = availableRecipes.filter((recipe) => recipe.category === role.category);
+    const fallback = availableRecipes.filter((recipe) => recipe.category !== role.category);
+    [...preferred, ...fallback].slice(0, 24).forEach((recipe) => candidates.push(recipeCandidate(recipe, role.mealType, 'Дополнение для добора нормы')));
+  }
+
+  const saladRecipes = availableRecipes.filter((recipe) => recipe.category === 'Salad').slice(0, 20);
+  for (const recipe of saladRecipes) {
+    candidates.push(recipeCandidate(recipe, mealOrder[1], 'Дополнение к обеду'));
+    candidates.push(recipeCandidate(recipe, mealOrder[2], 'Дополнение к ужину'));
+  }
+
+  const garnishRecipes = availableRecipes.filter((recipe) => recipe.category === 'Garnish').slice(0, 20);
+  for (const recipe of garnishRecipes) {
+    candidates.push(recipeCandidate(recipe, mealOrder[1], 'Гарнир к обеду'));
+    candidates.push(recipeCandidate(recipe, mealOrder[2], 'Гарнир к ужину'));
+  }
+
+  const noCookCategories = new Set(['Овощи', 'Фрукты', 'Ягоды', 'Напитки', 'Перекусы', 'Хлеб']);
+  for (const category of noCookCategories) {
+    const categoryProducts = products.value
+      .filter((product) => product.category === category && product.unit)
+      .sort((left, right) => {
+        const leftValue = Number(left.kcal) + Number(left.protein_g) * 4 + Number(left.carbs_g) * 4 + Number(left.fat_g) * 9;
+        const rightValue = Number(right.kcal) + Number(right.protein_g) * 4 + Number(right.carbs_g) * 4 + Number(right.fat_g) * 9;
+        return rightValue - leftValue;
+      });
+    for (const product of categoryProducts.slice(0, 8)) {
+      for (const mealType of mealOrder.slice(0, 3)) {
+        for (const quantity of productQuantities(product)) candidates.push(productCandidate(product, mealType, quantity));
+      }
+    }
+  }
+
+  if (candidates.length > 1) {
+    const offset = dayIndex % candidates.length;
+    return [...candidates.slice(offset), ...candidates.slice(0, offset)];
+  }
+  return candidates;
 }
 
 function menuForDate(dayIndex: number, globalUsed: Set<number>) {
@@ -244,24 +377,16 @@ function menuForDate(dayIndex: number, globalUsed: Set<number>) {
     { mealType: mealOrder[1], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes },
     { mealType: mealOrder[2], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes },
   ];
-  const optionalRecipes = recipes.value;
+  const optionalRecipes = recipes.value.filter((recipe) => recipe.category !== 'Ready');
   if (menuOptions.value.drink) roles.push({ mealType: mealOrder[4], preferred: recipePool('Drink', optionalRecipes), fallback: optionalRecipes });
   if (menuOptions.value.snack) roles.push({ mealType: mealOrder[3], preferred: recipePool('Snack', optionalRecipes), fallback: optionalRecipes });
   if (menuOptions.value.dessert) roles.push({ mealType: mealOrder[5], preferred: recipePool('Dessert', optionalRecipes), fallback: optionalRecipes });
 
-  let beam: MenuState[] = [{ items: [], used: new Set(), nutrition: { kcal: 0, protein: 0, fat: 0, carbs: 0 } }];
+  let beam: MenuState[] = [{ items: [], usedRecipes: new Set(), usedProducts: new Set(), nutrition: { kcal: 0, protein: 0, fat: 0, carbs: 0 } }];
   for (const role of roles) {
     const expanded: MenuState[] = [];
     for (const state of beam) {
-      for (const recipe of candidateRecipes(role, globalUsed, state.used, dayIndex)) {
-        const nextUsed = new Set(state.used);
-        nextUsed.add(recipe.id);
-        expanded.push({
-          items: [...state.items, { meal_type: role.mealType, recipe_id: recipe.id, servings: 1 }],
-          used: nextUsed,
-          nutrition: addNutrition(state.nutrition, recipeNutrition(recipe)),
-        });
-      }
+      for (const candidate of candidateRecipes(role, globalUsed, state, dayIndex)) expanded.push(addCandidate(state, candidate));
     }
     if (!expanded.length) throw new Error('Недостаточно уникальных блюд для выбранного периода.');
     expanded.sort((left, right) => menuScore(left.nutrition) - menuScore(right.nutrition));
@@ -269,8 +394,25 @@ function menuForDate(dayIndex: number, globalUsed: Set<number>) {
   }
 
   const fitting = beam.filter((state) => menuFitsNorms(state.nutrition));
-  if (!fitting.length) throw new Error('Не удалось собрать меню в пределах 5% от заданных норм. Попробуйте изменить дополнительные приёмы пищи или нормы.');
-  return fitting[0].items;
+  if (fitting.length) return fitting[0].items;
+  if (!menuTargets().length) return beam[0].items;
+
+  let extraBeam = beam.slice(0, 240);
+  const extras = extraCandidates(dayIndex, globalUsed);
+  for (let slot = 0; slot < 6; slot += 1) {
+    const expanded = [...extraBeam];
+    for (const state of extraBeam) {
+      for (const candidate of extras) {
+        if (canUseCandidate(candidate, state, globalUsed)) expanded.push(addCandidate(state, candidate));
+      }
+    }
+    expanded.sort((left, right) => menuScore(left.nutrition) - menuScore(right.nutrition));
+    extraBeam = expanded.slice(0, 600);
+    const extraFitting = extraBeam.filter((state) => menuFitsNorms(state.nutrition));
+    if (extraFitting.length) return extraFitting[0].items;
+  }
+
+  throw new Error('Не удалось собрать меню в пределах 5% от заданных норм. Попробуйте изменить дополнительные приёмы пищи или нормы.');
 }
 
 async function collectMenu() {
@@ -289,7 +431,9 @@ async function collectMenu() {
     for (const [index, entryDate] of dates.entries()) {
       const items = menuForDate(index, globalUsed);
       menus.push({ entryDate, items });
-      items.forEach((item) => globalUsed.add(item.recipe_id));
+      items.forEach((item) => {
+        if (item.recipe_id != null) globalUsed.add(item.recipe_id);
+      });
     }
     for (const menu of menus) {
       await api.post('diary', { entry_date: menu.entryDate, items: menu.items });
@@ -418,11 +562,6 @@ function editEntry(id: number) {
       </article>
     </div>
 
-    <div v-if="!props.readOnly" class="diary-menu-actions">
-      <button type="button" class="primary" @click="openMenuPicker('day')">Собрать дневное меню</button>
-      <button type="button" class="secondary-button" @click="openMenuPicker('week')">Собрать недельное меню</button>
-    </div>
-
     <div class="diary-month-head diary-calendar-heading">
       <div>
         <h2>Календарь питания</h2>
@@ -472,6 +611,7 @@ function editEntry(id: number) {
         <button type="button" class="change-month" aria-label="Следующий месяц" @click="shiftMenuMonth(1)">›</button>
       </div>
       <p class="subtle">{{ calendarMode === 'menu-week' ? 'Выберите понедельник или любой другой первый день недели.' : 'Выберите день, для которого нужно собрать меню.' }}</p>
+      <p class="subtle">Если дополнительные приёмы не отмечены, сборщик всё равно может добавить перекус, напиток, десерт, салат или продукт без готовки, чтобы добрать норму.</p>
       <div class="diary-weekdays">
         <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
       </div>
@@ -558,13 +698,6 @@ function editEntry(id: number) {
 </template>
 
 <style lang="scss">
-.diary-menu-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin: 20px 0;
-}
-
 .diary-menu-picker {
   padding: 20px;
 }
