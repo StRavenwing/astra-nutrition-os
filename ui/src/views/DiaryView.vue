@@ -170,6 +170,7 @@ function openDay(iso: string) {
 
 function openMenuPicker(kind: 'day' | 'week') {
   if (props.readOnly) return;
+  error.value = '';
   menuStartDate.value = todayIso.value;
   month.value = currentMonthKey;
   menuOptions.value = { drink: false, snack: false, dessert: false };
@@ -228,10 +229,16 @@ function addNutrition(left: MenuNutrition, right: MenuNutrition): MenuNutrition 
   };
 }
 
-function recipeCandidate(recipe: RecipeSummary, mealType: string, comment?: string): MenuCandidate {
+function recipeCandidate(recipe: RecipeSummary, mealType: string, comment?: string, servings = 1): MenuCandidate {
+  const nutrition = recipeNutrition(recipe);
   return {
-    item: { meal_type: mealType, recipe_id: recipe.id, servings: 1, ...(comment ? { comment } : {}) },
-    nutrition: recipeNutrition(recipe),
+    item: { meal_type: mealType, recipe_id: recipe.id, servings, ...(comment ? { comment } : {}) },
+    nutrition: {
+      kcal: nutrition.kcal * servings,
+      protein: nutrition.protein * servings,
+      fat: nutrition.fat * servings,
+      carbs: nutrition.carbs * servings,
+    },
     recipeId: recipe.id,
   };
 }
@@ -285,8 +292,16 @@ function menuScore(nutrition: MenuNutrition) {
   return menuTargets().reduce((score, [key, target]) => score + Math.abs(nutrition[key] - target) / target, 0);
 }
 
-function menuFitsNorms(nutrition: MenuNutrition) {
-  return menuTargets().every(([key, target]) => Math.abs(nutrition[key] - target) / target <= 0.05);
+function menuFitsNorms(nutrition: MenuNutrition, tolerance = 0.05) {
+  return menuTargets().every(([key, target]) => Math.abs(nutrition[key] - target) / target <= tolerance);
+}
+
+function firstFittingMenu(states: MenuState[]) {
+  for (let percentage = 5; percentage <= 10; percentage += 1) {
+    const fitting = states.filter((state) => menuFitsNorms(state.nutrition, percentage / 100));
+    if (fitting.length) return fitting[0];
+  }
+  return null;
 }
 
 function candidateRecipes(role: MenuRole, globalUsed: Set<number>, state: MenuState, dayIndex: number) {
@@ -318,31 +333,36 @@ function addCandidate(state: MenuState, candidate: MenuCandidate): MenuState {
   };
 }
 
+function pushExtraRecipeCandidates(target: MenuCandidate[], recipe: RecipeSummary, mealType: string, comment: string) {
+  target.push(recipeCandidate(recipe, mealType, comment, 0.5));
+  target.push(recipeCandidate(recipe, mealType, comment, 1));
+}
+
 function extraCandidates(dayIndex: number, globalUsed: Set<number>) {
   const candidates: MenuCandidate[] = [];
   const availableRecipes = recipes.value.filter((recipe) => recipe.category !== 'Ready' && !globalUsed.has(recipe.id));
   const optionalRoles = [
-    { enabled: menuOptions.value.drink, category: 'Drink', mealType: mealOrder[4] },
-    { enabled: menuOptions.value.snack, category: 'Snack', mealType: mealOrder[3] },
-    { enabled: menuOptions.value.dessert, category: 'Dessert', mealType: mealOrder[5] },
+    { category: 'Drink', mealType: mealOrder[4] },
+    { category: 'Snack', mealType: mealOrder[3] },
+    { category: 'Dessert', mealType: mealOrder[5] },
   ];
 
-  for (const role of optionalRoles.filter((item) => !item.enabled)) {
+  for (const role of optionalRoles) {
     const preferred = availableRecipes.filter((recipe) => recipe.category === role.category);
     const fallback = availableRecipes.filter((recipe) => recipe.category !== role.category);
-    [...preferred, ...fallback].slice(0, 24).forEach((recipe) => candidates.push(recipeCandidate(recipe, role.mealType, 'Дополнение для добора нормы')));
+    [...preferred, ...fallback].slice(0, 24).forEach((recipe) => pushExtraRecipeCandidates(candidates, recipe, role.mealType, 'Дополнение для добора нормы'));
   }
 
   const saladRecipes = availableRecipes.filter((recipe) => recipe.category === 'Salad').slice(0, 20);
   for (const recipe of saladRecipes) {
-    candidates.push(recipeCandidate(recipe, mealOrder[1], 'Дополнение к обеду'));
-    candidates.push(recipeCandidate(recipe, mealOrder[2], 'Дополнение к ужину'));
+    pushExtraRecipeCandidates(candidates, recipe, mealOrder[1], 'Дополнение к обеду');
+    pushExtraRecipeCandidates(candidates, recipe, mealOrder[2], 'Дополнение к ужину');
   }
 
   const garnishRecipes = availableRecipes.filter((recipe) => recipe.category === 'Garnish').slice(0, 20);
   for (const recipe of garnishRecipes) {
-    candidates.push(recipeCandidate(recipe, mealOrder[1], 'Гарнир к обеду'));
-    candidates.push(recipeCandidate(recipe, mealOrder[2], 'Гарнир к ужину'));
+    pushExtraRecipeCandidates(candidates, recipe, mealOrder[1], 'Гарнир к обеду');
+    pushExtraRecipeCandidates(candidates, recipe, mealOrder[2], 'Гарнир к ужину');
   }
 
   const noCookCategories = new Set(['Овощи', 'Фрукты', 'Ягоды', 'Напитки', 'Перекусы', 'Хлеб']);
@@ -393,26 +413,27 @@ function menuForDate(dayIndex: number, globalUsed: Set<number>) {
     beam = expanded.slice(0, 600);
   }
 
-  const fitting = beam.filter((state) => menuFitsNorms(state.nutrition));
-  if (fitting.length) return fitting[0].items;
-  if (!menuTargets().length) return beam[0].items;
+  const fitting = firstFittingMenu(beam);
+  if (fitting) return fitting.items;
 
   let extraBeam = beam.slice(0, 240);
   const extras = extraCandidates(dayIndex, globalUsed);
-  for (let slot = 0; slot < 6; slot += 1) {
+  for (let slot = 0; slot < 10; slot += 1) {
     const expanded = [...extraBeam];
     for (const state of extraBeam) {
-      for (const candidate of extras) {
-        if (canUseCandidate(candidate, state, globalUsed)) expanded.push(addCandidate(state, candidate));
-      }
+      const nextCandidates = extras
+        .filter((candidate) => canUseCandidate(candidate, state, globalUsed))
+        .sort((left, right) => menuScore(addCandidate(state, left).nutrition) - menuScore(addCandidate(state, right).nutrition))
+        .slice(0, 24);
+      for (const candidate of nextCandidates) expanded.push(addCandidate(state, candidate));
     }
     expanded.sort((left, right) => menuScore(left.nutrition) - menuScore(right.nutrition));
     extraBeam = expanded.slice(0, 600);
-    const extraFitting = extraBeam.filter((state) => menuFitsNorms(state.nutrition));
-    if (extraFitting.length) return extraFitting[0].items;
+    const extraFitting = firstFittingMenu(extraBeam);
+    if (extraFitting) return extraFitting.items;
   }
 
-  throw new Error('Не удалось собрать меню в пределах 5% от заданных норм. Попробуйте изменить дополнительные приёмы пищи или нормы.');
+  throw new Error('Не удалось собрать меню в пределах ±10% от заданных норм.');
 }
 
 async function collectMenu() {
@@ -487,8 +508,8 @@ function editEntry(id: number) {
 
 <template>
   <div v-if="loading" class="panel">Загрузка…</div>
-  <div v-else-if="error" class="panel empty">{{ error }}</div>
   <template v-else>
+    <div v-if="error" class="panel empty diary-page-error">{{ error }}</div>
     <p class="diary-page-subtitle">Food Calendar помогает увидеть ритм без лишнего контроля</p>
     <section class="diary-current-day">
       <div class="diary-current-banner">
