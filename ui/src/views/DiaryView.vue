@@ -208,8 +208,21 @@ type MenuItem = {
 };
 type MenuNutrition = { kcal: number; protein: number; fat: number; carbs: number };
 type MenuRole = { mealType: string; preferred: RecipeSummary[]; fallback: RecipeSummary[] };
-type MenuCandidate = { item: MenuItem; nutrition: MenuNutrition; recipeId?: number; productId?: number };
-type MenuState = { items: MenuItem[]; usedRecipes: Set<number>; usedProducts: Set<number>; nutrition: MenuNutrition };
+type MenuCandidate = {
+  item: MenuItem;
+  nutrition: MenuNutrition;
+  recipeId?: number;
+  productId?: number;
+  productCategory?: string;
+  productAmount?: number;
+};
+type MenuState = {
+  items: MenuItem[];
+  usedRecipes: Set<number>;
+  usedProducts: Set<number>;
+  mealCategoryAmounts: Map<string, number>;
+  nutrition: MenuNutrition;
+};
 
 function recipeNutrition(recipe: RecipeSummary): MenuNutrition {
   return {
@@ -257,12 +270,23 @@ function productNutrition(product: Product, quantity: number): MenuNutrition {
   };
 }
 
-function productQuantities(product: Product) {
-  if (!product.unit) return [];
-  return product.unit === 'шт' || product.unit === 'бут.' ? [1, 2] : [50, 100, 150, 200];
+function productCategoryLimit(category: string | undefined) {
+  if (category === 'Овощи' || category === 'Фрукты') return 100;
+  if (category === 'Сыры') return 70;
+  if (category === 'Хлеб') return 100;
+  return null;
 }
 
-function productCandidate(product: Product, mealType: string, quantity: number): MenuCandidate {
+function productQuantities(product: Product, category: string) {
+  if (!product.unit) return [];
+  if (product.unit === 'шт' || product.unit === 'бут.') return [1, 2];
+  const limit = productCategoryLimit(category);
+  if (limit === 70) return [30, 50, 70];
+  if (limit === 100) return [50, 100];
+  return [50, 100, 150, 200];
+}
+
+function productCandidate(product: Product, category: string, mealType: string, quantity: number): MenuCandidate {
   return {
     item: {
       meal_type: mealType,
@@ -275,6 +299,8 @@ function productCandidate(product: Product, mealType: string, quantity: number):
     },
     nutrition: productNutrition(product, quantity),
     productId: product.id,
+    productCategory: category,
+    productAmount: product.unit === 'г' ? quantity : 0,
   };
 }
 
@@ -317,18 +343,35 @@ function candidateRecipes(role: MenuRole, globalUsed: Set<number>, state: MenuSt
 function canUseCandidate(candidate: MenuCandidate, state: MenuState, globalUsed: Set<number>) {
   if (candidate.recipeId != null && (globalUsed.has(candidate.recipeId) || state.usedRecipes.has(candidate.recipeId))) return false;
   if (candidate.productId != null && state.usedProducts.has(candidate.productId)) return false;
+  if (candidate.productCategory === 'Хлеб') {
+    const key = `${candidate.item.meal_type}|${candidate.productCategory}`;
+    const usedAmount = state.mealCategoryAmounts.get(key) || 0;
+    if (usedAmount > 0) return false;
+  }
+  if (candidate.productCategory && candidate.productAmount) {
+    const key = `${candidate.item.meal_type}|${candidate.productCategory}`;
+    const usedAmount = state.mealCategoryAmounts.get(key) || 0;
+    const limit = productCategoryLimit(candidate.productCategory);
+    if (limit != null && usedAmount + candidate.productAmount > limit) return false;
+  }
   return true;
 }
 
 function addCandidate(state: MenuState, candidate: MenuCandidate): MenuState {
   const usedRecipes = new Set(state.usedRecipes);
   const usedProducts = new Set(state.usedProducts);
+  const mealCategoryAmounts = new Map(state.mealCategoryAmounts);
   if (candidate.recipeId != null) usedRecipes.add(candidate.recipeId);
   if (candidate.productId != null) usedProducts.add(candidate.productId);
+  if (candidate.productCategory && (candidate.productAmount || candidate.productCategory === 'Хлеб')) {
+    const key = `${candidate.item.meal_type}|${candidate.productCategory}`;
+    mealCategoryAmounts.set(key, (mealCategoryAmounts.get(key) || 0) + (candidate.productAmount || 1));
+  }
   return {
     items: [...state.items, candidate.item],
     usedRecipes,
     usedProducts,
+    mealCategoryAmounts,
     nutrition: addNutrition(state.nutrition, candidate.nutrition),
   };
 }
@@ -365,18 +408,18 @@ function extraCandidates(dayIndex: number, globalUsed: Set<number>) {
     pushExtraRecipeCandidates(candidates, recipe, mealOrder[2], 'Гарнир к ужину');
   }
 
-  const noCookCategories = new Set(['Овощи', 'Фрукты', 'Ягоды', 'Напитки', 'Перекусы', 'Хлеб']);
+  const noCookCategories = new Set(['Белковые', 'Овощи', 'Фрукты', 'Ягоды', 'Напитки', 'Перекусы', 'Сыры', 'Хлеб']);
   for (const category of noCookCategories) {
     const categoryProducts = products.value
-      .filter((product) => product.category === category && product.unit)
+      .filter((product) => product.category === category && product.unit && !/лук|чеснок/i.test(product.name))
       .sort((left, right) => {
         const leftValue = Number(left.kcal) + Number(left.protein_g) * 4 + Number(left.carbs_g) * 4 + Number(left.fat_g) * 9;
         const rightValue = Number(right.kcal) + Number(right.protein_g) * 4 + Number(right.carbs_g) * 4 + Number(right.fat_g) * 9;
         return rightValue - leftValue;
-      });
+    });
     for (const product of categoryProducts.slice(0, 8)) {
       for (const mealType of mealOrder.slice(0, 3)) {
-        for (const quantity of productQuantities(product)) candidates.push(productCandidate(product, mealType, quantity));
+        for (const quantity of productQuantities(product, category)) candidates.push(productCandidate(product, category, mealType, quantity));
       }
     }
   }
@@ -402,7 +445,7 @@ function menuForDate(dayIndex: number, globalUsed: Set<number>) {
   if (menuOptions.value.snack) roles.push({ mealType: mealOrder[3], preferred: recipePool('Snack', optionalRecipes), fallback: optionalRecipes });
   if (menuOptions.value.dessert) roles.push({ mealType: mealOrder[5], preferred: recipePool('Dessert', optionalRecipes), fallback: optionalRecipes });
 
-  let beam: MenuState[] = [{ items: [], usedRecipes: new Set(), usedProducts: new Set(), nutrition: { kcal: 0, protein: 0, fat: 0, carbs: 0 } }];
+  let beam: MenuState[] = [{ items: [], usedRecipes: new Set(), usedProducts: new Set(), mealCategoryAmounts: new Map(), nutrition: { kcal: 0, protein: 0, fat: 0, carbs: 0 } }];
   for (const role of roles) {
     const expanded: MenuState[] = [];
     for (const state of beam) {
