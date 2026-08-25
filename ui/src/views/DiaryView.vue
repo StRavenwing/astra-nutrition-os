@@ -28,6 +28,7 @@ const products = ref<Product[]>([]);
 const menuStartDate = ref(localToday());
 const menuOptions = ref({ drink: false, snack: false, dessert: false });
 const menuSaving = ref(false);
+const menuProgress = ref('');
 
 async function load() {
   loading.value = true;
@@ -227,6 +228,14 @@ type MenuState = {
   mealComponentCounts: Map<string, number>;
   nutrition: MenuNutrition;
 };
+type MenuSearchOptions = {
+  compact?: boolean;
+  beamLimit?: number;
+  extraSeedLimit?: number;
+  extraBeamLimit?: number;
+  extraSlots?: number;
+  candidatesPerState?: number;
+};
 
 function recipeNutrition(recipe: RecipeSummary): MenuNutrition {
   return {
@@ -294,15 +303,15 @@ function productKind(category: string): MenuKind {
   return 'other';
 }
 
-function productQuantities(product: Product, category: string) {
+function productQuantities(product: Product, category: string, compact = false) {
   if (!product.unit) return [];
-  if (product.unit === 'шт' || product.unit === 'бут.') return [1, 2];
+  if (product.unit === 'шт' || product.unit === 'бут.') return compact ? [1] : [1, 2];
   const limit = productCategoryLimit(category);
-  if (limit === 70) return [20, 30, 50, 70];
-  if (category === 'Овощи' || category === 'Фрукты') return [80, 100];
-  if (category === 'Хлеб') return [30, 50, 80, 100];
-  if (category === 'Молочные') return [100, 150, 200, 250];
-  return [50, 100, 150, 200];
+  if (limit === 70) return compact ? [30, 70] : [20, 30, 50, 70];
+  if (category === 'Овощи' || category === 'Фрукты') return compact ? [100] : [80, 100];
+  if (category === 'Хлеб') return compact ? [50, 100] : [30, 50, 80, 100];
+  if (category === 'Молочные') return compact ? [150, 250] : [100, 150, 200, 250];
+  return compact ? [100, 200] : [50, 100, 150, 200];
 }
 
 function productCandidate(product: Product, category: string, mealType: string, quantity: number): MenuCandidate {
@@ -460,7 +469,7 @@ function pushExtraRecipeCandidates(target: MenuCandidate[], recipe: RecipeSummar
   target.push(recipeCandidate(recipe, mealType, comment, 1, kind));
 }
 
-function extraCandidates(dayIndex: number, globalUsed: Set<number>) {
+function extraCandidates(dayIndex: number, globalUsed: Set<number>, compact = false) {
   const candidates: MenuCandidate[] = [];
   const availableRecipes = recipes.value.filter((recipe) => recipe.category !== 'Ready' && !globalUsed.has(recipe.id));
   const optionalRoles = [
@@ -472,16 +481,16 @@ function extraCandidates(dayIndex: number, globalUsed: Set<number>) {
   for (const role of optionalRoles) {
     const preferred = availableRecipes.filter((recipe) => recipe.category === role.category);
     const fallback = availableRecipes.filter((recipe) => recipe.category !== role.category);
-    [...preferred, ...fallback].slice(0, 24).forEach((recipe) => pushExtraRecipeCandidates(candidates, recipe, role.mealType, 'Дополнение для добора нормы', role.kind));
+    [...preferred, ...fallback].slice(0, compact ? 12 : 24).forEach((recipe) => pushExtraRecipeCandidates(candidates, recipe, role.mealType, 'Дополнение для добора нормы', role.kind));
   }
 
-  const saladRecipes = availableRecipes.filter((recipe) => recipe.category === 'Salad').slice(0, 20);
+  const saladRecipes = availableRecipes.filter((recipe) => recipe.category === 'Salad').slice(0, compact ? 8 : 20);
   for (const recipe of saladRecipes) {
     pushExtraRecipeCandidates(candidates, recipe, mealOrder[1], 'Дополнение к обеду', 'salad');
     pushExtraRecipeCandidates(candidates, recipe, mealOrder[2], 'Дополнение к ужину', 'salad');
   }
 
-  const garnishRecipes = availableRecipes.filter((recipe) => recipe.category === 'Garnish').slice(0, 20);
+  const garnishRecipes = availableRecipes.filter((recipe) => recipe.category === 'Garnish').slice(0, compact ? 8 : 20);
   for (const recipe of garnishRecipes) {
     pushExtraRecipeCandidates(candidates, recipe, mealOrder[1], 'Гарнир к обеду', 'garnish');
     pushExtraRecipeCandidates(candidates, recipe, mealOrder[2], 'Гарнир к ужину', 'garnish');
@@ -496,9 +505,9 @@ function extraCandidates(dayIndex: number, globalUsed: Set<number>) {
         const rightValue = Number(right.kcal) + Number(right.protein_g) * 4 + Number(right.carbs_g) * 4 + Number(right.fat_g) * 9;
         return rightValue - leftValue;
     });
-    for (const product of categoryProducts.slice(0, 8)) {
+    for (const product of categoryProducts.slice(0, compact ? 4 : 8)) {
       for (const mealType of mealOrder.slice(0, 3)) {
-        for (const quantity of productQuantities(product, category)) candidates.push(productCandidate(product, category, mealType, quantity));
+        for (const quantity of productQuantities(product, category, compact)) candidates.push(productCandidate(product, category, mealType, quantity));
       }
     }
   }
@@ -510,7 +519,13 @@ function extraCandidates(dayIndex: number, globalUsed: Set<number>) {
   return candidates;
 }
 
-function menuForDate(dayIndex: number, globalUsed: Set<number>) {
+async function menuForDate(dayIndex: number, globalUsed: Set<number>, options: MenuSearchOptions = {}) {
+  const compact = options.compact ?? false;
+  const beamLimit = options.beamLimit ?? (compact ? 140 : 600);
+  const extraSeedLimit = options.extraSeedLimit ?? (compact ? 70 : 240);
+  const extraBeamLimit = options.extraBeamLimit ?? (compact ? 260 : 600);
+  const extraSlots = options.extraSlots ?? (compact ? 6 : 10);
+  const candidatesPerState = options.candidatesPerState ?? (compact ? 12 : 24);
   const mainRecipes = recipes.value.filter((recipe) => recipe.category !== 'Ready');
   if (mainRecipes.length < 3) throw new Error('Нужно минимум 3 блюда вне категории «Готовые блюда» для дневного меню.');
 
@@ -532,24 +547,29 @@ function menuForDate(dayIndex: number, globalUsed: Set<number>) {
     }
     if (!expanded.length) throw new Error('Недостаточно уникальных блюд для выбранного периода.');
     expanded.sort((left, right) => menuSelectionScore(left) - menuSelectionScore(right));
-    beam = expanded.slice(0, 600);
+    beam = expanded.slice(0, beamLimit);
   }
 
   const baseFitting = firstFittingMenu(beam);
 
-  let extraBeam = beam.slice(0, 240);
-  const extras = extraCandidates(dayIndex, globalUsed);
-  for (let slot = 0; slot < 10; slot += 1) {
+  let extraBeam = beam.slice(0, extraSeedLimit);
+  const extras = extraCandidates(dayIndex, globalUsed, compact);
+  for (let slot = 0; slot < extraSlots; slot += 1) {
+    if (slot > 0) await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     const expanded = [...extraBeam];
     for (const state of extraBeam) {
       const nextCandidates = extras
         .filter((candidate) => canUseCandidate(candidate, state, globalUsed))
-        .sort((left, right) => menuSelectionScore(addCandidate(state, left)) - menuSelectionScore(addCandidate(state, right)))
-        .slice(0, 24);
-      for (const candidate of nextCandidates) expanded.push(addCandidate(state, candidate));
+        .map((candidate) => {
+          const nextState = addCandidate(state, candidate);
+          return { candidate, nextState, score: menuSelectionScore(nextState) };
+        })
+        .sort((left, right) => left.score - right.score)
+        .slice(0, candidatesPerState);
+      for (const { nextState } of nextCandidates) expanded.push(nextState);
     }
     expanded.sort((left, right) => menuSelectionScore(left) - menuSelectionScore(right));
-    extraBeam = expanded.slice(0, 600);
+    extraBeam = expanded.slice(0, extraBeamLimit);
     const extraFitting = firstFittingMenu(extraBeam);
     if (extraFitting) return extraFitting.items;
   }
@@ -567,12 +587,16 @@ async function collectMenu() {
   if (data.value.some((item) => dates.includes(item.entry_date)) && !confirm('В выбранных днях уже есть записи. Добавить собранное меню к ним?')) return;
 
   menuSaving.value = true;
+  menuProgress.value = '';
   error.value = '';
   try {
     const globalUsed = new Set<number>();
     const menus: { entryDate: string; items: MenuItem[] }[] = [];
+    const compactSearch = dates.length === 7;
     for (const [index, entryDate] of dates.entries()) {
-      const items = menuForDate(index, globalUsed);
+      menuProgress.value = dates.length === 7 ? `Собираем день ${index + 1} из 7…` : 'Собираем меню…';
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      const items = await menuForDate(index, globalUsed, { compact: compactSearch });
       menus.push({ entryDate, items });
       items.forEach((item) => {
         if (item.recipe_id != null) globalUsed.add(item.recipe_id);
@@ -588,6 +612,7 @@ async function collectMenu() {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
     menuSaving.value = false;
+    menuProgress.value = '';
   }
 }
 
@@ -781,7 +806,7 @@ function editEntry(id: number) {
       <p v-if="error" id="form-error">{{ error }}</p>
       <div class="actions">
         <button type="button" @click="calendarMode = null">Отмена</button>
-        <button type="button" class="primary" :disabled="menuSaving" @click="collectMenu">{{ menuSaving ? 'Сборка…' : calendarMode === 'menu-week' ? 'Собрать 7 дней' : 'Собрать меню' }}</button>
+        <button type="button" class="primary" :disabled="menuSaving" @click="collectMenu">{{ menuSaving ? (menuProgress || 'Сборка…') : calendarMode === 'menu-week' ? 'Собрать 7 дней' : 'Собрать меню' }}</button>
       </div>
     </div>
   </CalendarModal>
