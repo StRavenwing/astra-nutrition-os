@@ -596,7 +596,23 @@ async function collectMenu() {
     for (const [index, entryDate] of dates.entries()) {
       menuProgress.value = dates.length === 7 ? `Собираем день ${index + 1} из 7…` : 'Собираем меню…';
       await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-      const items = await menuForDate(index, globalUsed, { compact: compactSearch });
+      let items: MenuItem[];
+      try {
+        items = await menuForDate(index, globalUsed, { compact: compactSearch });
+      } catch (err) {
+        const canRetry = compactSearch && err instanceof Error && err.message.includes('±10%');
+        if (!canRetry) throw err;
+        menuProgress.value = `Уточняем меню для дня ${index + 1}…`;
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+        items = await menuForDate(index, globalUsed, {
+          compact: false,
+          beamLimit: 300,
+          extraSeedLimit: 120,
+          extraBeamLimit: 360,
+          extraSlots: 8,
+          candidatesPerState: 16,
+        });
+      }
       menus.push({ entryDate, items });
       items.forEach((item) => {
         if (item.recipe_id != null) globalUsed.add(item.recipe_id);
