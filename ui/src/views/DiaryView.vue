@@ -205,6 +205,15 @@ function recipeCategoryKey(recipe: RecipeSummary) {
   return recipe.category.trim().toLowerCase();
 }
 
+function isBreakfastRecipe(recipe: RecipeSummary) {
+  const category = recipeCategoryKey(recipe);
+  return category === 'breakfast' || category.includes('завтрак');
+}
+
+function recipeAllowedForMeal(recipe: RecipeSummary, mealType: string) {
+  return mealType === mealOrder[0] || !isBreakfastRecipe(recipe);
+}
+
 function recipeKcal(recipe: RecipeSummary) {
   return Number(recipe.kcal_per_serving) || 0;
 }
@@ -232,8 +241,8 @@ function recipeAllowsBread(recipe: RecipeSummary) {
   return isHighCalorieSalad(recipe);
 }
 
-function menuRecipeSource() {
-  return menuOptions.value.useReady ? recipes.value : recipes.value.filter((recipe) => !recipe.is_ready);
+function menuRecipeSource(includeReady = menuOptions.value.useReady) {
+  return includeReady ? recipes.value : recipes.value.filter((recipe) => !recipe.is_ready);
 }
 
 type MenuItem = {
@@ -273,6 +282,7 @@ type MenuState = {
 };
 type MenuSearchOptions = {
   compact?: boolean;
+  includeReady?: boolean;
   beamLimit?: number;
   extraSeedLimit?: number;
   extraBeamLimit?: number;
@@ -471,7 +481,7 @@ function firstFittingMenu(states: MenuState[]) {
 
 function candidateRecipes(role: MenuRole, globalUsed: Set<number>, state: MenuState, dayIndex: number) {
   const pool = [...role.preferred, ...role.fallback.filter((recipe) => !role.preferred.some((item) => item.id === recipe.id))]
-    .filter((recipe) => !globalUsed.has(recipe.id) && !state.usedRecipes.has(recipe.id));
+    .filter((recipe) => recipeAllowedForMeal(recipe, role.mealType) && !globalUsed.has(recipe.id) && !state.usedRecipes.has(recipe.id));
   if (pool.length > 1) {
     const offset = dayIndex % pool.length;
     const rotated = [...pool.slice(offset), ...pool.slice(0, offset)];
@@ -549,9 +559,9 @@ function pushExtraRecipeCandidates(target: MenuCandidate[], recipe: RecipeSummar
   target.push(recipeCandidate(recipe, mealType, comment, 1, kind));
 }
 
-function extraCandidates(dayIndex: number, globalUsed: Set<number>, compact = false) {
+function extraCandidates(dayIndex: number, globalUsed: Set<number>, compact = false, includeReady = false) {
   const candidates: MenuCandidate[] = [];
-  const availableRecipes = menuRecipeSource().filter((recipe) => !globalUsed.has(recipe.id));
+  const availableRecipes = menuRecipeSource(includeReady).filter((recipe) => !globalUsed.has(recipe.id));
   const optionalRoles = [
     { category: 'Drink', mealType: mealOrder[4], kind: 'drink' as MenuKind },
     { category: 'Snack', mealType: mealOrder[3], kind: 'snack' as MenuKind },
@@ -559,8 +569,9 @@ function extraCandidates(dayIndex: number, globalUsed: Set<number>, compact = fa
   ];
 
   for (const role of optionalRoles) {
-    const preferred = availableRecipes.filter((recipe) => recipe.category === role.category);
-    const fallback = availableRecipes.filter((recipe) => recipe.category !== role.category);
+    const mealRecipes = availableRecipes.filter((recipe) => recipeAllowedForMeal(recipe, role.mealType));
+    const preferred = mealRecipes.filter((recipe) => recipe.category === role.category);
+    const fallback = mealRecipes.filter((recipe) => recipe.category !== role.category);
     [...preferred, ...fallback].slice(0, compact ? 12 : 24).forEach((recipe) => pushExtraRecipeCandidates(candidates, recipe, role.mealType, 'Дополнение для добора нормы', role.kind));
   }
 
@@ -605,12 +616,13 @@ function extraCandidates(dayIndex: number, globalUsed: Set<number>, compact = fa
 
 async function menuForDate(dayIndex: number, globalUsed: Set<number>, options: MenuSearchOptions = {}) {
   const compact = options.compact ?? false;
+  const includeReady = options.includeReady ?? menuOptions.value.useReady;
   const beamLimit = options.beamLimit ?? (compact ? 140 : 600);
   const extraSeedLimit = options.extraSeedLimit ?? (compact ? 70 : 240);
   const extraBeamLimit = options.extraBeamLimit ?? (compact ? 260 : 600);
   const extraSlots = options.extraSlots ?? (compact ? 6 : 10);
   const candidatesPerState = options.candidatesPerState ?? (compact ? 12 : 24);
-  const mainRecipes = mainMealRecipes(menuRecipeSource());
+  const mainRecipes = mainMealRecipes(menuRecipeSource(includeReady));
   if (mainRecipes.length < 3) throw new Error('Нужно минимум 3 блюда вне категории «Готовые блюда» для дневного меню.');
 
   const roles: MenuRole[] = [
@@ -618,7 +630,7 @@ async function menuForDate(dayIndex: number, globalUsed: Set<number>, options: M
     { mealType: mealOrder[1], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes, kind: 'main' },
     { mealType: mealOrder[2], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes, kind: 'main' },
   ];
-  const optionalRecipes = menuRecipeSource();
+  const optionalRecipes = menuRecipeSource(includeReady);
   if (menuOptions.value.drink) roles.push({ mealType: mealOrder[4], preferred: recipePool('Drink', optionalRecipes), fallback: optionalRecipes, kind: 'drink' });
   if (menuOptions.value.snack) roles.push({ mealType: mealOrder[3], preferred: recipePool('Snack', optionalRecipes), fallback: optionalRecipes, kind: 'snack' });
   if (menuOptions.value.dessert) roles.push({ mealType: mealOrder[5], preferred: recipePool('Dessert', optionalRecipes), fallback: optionalRecipes, kind: 'dessert' });
@@ -638,7 +650,7 @@ async function menuForDate(dayIndex: number, globalUsed: Set<number>, options: M
   if (baseFitting) return baseFitting.items;
 
   let extraBeam = beam.slice(0, extraSeedLimit);
-  const extras = extraCandidates(dayIndex, globalUsed, compact);
+  const extras = extraCandidates(dayIndex, globalUsed, compact, includeReady);
   for (let slot = 0; slot < extraSlots; slot += 1) {
     if (slot > 0) await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     const expanded = [...extraBeam];
@@ -677,25 +689,38 @@ async function collectMenu() {
     const globalUsed = new Set<number>();
     const menus: { entryDate: string; items: MenuItem[] }[] = [];
     const compactSearch = dates.length === 7;
-    for (const [index, entryDate] of dates.entries()) {
-      menuProgress.value = dates.length === 7 ? `Собираем день ${index + 1} из 7…` : 'Собираем меню…';
-      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-      let items: MenuItem[];
+    const buildForDate = async (index: number, includeReady: boolean) => {
       try {
-        items = await menuForDate(index, globalUsed, { compact: compactSearch });
+        return await menuForDate(index, globalUsed, { compact: compactSearch, includeReady });
       } catch (err) {
         const canRetry = compactSearch && err instanceof Error && err.message.includes('±10%');
         if (!canRetry) throw err;
-        menuProgress.value = `Уточняем меню для дня ${index + 1}…`;
+        menuProgress.value = includeReady
+          ? `Уточняем меню с готовыми блюдами для дня ${index + 1}…`
+          : `Уточняем меню для дня ${index + 1}…`;
         await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-        items = await menuForDate(index, globalUsed, {
+        return menuForDate(index, globalUsed, {
           compact: false,
+          includeReady,
           beamLimit: 300,
           extraSeedLimit: 120,
           extraBeamLimit: 360,
           extraSlots: 8,
           candidatesPerState: 16,
         });
+      }
+    };
+    for (const [index, entryDate] of dates.entries()) {
+      menuProgress.value = dates.length === 7 ? `Собираем день ${index + 1} из 7…` : 'Собираем меню…';
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      let items: MenuItem[];
+      try {
+        items = await buildForDate(index, false);
+      } catch (err) {
+        if (!menuOptions.value.useReady) throw err;
+        menuProgress.value = `Собираем день ${index + 1} с готовыми блюдами…`;
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+        items = await buildForDate(index, true);
       }
       menus.push({ entryDate, items });
       items.forEach((item) => {
