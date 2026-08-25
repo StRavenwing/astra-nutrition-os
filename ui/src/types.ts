@@ -87,6 +87,8 @@ export interface RecipeSummary {
   status: string | null;
   servings: number | null;
   tags: string | null;
+  is_ready: boolean;
+  needs_garnish: boolean;
   manual_price_per_serving_rsd: number | null;
   manual_kcal_per_serving: number | null;
   manual_protein_per_serving_g: number | null;

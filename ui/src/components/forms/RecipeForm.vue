@@ -36,7 +36,8 @@ const form = reactive<Record<string, string>>({
   manual_carbs_per_serving_g: ''
 });
 
-const isReady = computed(() => form.category === 'Ready');
+const isReady = ref(false);
+const needsGarnish = ref(false);
 const categoryOptions = computed(() => [...recipeCategories, ...extraCategories.value]);
 const modalTitle = computed(() => (props.recipeId ? 'Редактировать рецепт' : 'Добавить рецепт'));
 
@@ -93,6 +94,8 @@ onMounted(async () => {
       const recipe = detail.recipe;
       if (recipe) {
         original.value = recipe;
+        isReady.value = Boolean(recipe.is_ready);
+        needsGarnish.value = Boolean(recipe.needs_garnish);
         for (const [key, value] of Object.entries(recipe)) {
           if (key in form) form[key] = value == null ? '' : String(value);
         }
@@ -121,6 +124,8 @@ function payload() {
     status: original.value?.status || 'Draft',
     servings: form.servings,
     tags: form.tags,
+    is_ready: isReady.value,
+    needs_garnish: needsGarnish.value,
     manual_price_per_serving_rsd: form.manual_price_per_serving_rsd,
     manual_kcal_per_serving: form.manual_kcal_per_serving,
     manual_protein_per_serving_g: form.manual_protein_per_serving_g,
@@ -163,6 +168,8 @@ async function save() {
         <div class="field"><label>Версия</label><input v-model="form.version"></div>
         <div class="field"><label>Количество порций</label><input v-model="form.servings" type="number" min="1" step="0.1" required></div>
         <div class="field"><label>Теги</label><input v-model="form.tags"></div>
+        <label class="checkbox-field"><input v-model="isReady" type="checkbox"><span>Готовое блюдо</span><small>Можно одновременно отнести к любой категории</small></label>
+        <label class="checkbox-field"><input v-model="needsGarnish" type="checkbox"><span>Нужен гарнир</span><small>Учитывать при подборе меню</small></label>
         <div class="field full"><label>Фиксированная цена за порцию, RSD</label><input v-model="form.manual_price_per_serving_rsd" type="number" min="0" step="0.01" placeholder="Пусто = рассчитать по составу"></div>
       </div>
 
@@ -203,4 +210,20 @@ async function save() {
 .recipe-ingredients-section {
   margin-top: 16px;
 }
+
+.checkbox-field {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 9px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #f8fafc;
+  cursor: pointer;
+}
+
+.checkbox-field input { grid-row: span 2; width: 16px; height: 16px; }
+.checkbox-field span { font-weight: 700; }
+.checkbox-field small { color: var(--muted); }
 </style>

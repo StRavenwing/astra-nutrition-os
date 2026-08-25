@@ -133,6 +133,8 @@ def serialize_recipe_summary(recipe: Recipe) -> dict:
         "status": recipe.status,
         "servings": recipe.servings,
         "tags": recipe.tags,
+        "is_ready": bool(recipe.is_ready),
+        "needs_garnish": bool(recipe.needs_garnish),
         "manual_price_per_serving_rsd": recipe.manual_price_per_serving_rsd,
         "manual_kcal_per_serving": recipe.manual_kcal_per_serving,
         "manual_protein_per_serving_g": recipe.manual_protein_per_serving_g,

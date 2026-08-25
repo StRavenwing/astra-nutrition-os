@@ -112,6 +112,8 @@ class RecipeInput(BaseModel):
     status: str = "Draft"
     servings: Any = 1
     tags: str | None = None
+    is_ready: bool = False
+    needs_garnish: bool = False
     manual_price_per_serving_rsd: Any = None
     manual_kcal_per_serving: Any = None
     manual_protein_per_serving_g: Any = None

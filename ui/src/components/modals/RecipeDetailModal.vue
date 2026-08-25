@@ -123,8 +123,8 @@ function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; car
         </div>
       </div>
 
-      <h3 class="ingredients-heading">{{ recipe.category === 'Ready' ? 'Готовое блюдо' : 'Состав всего рецепта' }}</h3>
-      <div v-if="recipe.category === 'Ready'" class="ready-recipe-note">
+      <h3 class="ingredients-heading">{{ recipe.is_ready ? 'Готовое блюдо' : 'Состав всего рецепта' }}</h3>
+      <div v-if="recipe.is_ready" class="ready-recipe-note">
         <b>КБЖУ указано вручную</b>
         <span>Для готового блюда состав по ингредиентам не используется.</span>
       </div>

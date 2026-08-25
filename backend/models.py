@@ -280,6 +280,8 @@ class Recipe(BaseModel):
     status = CharField()
     servings = FloatField(constraints=[Check("servings > 0")])
     tags = TextField(null=True)
+    is_ready = BooleanField(default=False)
+    needs_garnish = BooleanField(default=False)
     manual_price_per_serving_rsd = FloatField(null=True)
     manual_kcal_per_serving = FloatField(null=True)
     manual_protein_per_serving_g = FloatField(null=True)

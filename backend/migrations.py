@@ -102,6 +102,20 @@ def _ensure_progress_target_columns(connection: sqlite3.Connection) -> None:
             connection.execute(f"ALTER TABLE progress_entries ADD COLUMN {column} REAL")
 
 
+def _ensure_recipe_option_columns(connection: sqlite3.Connection) -> None:
+    columns = _columns(connection, "recipes")
+    if not columns:
+        return
+    if "is_ready" not in columns:
+        connection.execute("ALTER TABLE recipes ADD COLUMN is_ready INTEGER NOT NULL DEFAULT 0")
+    if "needs_garnish" not in columns:
+        connection.execute("ALTER TABLE recipes ADD COLUMN needs_garnish INTEGER NOT NULL DEFAULT 0")
+    # Preserve old Ready recipes while moving the classification into an option.
+    connection.execute(
+        "UPDATE recipes SET is_ready=1, category='Main' WHERE category='Ready'"
+    )
+
+
 def _ensure_feedback_columns(connection: sqlite3.Connection) -> None:
     columns = _columns(connection, "feedback_messages")
     if columns and "is_read" not in columns:
@@ -208,6 +222,8 @@ def _legacy_schema_status(path: Path) -> str:
 def _upgrade_legacy_schema(connection: sqlite3.Connection) -> None:
     recipe_columns = _columns(connection, "recipes")
     recipe_additions = {
+        "is_ready": "INTEGER NOT NULL DEFAULT 0",
+        "needs_garnish": "INTEGER NOT NULL DEFAULT 0",
         "manual_price_per_serving_rsd": "REAL",
         "manual_kcal_per_serving": "REAL",
         "manual_protein_per_serving_g": "REAL",
@@ -332,15 +348,18 @@ def _migrate_legacy_rows(source: sqlite3.Connection, destination, settings: Sett
             product_map[product.code] = product.id
 
         for row in source.execute("SELECT * FROM recipes ORDER BY recipe_id"):
+            legacy_ready = _row_value(row, "is_ready", 0) or row["category"] == "Ready"
             recipe = Recipe.create(
                 code=row["recipe_id"],
                 name=row["name"],
-                category=row["category"],
+                category="Main" if legacy_ready and row["category"] == "Ready" else row["category"],
                 subcategory=_row_value(row, "subcategory"),
                 version=str(_row_value(row, "version", "1.0") or "1.0"),
                 status=_row_value(row, "status", "Draft") or "Draft",
                 servings=_row_value(row, "servings", 1) or 1,
                 tags=_row_value(row, "tags"),
+                is_ready=bool(legacy_ready),
+                needs_garnish=bool(_row_value(row, "needs_garnish", 0)),
                 manual_price_per_serving_rsd=_row_value(row, "manual_price_per_serving_rsd"),
                 manual_kcal_per_serving=_row_value(row, "manual_kcal_per_serving"),
                 manual_protein_per_serving_g=_row_value(row, "manual_protein_per_serving_g"),
@@ -792,6 +811,7 @@ def migrate_v2_database(settings: Settings, backup_existing: bool) -> None:
         _rebuild_diary_entries(connection, admin["id"])
         _rebuild_progress_entries(connection, admin["id"])
         _ensure_progress_target_columns(connection)
+        _ensure_recipe_option_columns(connection)
         _rebuild_workout_logs(connection, admin["id"])
         _create_oauth_tables(connection)
         _add_recipe_ownership(connection)
@@ -816,6 +836,7 @@ def migrate_v3_database(settings: Settings, backup_existing: bool) -> None:
     try:
         _ensure_exercise_columns(connection)
         _ensure_progress_target_columns(connection)
+        _ensure_recipe_option_columns(connection)
         _create_oauth_tables(connection)
         _add_recipe_ownership(connection)
         _ensure_feedback_columns(connection)
@@ -837,6 +858,7 @@ def migrate_v4_database(settings: Settings, backup_existing: bool) -> None:
     try:
         _ensure_exercise_columns(connection)
         _ensure_progress_target_columns(connection)
+        _ensure_recipe_option_columns(connection)
         _add_recipe_ownership(connection)
         _ensure_feedback_columns(connection)
         _ensure_article_columns(connection)
@@ -865,6 +887,7 @@ def ensure_database(settings: Settings) -> None:
             _ensure_exercise_columns(connection)
             _ensure_workout_equipment_table(connection)
             _ensure_progress_target_columns(connection)
+            _ensure_recipe_option_columns(connection)
             _ensure_feedback_columns(connection)
             _ensure_article_columns(connection)
             connection.commit()

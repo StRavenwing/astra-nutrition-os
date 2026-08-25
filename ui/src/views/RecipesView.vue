@@ -89,7 +89,7 @@ function resetSort() {
 function recipeSpriteStyle(key: string) {
   const positions: Record<string, [number, number]> = {
     Main: [158, 186], Breakfast: [382, 186], Wrap: [606, 186], Dessert: [830, 186], Garnish: [1054, 186],
-    Salad: [158, 362], Sauce: [382, 362], Snack: [606, 362], Drink: [830, 362], Ready: [1054, 362]
+    Salad: [158, 362], Sauce: [382, 362], Snack: [606, 362], Drink: [830, 362]
   };
   const [x, y] = positions[key] || positions.Main;
   return { '--sprite-left': `${-(x - 29)}px`, '--sprite-top': `${-(y - 29)}px` };
@@ -258,7 +258,7 @@ async function removeRecipe(item: RecipeSummary) {
         <div class="recipe-tile-head">
           <span class="recipe-id">{{ item.code }}</span>
         </div>
-        <div class="recipe-category">{{ recipeCategoryMap[item.category]?.label || item.category }}</div>
+        <div class="recipe-category">{{ recipeCategoryMap[item.category]?.label || item.category }}<span v-if="item.is_ready" class="recipe-option-badge">Готовое блюдо</span><span v-if="item.needs_garnish" class="recipe-option-badge">Нужен гарнир</span></div>
         <h3>{{ item.name }}</h3>
         <p>{{ item.subcategory || item.tags || 'Рецепт из личной коллекции' }}</p>
         <div class="tile-macros">
@@ -351,6 +351,19 @@ async function removeRecipe(item: RecipeSummary) {
     small { margin-top: 4px; color: var(--muted); }
     strong { padding: 4px 9px; border-radius: 99px; background: #e9f2ff; color: var(--blue); }
   }
+}
+
+.recipe-option-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--blue);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 .collection-icon {

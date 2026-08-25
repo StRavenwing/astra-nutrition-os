@@ -27,8 +27,7 @@ export const recipeCategories = [
   { key: 'Salad', label: 'Салаты', prefix: 'S', x: 100, y: 50 },
   { key: 'Sauce', label: 'Соусы', prefix: 'SA', x: 100, y: 100 },
   { key: 'Snack', label: 'Перекусы', prefix: 'SN', x: 0, y: 100 },
-  { key: 'Drink', label: 'Напитки', prefix: 'DR', x: 50, y: 100 },
-  { key: 'Ready', label: 'Готовые блюда', prefix: 'R', x: 0, y: 0 }
+  { key: 'Drink', label: 'Напитки', prefix: 'DR', x: 50, y: 100 }
 ];
 
 export const recipeCategoryMap = Object.fromEntries(
@@ -44,8 +43,7 @@ export const idLegend: Record<string, string> = {
   S: 'Salad · салат',
   SA: 'Sauce · соус',
   SN: 'Snack · перекус',
-  DR: 'Drink · напиток',
-  R: 'Ready · готовое блюдо'
+  DR: 'Drink · напиток'
 };
 
 export const productSpritePositions: Record<string, [number, number]> = {

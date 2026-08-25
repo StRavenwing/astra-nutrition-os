@@ -26,7 +26,7 @@ const monthInput = ref(currentMonthKey);
 const recipes = ref<RecipeSummary[]>([]);
 const products = ref<Product[]>([]);
 const menuStartDate = ref(localToday());
-const menuOptions = ref({ drink: false, snack: false, dessert: false });
+const menuOptions = ref({ drink: false, snack: false, dessert: false, useReady: false });
 const menuSaving = ref(false);
 const menuProgress = ref('');
 
@@ -174,7 +174,7 @@ function openMenuPicker(kind: 'day' | 'week') {
   error.value = '';
   menuStartDate.value = todayIso.value;
   month.value = currentMonthKey;
-  menuOptions.value = { drink: false, snack: false, dessert: false };
+  menuOptions.value = { drink: false, snack: false, dessert: false, useReady: false };
   calendarMode.value = kind === 'day' ? 'menu-day' : 'menu-week';
 }
 
@@ -195,6 +195,15 @@ function shiftIsoDate(iso: string, days: number) {
 
 function recipePool(category: string, source: RecipeSummary[]) {
   return source.filter((recipe) => recipe.category === category);
+}
+
+function mainMealRecipes(source: RecipeSummary[]) {
+  const supportingCategories = new Set(['Dessert', 'Garnish', 'Salad', 'Sauce', 'Snack', 'Drink']);
+  return source.filter((recipe) => !supportingCategories.has(recipe.category));
+}
+
+function menuRecipeSource() {
+  return menuOptions.value.useReady ? recipes.value : recipes.value.filter((recipe) => !recipe.is_ready);
 }
 
 type MenuItem = {
@@ -218,6 +227,7 @@ type MenuCandidate = {
   productCategory?: string;
   productAmount?: number;
   kind: MenuKind;
+  needsGarnish?: boolean;
 };
 type MenuState = {
   items: MenuItem[];
@@ -225,6 +235,7 @@ type MenuState = {
   usedProducts: Set<string>;
   mealCategoryAmounts: Map<string, number>;
   mealKinds: Map<string, Set<MenuKind>>;
+  mealsNeedingGarnish: Set<string>;
   mealComponentCounts: Map<string, number>;
   nutrition: MenuNutrition;
 };
@@ -267,6 +278,7 @@ function recipeCandidate(recipe: RecipeSummary, mealType: string, comment?: stri
     },
     recipeId: recipe.id,
     kind,
+    needsGarnish: kind === 'main' && Boolean(recipe.needs_garnish),
   };
 }
 
@@ -350,28 +362,38 @@ function menuScore(nutrition: MenuNutrition) {
     fat: 0.2,
     carbs: 0.2,
   };
-  return menuTargets().reduce((score, [key, target]) => score + weights[key] * Math.abs(nutrition[key] - target) / target, 0);
+  return menuTargets().reduce((score, [key, target]) => {
+    const deviation = key === 'fat' && nutrition[key] <= target
+      ? (target - nutrition[key]) / target * 0.35
+      : Math.abs(nutrition[key] - target) / target;
+    return score + weights[key] * deviation;
+  }, 0);
 }
 
 function menuFitsNorms(nutrition: MenuNutrition, tolerance = 0.05) {
-  return menuTargets().every(([key, target]) => Math.abs(nutrition[key] - target) / target <= tolerance);
+  return menuTargets().every(([key, target]) => key === 'fat'
+    ? nutrition[key] <= target * (1 + tolerance)
+    : Math.abs(nutrition[key] - target) / target <= tolerance);
 }
 
 function menuTolerance(nutrition: MenuNutrition) {
   const targets = menuTargets();
-  return targets.length ? Math.max(...targets.map(([key, target]) => Math.abs(nutrition[key] - target) / target)) : 0;
+  return targets.length ? Math.max(...targets.map(([key, target]) => key === 'fat'
+    ? Math.max(0, nutrition[key] - target) / target
+    : Math.abs(nutrition[key] - target) / target)) : 0;
 }
 
 function structurePenalty(state: MenuState) {
   let penalty = 0;
   const meals = [
-    { mealType: mealOrder[0], minimum: 2, companionKinds: new Set<MenuKind>(['protein', 'dairy']) },
+    { mealType: mealOrder[0], minimum: 2, companionKinds: new Set<MenuKind>(['protein', 'dairy', 'garnish']) },
     { mealType: mealOrder[1], minimum: 2, companionKinds: new Set<MenuKind>(['garnish', 'salad', 'vegetable']) },
     { mealType: mealOrder[2], minimum: 2, companionKinds: new Set<MenuKind>(['garnish', 'salad', 'vegetable']) },
   ];
   for (const meal of meals) {
     const count = state.mealComponentCounts.get(meal.mealType) || 0;
     const kinds = state.mealKinds.get(meal.mealType) || new Set<MenuKind>();
+    if (state.mealsNeedingGarnish.has(meal.mealType) && !kinds.has('garnish')) penalty += 8;
     if (count < meal.minimum) penalty += 2;
     if (![...meal.companionKinds].some((kind) => kinds.has(kind))) penalty += 2;
     if (count > 4) penalty += (count - 4) * 3;
@@ -383,12 +405,17 @@ function structurePenalty(state: MenuState) {
   return penalty;
 }
 
+function structureFits(state: MenuState) {
+  return [...state.mealsNeedingGarnish].every((mealType) => state.mealKinds.get(mealType)?.has('garnish'));
+}
+
 function menuSelectionScore(state: MenuState) {
   return menuScore(state.nutrition) + structurePenalty(state) * 4;
 }
 
 function firstFittingMenu(states: MenuState[]) {
   const fitting = states.filter((state) => {
+    if (!structureFits(state)) return false;
     for (let percentage = 5; percentage <= 10; percentage += 1) {
       if (menuFitsNorms(state.nutrition, percentage / 100)) return true;
     }
@@ -408,9 +435,16 @@ function candidateRecipes(role: MenuRole, globalUsed: Set<number>, state: MenuSt
     .filter((recipe) => !globalUsed.has(recipe.id) && !state.usedRecipes.has(recipe.id));
   if (pool.length > 1) {
     const offset = dayIndex % pool.length;
-    return [...pool.slice(offset), ...pool.slice(0, offset)].map((recipe) => recipeCandidate(recipe, role.mealType, undefined, 1, role.kind));
+    const rotated = [...pool.slice(offset), ...pool.slice(0, offset)];
+    return rotated.flatMap((recipe) => [
+      recipeCandidate(recipe, role.mealType, undefined, 1, role.kind),
+      recipeCandidate(recipe, role.mealType, 'Половина порции', 0.5, role.kind),
+    ]);
   }
-  return pool.map((recipe) => recipeCandidate(recipe, role.mealType, undefined, 1, role.kind));
+  return pool.flatMap((recipe) => [
+    recipeCandidate(recipe, role.mealType, undefined, 1, role.kind),
+    recipeCandidate(recipe, role.mealType, 'Половина порции', 0.5, role.kind),
+  ]);
 }
 
 function canUseCandidate(candidate: MenuCandidate, state: MenuState, globalUsed: Set<number>) {
@@ -442,9 +476,11 @@ function addCandidate(state: MenuState, candidate: MenuCandidate): MenuState {
   const usedProducts = new Set(state.usedProducts);
   const mealCategoryAmounts = new Map(state.mealCategoryAmounts);
   const mealKinds = new Map(state.mealKinds);
+  const mealsNeedingGarnish = new Set(state.mealsNeedingGarnish);
   const mealComponentCounts = new Map(state.mealComponentCounts);
   if (candidate.recipeId != null) usedRecipes.add(candidate.recipeId);
   if (candidate.productId != null) usedProducts.add(`${candidate.item.meal_type}|${candidate.productId}`);
+  if (candidate.needsGarnish) mealsNeedingGarnish.add(candidate.item.meal_type);
   if (candidate.productCategory && (candidate.productAmount || candidate.productCategory === 'Хлеб')) {
     const key = `${candidate.item.meal_type}|${candidate.productCategory}`;
     mealCategoryAmounts.set(key, (mealCategoryAmounts.get(key) || 0) + (candidate.productAmount || 1));
@@ -459,6 +495,7 @@ function addCandidate(state: MenuState, candidate: MenuCandidate): MenuState {
     usedProducts,
     mealCategoryAmounts,
     mealKinds,
+    mealsNeedingGarnish,
     mealComponentCounts,
     nutrition: addNutrition(state.nutrition, candidate.nutrition),
   };
@@ -471,7 +508,7 @@ function pushExtraRecipeCandidates(target: MenuCandidate[], recipe: RecipeSummar
 
 function extraCandidates(dayIndex: number, globalUsed: Set<number>, compact = false) {
   const candidates: MenuCandidate[] = [];
-  const availableRecipes = recipes.value.filter((recipe) => recipe.category !== 'Ready' && !globalUsed.has(recipe.id));
+  const availableRecipes = menuRecipeSource().filter((recipe) => !globalUsed.has(recipe.id));
   const optionalRoles = [
     { category: 'Drink', mealType: mealOrder[4], kind: 'drink' as MenuKind },
     { category: 'Snack', mealType: mealOrder[3], kind: 'snack' as MenuKind },
@@ -492,8 +529,9 @@ function extraCandidates(dayIndex: number, globalUsed: Set<number>, compact = fa
 
   const garnishRecipes = availableRecipes.filter((recipe) => recipe.category === 'Garnish').slice(0, compact ? 8 : 20);
   for (const recipe of garnishRecipes) {
-    pushExtraRecipeCandidates(candidates, recipe, mealOrder[1], 'Гарнир к обеду', 'garnish');
-    pushExtraRecipeCandidates(candidates, recipe, mealOrder[2], 'Гарнир к ужину', 'garnish');
+    for (const [index, mealType] of mealOrder.slice(0, 3).entries()) {
+      pushExtraRecipeCandidates(candidates, recipe, mealType, index === 0 ? 'Гарнир к завтраку' : index === 1 ? 'Гарнир к обеду' : 'Гарнир к ужину', 'garnish');
+    }
   }
 
   const noCookCategories = new Set(['Белковые', 'Молочные', 'Овощи', 'Фрукты', 'Ягоды', 'Напитки', 'Перекусы', 'Сыры', 'Хлеб']);
@@ -526,7 +564,7 @@ async function menuForDate(dayIndex: number, globalUsed: Set<number>, options: M
   const extraBeamLimit = options.extraBeamLimit ?? (compact ? 260 : 600);
   const extraSlots = options.extraSlots ?? (compact ? 6 : 10);
   const candidatesPerState = options.candidatesPerState ?? (compact ? 12 : 24);
-  const mainRecipes = recipes.value.filter((recipe) => recipe.category !== 'Ready');
+  const mainRecipes = mainMealRecipes(menuRecipeSource());
   if (mainRecipes.length < 3) throw new Error('Нужно минимум 3 блюда вне категории «Готовые блюда» для дневного меню.');
 
   const roles: MenuRole[] = [
@@ -534,12 +572,12 @@ async function menuForDate(dayIndex: number, globalUsed: Set<number>, options: M
     { mealType: mealOrder[1], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes, kind: 'main' },
     { mealType: mealOrder[2], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes, kind: 'main' },
   ];
-  const optionalRecipes = recipes.value.filter((recipe) => recipe.category !== 'Ready');
+  const optionalRecipes = menuRecipeSource();
   if (menuOptions.value.drink) roles.push({ mealType: mealOrder[4], preferred: recipePool('Drink', optionalRecipes), fallback: optionalRecipes, kind: 'drink' });
   if (menuOptions.value.snack) roles.push({ mealType: mealOrder[3], preferred: recipePool('Snack', optionalRecipes), fallback: optionalRecipes, kind: 'snack' });
   if (menuOptions.value.dessert) roles.push({ mealType: mealOrder[5], preferred: recipePool('Dessert', optionalRecipes), fallback: optionalRecipes, kind: 'dessert' });
 
-  let beam: MenuState[] = [{ items: [], usedRecipes: new Set(), usedProducts: new Set<string>(), mealCategoryAmounts: new Map(), mealKinds: new Map(), mealComponentCounts: new Map(), nutrition: { kcal: 0, protein: 0, fat: 0, carbs: 0 } }];
+  let beam: MenuState[] = [{ items: [], usedRecipes: new Set(), usedProducts: new Set<string>(), mealCategoryAmounts: new Map(), mealKinds: new Map(), mealsNeedingGarnish: new Set(), mealComponentCounts: new Map(), nutrition: { kcal: 0, protein: 0, fat: 0, carbs: 0 } }];
   for (const role of roles) {
     const expanded: MenuState[] = [];
     for (const state of beam) {
@@ -815,6 +853,7 @@ function editEntry(id: number) {
       </div>
       <div class="diary-menu-options">
         <b>Дополнительно</b>
+        <label><input v-model="menuOptions.useReady" type="checkbox"> Использовать готовые блюда</label>
         <label><input v-model="menuOptions.drink" type="checkbox"> Напиток</label>
         <label><input v-model="menuOptions.snack" type="checkbox"> Перекус</label>
         <label><input v-model="menuOptions.dessert" type="checkbox"> Десерт</label>

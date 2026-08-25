@@ -71,16 +71,22 @@ def _write_recipe_ingredients(recipe: Recipe, ingredients: list[dict]) -> None:
 
 def create_recipe(data: dict, owner: User | None = None) -> dict:
     with current_database().atomic():
-        prefix = _recipe_prefix(data["category"])
+        category = data["category"]
+        legacy_ready = category == "Ready"
+        if legacy_ready:
+            category = "Main"
+        prefix = "R" if legacy_ready else _recipe_prefix(category)
         recipe = Recipe.create(
             code=next_code(prefix),
             name=data["name"],
-            category=data["category"],
+            category=category,
             subcategory=data.get("subcategory"),
             version=data.get("version", "1.0"),
             status=data.get("status", "Draft"),
             servings=number(data.get("servings"), 1) or 1,
             tags=data.get("tags"),
+            is_ready=bool(data.get("is_ready", False)) or legacy_ready,
+            needs_garnish=bool(data.get("needs_garnish", False)),
             manual_price_per_serving_rsd=number(data.get("manual_price_per_serving_rsd")),
             manual_kcal_per_serving=number(data.get("manual_kcal_per_serving")),
             manual_protein_per_serving_g=number(data.get("manual_protein_per_serving_g")),
@@ -101,6 +107,9 @@ def update_recipe(recipe_id: int, data: dict, current_user: User) -> dict:
         if recipe.owner_id is None and not current_user.is_admin:
             raise ForbiddenError("Общие рецепты может редактировать только администратор")
         new_category = data.get("category", recipe.category)
+        legacy_ready = new_category == "Ready"
+        if legacy_ready:
+            new_category = "Main"
         if new_category != recipe.category:
             recipe.code = next_code(_recipe_prefix(new_category))
             recipe.category = new_category
@@ -114,6 +123,8 @@ def update_recipe(recipe_id: int, data: dict, current_user: User) -> dict:
         recipe.status = data.get("status", "Draft")
         recipe.servings = number(data.get("servings"), 1) or 1
         recipe.tags = data.get("tags")
+        recipe.is_ready = bool(data.get("is_ready", False)) or legacy_ready
+        recipe.needs_garnish = bool(data.get("needs_garnish", False))
         recipe.manual_price_per_serving_rsd = number(data.get("manual_price_per_serving_rsd"))
         recipe.manual_kcal_per_serving = number(data.get("manual_kcal_per_serving"))
         recipe.manual_protein_per_serving_g = number(data.get("manual_protein_per_serving_g"))
