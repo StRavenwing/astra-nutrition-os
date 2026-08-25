@@ -207,7 +207,8 @@ type MenuItem = {
   comment?: string;
 };
 type MenuNutrition = { kcal: number; protein: number; fat: number; carbs: number };
-type MenuRole = { mealType: string; preferred: RecipeSummary[]; fallback: RecipeSummary[] };
+type MenuKind = 'main' | 'garnish' | 'salad' | 'protein' | 'vegetable' | 'fruit' | 'dairy' | 'cheese' | 'bread' | 'drink' | 'snack' | 'dessert' | 'other';
+type MenuRole = { mealType: string; preferred: RecipeSummary[]; fallback: RecipeSummary[]; kind: MenuKind };
 type MenuCandidate = {
   item: MenuItem;
   nutrition: MenuNutrition;
@@ -215,12 +216,15 @@ type MenuCandidate = {
   productId?: number;
   productCategory?: string;
   productAmount?: number;
+  kind: MenuKind;
 };
 type MenuState = {
   items: MenuItem[];
   usedRecipes: Set<number>;
-  usedProducts: Set<number>;
+  usedProducts: Set<string>;
   mealCategoryAmounts: Map<string, number>;
+  mealKinds: Map<string, Set<MenuKind>>;
+  mealComponentCounts: Map<string, number>;
   nutrition: MenuNutrition;
 };
 
@@ -242,7 +246,7 @@ function addNutrition(left: MenuNutrition, right: MenuNutrition): MenuNutrition 
   };
 }
 
-function recipeCandidate(recipe: RecipeSummary, mealType: string, comment?: string, servings = 1): MenuCandidate {
+function recipeCandidate(recipe: RecipeSummary, mealType: string, comment?: string, servings = 1, kind: MenuKind = 'main'): MenuCandidate {
   const nutrition = recipeNutrition(recipe);
   return {
     item: { meal_type: mealType, recipe_id: recipe.id, servings, ...(comment ? { comment } : {}) },
@@ -253,6 +257,7 @@ function recipeCandidate(recipe: RecipeSummary, mealType: string, comment?: stri
       carbs: nutrition.carbs * servings,
     },
     recipeId: recipe.id,
+    kind,
   };
 }
 
@@ -277,12 +282,26 @@ function productCategoryLimit(category: string | undefined) {
   return null;
 }
 
+function productKind(category: string): MenuKind {
+  if (category === 'Белковые') return 'protein';
+  if (category === 'Овощи') return 'vegetable';
+  if (category === 'Фрукты' || category === 'Ягоды') return 'fruit';
+  if (category === 'Молочные') return 'dairy';
+  if (category === 'Сыры') return 'cheese';
+  if (category === 'Хлеб') return 'bread';
+  if (category === 'Напитки') return 'drink';
+  if (category === 'Перекусы') return 'snack';
+  return 'other';
+}
+
 function productQuantities(product: Product, category: string) {
   if (!product.unit) return [];
   if (product.unit === 'шт' || product.unit === 'бут.') return [1, 2];
   const limit = productCategoryLimit(category);
-  if (limit === 70) return [30, 50, 70];
-  if (limit === 100) return [50, 100];
+  if (limit === 70) return [20, 30, 50, 70];
+  if (category === 'Овощи' || category === 'Фрукты') return [80, 100];
+  if (category === 'Хлеб') return [30, 50, 80, 100];
+  if (category === 'Молочные') return [100, 150, 200, 250];
   return [50, 100, 150, 200];
 }
 
@@ -301,6 +320,7 @@ function productCandidate(product: Product, category: string, mealType: string, 
     productId: product.id,
     productCategory: category,
     productAmount: product.unit === 'г' ? quantity : 0,
+    kind: productKind(category),
   };
 }
 
@@ -315,19 +335,63 @@ function menuTargets() {
 }
 
 function menuScore(nutrition: MenuNutrition) {
-  return menuTargets().reduce((score, [key, target]) => score + Math.abs(nutrition[key] - target) / target, 0);
+  const weights: Record<keyof MenuNutrition, number> = {
+    kcal: 0.35,
+    protein: 0.25,
+    fat: 0.2,
+    carbs: 0.2,
+  };
+  return menuTargets().reduce((score, [key, target]) => score + weights[key] * Math.abs(nutrition[key] - target) / target, 0);
 }
 
 function menuFitsNorms(nutrition: MenuNutrition, tolerance = 0.05) {
   return menuTargets().every(([key, target]) => Math.abs(nutrition[key] - target) / target <= tolerance);
 }
 
-function firstFittingMenu(states: MenuState[]) {
-  for (let percentage = 5; percentage <= 10; percentage += 1) {
-    const fitting = states.filter((state) => menuFitsNorms(state.nutrition, percentage / 100));
-    if (fitting.length) return fitting[0];
+function menuTolerance(nutrition: MenuNutrition) {
+  const targets = menuTargets();
+  return targets.length ? Math.max(...targets.map(([key, target]) => Math.abs(nutrition[key] - target) / target)) : 0;
+}
+
+function structurePenalty(state: MenuState) {
+  let penalty = 0;
+  const meals = [
+    { mealType: mealOrder[0], minimum: 2, companionKinds: new Set<MenuKind>(['protein', 'dairy']) },
+    { mealType: mealOrder[1], minimum: 2, companionKinds: new Set<MenuKind>(['garnish', 'salad', 'vegetable']) },
+    { mealType: mealOrder[2], minimum: 2, companionKinds: new Set<MenuKind>(['garnish', 'salad', 'vegetable']) },
+  ];
+  for (const meal of meals) {
+    const count = state.mealComponentCounts.get(meal.mealType) || 0;
+    const kinds = state.mealKinds.get(meal.mealType) || new Set<MenuKind>();
+    if (count < meal.minimum) penalty += 2;
+    if (![...meal.companionKinds].some((kind) => kinds.has(kind))) penalty += 2;
+    if (count > 4) penalty += (count - 4) * 3;
   }
-  return null;
+  for (const mealType of [mealOrder[3], mealOrder[4], mealOrder[5]]) {
+    const count = state.mealComponentCounts.get(mealType) || 0;
+    if (count > 3) penalty += (count - 3) * 3;
+  }
+  return penalty;
+}
+
+function menuSelectionScore(state: MenuState) {
+  return menuScore(state.nutrition) + structurePenalty(state) * 4;
+}
+
+function firstFittingMenu(states: MenuState[]) {
+  const fitting = states.filter((state) => {
+    for (let percentage = 5; percentage <= 10; percentage += 1) {
+      if (menuFitsNorms(state.nutrition, percentage / 100)) return true;
+    }
+    return false;
+  });
+  fitting.sort((left, right) => {
+    const structureDelta = structurePenalty(left) - structurePenalty(right);
+    if (structureDelta) return structureDelta;
+    const toleranceDelta = menuTolerance(left.nutrition) - menuTolerance(right.nutrition);
+    return toleranceDelta || menuScore(left.nutrition) - menuScore(right.nutrition);
+  });
+  return fitting[0] || null;
 }
 
 function candidateRecipes(role: MenuRole, globalUsed: Set<number>, state: MenuState, dayIndex: number) {
@@ -335,14 +399,21 @@ function candidateRecipes(role: MenuRole, globalUsed: Set<number>, state: MenuSt
     .filter((recipe) => !globalUsed.has(recipe.id) && !state.usedRecipes.has(recipe.id));
   if (pool.length > 1) {
     const offset = dayIndex % pool.length;
-    return [...pool.slice(offset), ...pool.slice(0, offset)].map((recipe) => recipeCandidate(recipe, role.mealType));
+    return [...pool.slice(offset), ...pool.slice(0, offset)].map((recipe) => recipeCandidate(recipe, role.mealType, undefined, 1, role.kind));
   }
-  return pool.map((recipe) => recipeCandidate(recipe, role.mealType));
+  return pool.map((recipe) => recipeCandidate(recipe, role.mealType, undefined, 1, role.kind));
 }
 
 function canUseCandidate(candidate: MenuCandidate, state: MenuState, globalUsed: Set<number>) {
   if (candidate.recipeId != null && (globalUsed.has(candidate.recipeId) || state.usedRecipes.has(candidate.recipeId))) return false;
-  if (candidate.productId != null && state.usedProducts.has(candidate.productId)) return false;
+  const mealType = candidate.item.meal_type;
+  if (candidate.productId != null && state.usedProducts.has(`${mealType}|${candidate.productId}`)) return false;
+  const componentCount = state.mealComponentCounts.get(mealType) || 0;
+  const componentLimit = mealOrder.slice(0, 3).includes(mealType) ? 4 : 3;
+  const kinds = state.mealKinds.get(mealType) || new Set<MenuKind>();
+  if (componentCount >= componentLimit) return false;
+  if (candidate.kind === 'main' && kinds.has('main')) return false;
+  if ((candidate.kind === 'garnish' || candidate.kind === 'salad') && kinds.has(candidate.kind)) return false;
   if (candidate.productCategory === 'Хлеб') {
     const key = `${candidate.item.meal_type}|${candidate.productCategory}`;
     const usedAmount = state.mealCategoryAmounts.get(key) || 0;
@@ -361,54 +432,62 @@ function addCandidate(state: MenuState, candidate: MenuCandidate): MenuState {
   const usedRecipes = new Set(state.usedRecipes);
   const usedProducts = new Set(state.usedProducts);
   const mealCategoryAmounts = new Map(state.mealCategoryAmounts);
+  const mealKinds = new Map(state.mealKinds);
+  const mealComponentCounts = new Map(state.mealComponentCounts);
   if (candidate.recipeId != null) usedRecipes.add(candidate.recipeId);
-  if (candidate.productId != null) usedProducts.add(candidate.productId);
+  if (candidate.productId != null) usedProducts.add(`${candidate.item.meal_type}|${candidate.productId}`);
   if (candidate.productCategory && (candidate.productAmount || candidate.productCategory === 'Хлеб')) {
     const key = `${candidate.item.meal_type}|${candidate.productCategory}`;
     mealCategoryAmounts.set(key, (mealCategoryAmounts.get(key) || 0) + (candidate.productAmount || 1));
   }
+  const kinds = new Set(mealKinds.get(candidate.item.meal_type) || []);
+  kinds.add(candidate.kind);
+  mealKinds.set(candidate.item.meal_type, kinds);
+  mealComponentCounts.set(candidate.item.meal_type, (mealComponentCounts.get(candidate.item.meal_type) || 0) + 1);
   return {
     items: [...state.items, candidate.item],
     usedRecipes,
     usedProducts,
     mealCategoryAmounts,
+    mealKinds,
+    mealComponentCounts,
     nutrition: addNutrition(state.nutrition, candidate.nutrition),
   };
 }
 
-function pushExtraRecipeCandidates(target: MenuCandidate[], recipe: RecipeSummary, mealType: string, comment: string) {
-  target.push(recipeCandidate(recipe, mealType, comment, 0.5));
-  target.push(recipeCandidate(recipe, mealType, comment, 1));
+function pushExtraRecipeCandidates(target: MenuCandidate[], recipe: RecipeSummary, mealType: string, comment: string, kind: MenuKind) {
+  target.push(recipeCandidate(recipe, mealType, comment, 0.5, kind));
+  target.push(recipeCandidate(recipe, mealType, comment, 1, kind));
 }
 
 function extraCandidates(dayIndex: number, globalUsed: Set<number>) {
   const candidates: MenuCandidate[] = [];
   const availableRecipes = recipes.value.filter((recipe) => recipe.category !== 'Ready' && !globalUsed.has(recipe.id));
   const optionalRoles = [
-    { category: 'Drink', mealType: mealOrder[4] },
-    { category: 'Snack', mealType: mealOrder[3] },
-    { category: 'Dessert', mealType: mealOrder[5] },
+    { category: 'Drink', mealType: mealOrder[4], kind: 'drink' as MenuKind },
+    { category: 'Snack', mealType: mealOrder[3], kind: 'snack' as MenuKind },
+    { category: 'Dessert', mealType: mealOrder[5], kind: 'dessert' as MenuKind },
   ];
 
   for (const role of optionalRoles) {
     const preferred = availableRecipes.filter((recipe) => recipe.category === role.category);
     const fallback = availableRecipes.filter((recipe) => recipe.category !== role.category);
-    [...preferred, ...fallback].slice(0, 24).forEach((recipe) => pushExtraRecipeCandidates(candidates, recipe, role.mealType, 'Дополнение для добора нормы'));
+    [...preferred, ...fallback].slice(0, 24).forEach((recipe) => pushExtraRecipeCandidates(candidates, recipe, role.mealType, 'Дополнение для добора нормы', role.kind));
   }
 
   const saladRecipes = availableRecipes.filter((recipe) => recipe.category === 'Salad').slice(0, 20);
   for (const recipe of saladRecipes) {
-    pushExtraRecipeCandidates(candidates, recipe, mealOrder[1], 'Дополнение к обеду');
-    pushExtraRecipeCandidates(candidates, recipe, mealOrder[2], 'Дополнение к ужину');
+    pushExtraRecipeCandidates(candidates, recipe, mealOrder[1], 'Дополнение к обеду', 'salad');
+    pushExtraRecipeCandidates(candidates, recipe, mealOrder[2], 'Дополнение к ужину', 'salad');
   }
 
   const garnishRecipes = availableRecipes.filter((recipe) => recipe.category === 'Garnish').slice(0, 20);
   for (const recipe of garnishRecipes) {
-    pushExtraRecipeCandidates(candidates, recipe, mealOrder[1], 'Гарнир к обеду');
-    pushExtraRecipeCandidates(candidates, recipe, mealOrder[2], 'Гарнир к ужину');
+    pushExtraRecipeCandidates(candidates, recipe, mealOrder[1], 'Гарнир к обеду', 'garnish');
+    pushExtraRecipeCandidates(candidates, recipe, mealOrder[2], 'Гарнир к ужину', 'garnish');
   }
 
-  const noCookCategories = new Set(['Белковые', 'Овощи', 'Фрукты', 'Ягоды', 'Напитки', 'Перекусы', 'Сыры', 'Хлеб']);
+  const noCookCategories = new Set(['Белковые', 'Молочные', 'Овощи', 'Фрукты', 'Ягоды', 'Напитки', 'Перекусы', 'Сыры', 'Хлеб']);
   for (const category of noCookCategories) {
     const categoryProducts = products.value
       .filter((product) => product.category === category && product.unit && !/лук|чеснок/i.test(product.name))
@@ -436,28 +515,27 @@ function menuForDate(dayIndex: number, globalUsed: Set<number>) {
   if (mainRecipes.length < 3) throw new Error('Нужно минимум 3 блюда вне категории «Готовые блюда» для дневного меню.');
 
   const roles: MenuRole[] = [
-    { mealType: mealOrder[0], preferred: recipePool('Breakfast', mainRecipes), fallback: mainRecipes },
-    { mealType: mealOrder[1], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes },
-    { mealType: mealOrder[2], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes },
+    { mealType: mealOrder[0], preferred: recipePool('Breakfast', mainRecipes), fallback: mainRecipes, kind: 'main' },
+    { mealType: mealOrder[1], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes, kind: 'main' },
+    { mealType: mealOrder[2], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes, kind: 'main' },
   ];
   const optionalRecipes = recipes.value.filter((recipe) => recipe.category !== 'Ready');
-  if (menuOptions.value.drink) roles.push({ mealType: mealOrder[4], preferred: recipePool('Drink', optionalRecipes), fallback: optionalRecipes });
-  if (menuOptions.value.snack) roles.push({ mealType: mealOrder[3], preferred: recipePool('Snack', optionalRecipes), fallback: optionalRecipes });
-  if (menuOptions.value.dessert) roles.push({ mealType: mealOrder[5], preferred: recipePool('Dessert', optionalRecipes), fallback: optionalRecipes });
+  if (menuOptions.value.drink) roles.push({ mealType: mealOrder[4], preferred: recipePool('Drink', optionalRecipes), fallback: optionalRecipes, kind: 'drink' });
+  if (menuOptions.value.snack) roles.push({ mealType: mealOrder[3], preferred: recipePool('Snack', optionalRecipes), fallback: optionalRecipes, kind: 'snack' });
+  if (menuOptions.value.dessert) roles.push({ mealType: mealOrder[5], preferred: recipePool('Dessert', optionalRecipes), fallback: optionalRecipes, kind: 'dessert' });
 
-  let beam: MenuState[] = [{ items: [], usedRecipes: new Set(), usedProducts: new Set(), mealCategoryAmounts: new Map(), nutrition: { kcal: 0, protein: 0, fat: 0, carbs: 0 } }];
+  let beam: MenuState[] = [{ items: [], usedRecipes: new Set(), usedProducts: new Set<string>(), mealCategoryAmounts: new Map(), mealKinds: new Map(), mealComponentCounts: new Map(), nutrition: { kcal: 0, protein: 0, fat: 0, carbs: 0 } }];
   for (const role of roles) {
     const expanded: MenuState[] = [];
     for (const state of beam) {
       for (const candidate of candidateRecipes(role, globalUsed, state, dayIndex)) expanded.push(addCandidate(state, candidate));
     }
     if (!expanded.length) throw new Error('Недостаточно уникальных блюд для выбранного периода.');
-    expanded.sort((left, right) => menuScore(left.nutrition) - menuScore(right.nutrition));
+    expanded.sort((left, right) => menuSelectionScore(left) - menuSelectionScore(right));
     beam = expanded.slice(0, 600);
   }
 
-  const fitting = firstFittingMenu(beam);
-  if (fitting) return fitting.items;
+  const baseFitting = firstFittingMenu(beam);
 
   let extraBeam = beam.slice(0, 240);
   const extras = extraCandidates(dayIndex, globalUsed);
@@ -466,16 +544,17 @@ function menuForDate(dayIndex: number, globalUsed: Set<number>) {
     for (const state of extraBeam) {
       const nextCandidates = extras
         .filter((candidate) => canUseCandidate(candidate, state, globalUsed))
-        .sort((left, right) => menuScore(addCandidate(state, left).nutrition) - menuScore(addCandidate(state, right).nutrition))
+        .sort((left, right) => menuSelectionScore(addCandidate(state, left)) - menuSelectionScore(addCandidate(state, right)))
         .slice(0, 24);
       for (const candidate of nextCandidates) expanded.push(addCandidate(state, candidate));
     }
-    expanded.sort((left, right) => menuScore(left.nutrition) - menuScore(right.nutrition));
+    expanded.sort((left, right) => menuSelectionScore(left) - menuSelectionScore(right));
     extraBeam = expanded.slice(0, 600);
     const extraFitting = firstFittingMenu(extraBeam);
     if (extraFitting) return extraFitting.items;
   }
 
+  if (baseFitting) return baseFitting.items;
   throw new Error('Не удалось собрать меню в пределах ±10% от заданных норм.');
 }
 
