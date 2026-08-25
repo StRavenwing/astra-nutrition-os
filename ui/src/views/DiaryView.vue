@@ -198,8 +198,38 @@ function recipePool(category: string, source: RecipeSummary[]) {
 }
 
 function mainMealRecipes(source: RecipeSummary[]) {
-  const supportingCategories = new Set(['Dessert', 'Garnish', 'Salad', 'Sauce', 'Snack', 'Drink']);
-  return source.filter((recipe) => !supportingCategories.has(recipe.category));
+  return source.filter(isMainMealRecipe);
+}
+
+function recipeCategoryKey(recipe: RecipeSummary) {
+  return recipe.category.trim().toLowerCase();
+}
+
+function recipeKcal(recipe: RecipeSummary) {
+  return Number(recipe.kcal_per_serving) || 0;
+}
+
+function isBakingRecipe(recipe: RecipeSummary) {
+  const category = recipeCategoryKey(recipe);
+  return category === 'bakery' || category === 'baking' || category.includes('выпеч');
+}
+
+function isHighCalorieSalad(recipe: RecipeSummary) {
+  const category = recipeCategoryKey(recipe);
+  return (category === 'salad' || category.includes('салат')) && recipeKcal(recipe) > 200;
+}
+
+function isMainMealRecipe(recipe: RecipeSummary) {
+  const category = recipeCategoryKey(recipe);
+  if (category === 'breakfast' || category === 'main' || category === 'wrap' || category === 'врап') return true;
+  if (isHighCalorieSalad(recipe)) return true;
+  if (isBakingRecipe(recipe)) return recipeKcal(recipe) > 450;
+  const supportingCategories = new Set(['dessert', 'garnish', 'salad', 'sauce', 'snack', 'drink', 'bakery', 'baking', 'выпечка']);
+  return !supportingCategories.has(category);
+}
+
+function recipeAllowsBread(recipe: RecipeSummary) {
+  return isHighCalorieSalad(recipe);
 }
 
 function menuRecipeSource() {
@@ -228,6 +258,7 @@ type MenuCandidate = {
   productAmount?: number;
   kind: MenuKind;
   needsGarnish?: boolean;
+  allowsBread?: boolean;
 };
 type MenuState = {
   items: MenuItem[];
@@ -236,6 +267,7 @@ type MenuState = {
   mealCategoryAmounts: Map<string, number>;
   mealKinds: Map<string, Set<MenuKind>>;
   mealsNeedingGarnish: Set<string>;
+  mealsAllowingBread: Set<string>;
   mealComponentCounts: Map<string, number>;
   nutrition: MenuNutrition;
 };
@@ -279,6 +311,7 @@ function recipeCandidate(recipe: RecipeSummary, mealType: string, comment?: stri
     recipeId: recipe.id,
     kind,
     needsGarnish: kind === 'main' && Boolean(recipe.needs_garnish),
+    allowsBread: kind === 'main' && recipeAllowsBread(recipe),
   };
 }
 
@@ -386,16 +419,19 @@ function menuTolerance(nutrition: MenuNutrition) {
 function structurePenalty(state: MenuState) {
   let penalty = 0;
   const meals = [
-    { mealType: mealOrder[0], minimum: 2, companionKinds: new Set<MenuKind>(['protein', 'dairy', 'garnish']) },
-    { mealType: mealOrder[1], minimum: 2, companionKinds: new Set<MenuKind>(['garnish', 'salad', 'vegetable']) },
-    { mealType: mealOrder[2], minimum: 2, companionKinds: new Set<MenuKind>(['garnish', 'salad', 'vegetable']) },
+    { mealType: mealOrder[0], minimum: 1, companionKinds: new Set<MenuKind>(['protein', 'dairy', 'garnish']) },
+    { mealType: mealOrder[1], minimum: 1, companionKinds: new Set<MenuKind>(['garnish', 'salad', 'vegetable']) },
+    { mealType: mealOrder[2], minimum: 1, companionKinds: new Set<MenuKind>(['garnish', 'salad', 'vegetable']) },
   ];
   for (const meal of meals) {
     const count = state.mealComponentCounts.get(meal.mealType) || 0;
     const kinds = state.mealKinds.get(meal.mealType) || new Set<MenuKind>();
-    if (state.mealsNeedingGarnish.has(meal.mealType) && !kinds.has('garnish')) penalty += 8;
+    const breadCanReplaceGarnish = state.mealsAllowingBread.has(meal.mealType) && kinds.has('bread');
+    const needsGarnish = state.mealsNeedingGarnish.has(meal.mealType);
+    if (needsGarnish && !kinds.has('garnish') && !breadCanReplaceGarnish) penalty += 8;
     if (count < meal.minimum) penalty += 2;
-    if (![...meal.companionKinds].some((kind) => kinds.has(kind))) penalty += 2;
+    if (state.mealsAllowingBread.has(meal.mealType)) meal.companionKinds.add('bread');
+    if (needsGarnish && ![...meal.companionKinds].some((kind) => kinds.has(kind))) penalty += 2;
     if (count > 4) penalty += (count - 4) * 3;
   }
   for (const mealType of [mealOrder[3], mealOrder[4], mealOrder[5]]) {
@@ -406,7 +442,10 @@ function structurePenalty(state: MenuState) {
 }
 
 function structureFits(state: MenuState) {
-  return [...state.mealsNeedingGarnish].every((mealType) => state.mealKinds.get(mealType)?.has('garnish'));
+  return [...state.mealsNeedingGarnish].every((mealType) => {
+    const kinds = state.mealKinds.get(mealType) || new Set<MenuKind>();
+    return kinds.has('garnish') || (state.mealsAllowingBread.has(mealType) && kinds.has('bread'));
+  });
 }
 
 function menuSelectionScore(state: MenuState) {
@@ -455,6 +494,7 @@ function canUseCandidate(candidate: MenuCandidate, state: MenuState, globalUsed:
   const componentLimit = mealOrder.slice(0, 3).includes(mealType) ? 4 : 3;
   const kinds = state.mealKinds.get(mealType) || new Set<MenuKind>();
   if (componentCount >= componentLimit) return false;
+  if (candidate.kind === 'garnish' && !state.mealsNeedingGarnish.has(mealType)) return false;
   if (candidate.kind === 'main' && kinds.has('main')) return false;
   if ((candidate.kind === 'garnish' || candidate.kind === 'salad') && kinds.has(candidate.kind)) return false;
   if (candidate.productCategory === 'Хлеб') {
@@ -477,10 +517,12 @@ function addCandidate(state: MenuState, candidate: MenuCandidate): MenuState {
   const mealCategoryAmounts = new Map(state.mealCategoryAmounts);
   const mealKinds = new Map(state.mealKinds);
   const mealsNeedingGarnish = new Set(state.mealsNeedingGarnish);
+  const mealsAllowingBread = new Set(state.mealsAllowingBread);
   const mealComponentCounts = new Map(state.mealComponentCounts);
   if (candidate.recipeId != null) usedRecipes.add(candidate.recipeId);
   if (candidate.productId != null) usedProducts.add(`${candidate.item.meal_type}|${candidate.productId}`);
   if (candidate.needsGarnish) mealsNeedingGarnish.add(candidate.item.meal_type);
+  if (candidate.allowsBread) mealsAllowingBread.add(candidate.item.meal_type);
   if (candidate.productCategory && (candidate.productAmount || candidate.productCategory === 'Хлеб')) {
     const key = `${candidate.item.meal_type}|${candidate.productCategory}`;
     mealCategoryAmounts.set(key, (mealCategoryAmounts.get(key) || 0) + (candidate.productAmount || 1));
@@ -496,6 +538,7 @@ function addCandidate(state: MenuState, candidate: MenuCandidate): MenuState {
     mealCategoryAmounts,
     mealKinds,
     mealsNeedingGarnish,
+    mealsAllowingBread,
     mealComponentCounts,
     nutrition: addNutrition(state.nutrition, candidate.nutrition),
   };
@@ -521,7 +564,10 @@ function extraCandidates(dayIndex: number, globalUsed: Set<number>, compact = fa
     [...preferred, ...fallback].slice(0, compact ? 12 : 24).forEach((recipe) => pushExtraRecipeCandidates(candidates, recipe, role.mealType, 'Дополнение для добора нормы', role.kind));
   }
 
-  const saladRecipes = availableRecipes.filter((recipe) => recipe.category === 'Salad').slice(0, compact ? 8 : 20);
+  const saladRecipes = availableRecipes.filter((recipe) => {
+    const category = recipeCategoryKey(recipe);
+    return (category === 'salad' || category.includes('салат')) && !isMainMealRecipe(recipe);
+  }).slice(0, compact ? 8 : 20);
   for (const recipe of saladRecipes) {
     pushExtraRecipeCandidates(candidates, recipe, mealOrder[1], 'Дополнение к обеду', 'salad');
     pushExtraRecipeCandidates(candidates, recipe, mealOrder[2], 'Дополнение к ужину', 'salad');
@@ -577,7 +623,7 @@ async function menuForDate(dayIndex: number, globalUsed: Set<number>, options: M
   if (menuOptions.value.snack) roles.push({ mealType: mealOrder[3], preferred: recipePool('Snack', optionalRecipes), fallback: optionalRecipes, kind: 'snack' });
   if (menuOptions.value.dessert) roles.push({ mealType: mealOrder[5], preferred: recipePool('Dessert', optionalRecipes), fallback: optionalRecipes, kind: 'dessert' });
 
-  let beam: MenuState[] = [{ items: [], usedRecipes: new Set(), usedProducts: new Set<string>(), mealCategoryAmounts: new Map(), mealKinds: new Map(), mealsNeedingGarnish: new Set(), mealComponentCounts: new Map(), nutrition: { kcal: 0, protein: 0, fat: 0, carbs: 0 } }];
+  let beam: MenuState[] = [{ items: [], usedRecipes: new Set(), usedProducts: new Set<string>(), mealCategoryAmounts: new Map(), mealKinds: new Map(), mealsNeedingGarnish: new Set(), mealsAllowingBread: new Set(), mealComponentCounts: new Map(), nutrition: { kcal: 0, protein: 0, fat: 0, carbs: 0 } }];
   for (const role of roles) {
     const expanded: MenuState[] = [];
     for (const state of beam) {
@@ -589,6 +635,7 @@ async function menuForDate(dayIndex: number, globalUsed: Set<number>, options: M
   }
 
   const baseFitting = firstFittingMenu(beam);
+  if (baseFitting) return baseFitting.items;
 
   let extraBeam = beam.slice(0, extraSeedLimit);
   const extras = extraCandidates(dayIndex, globalUsed, compact);
@@ -612,7 +659,6 @@ async function menuForDate(dayIndex: number, globalUsed: Set<number>, options: M
     if (extraFitting) return extraFitting.items;
   }
 
-  if (baseFitting) return baseFitting.items;
   throw new Error('Не удалось собрать меню в пределах ±10% от заданных норм.');
 }
 
