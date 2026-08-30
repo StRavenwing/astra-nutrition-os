@@ -17,6 +17,7 @@ const props = defineProps<{
   repeatPlan?: WorkoutPlan | null;
   editPlan?: WorkoutPlan | null;
   complex?: WorkoutComplex | null;
+  targetUserId?: number;
 }>();
 
 const emit = defineEmits<{
@@ -140,6 +141,7 @@ async function save() {
       }))
     };
     if (props.editPlan) await api.updateWorkoutPlan(props.editPlan.id, payload);
+    else if (props.targetUserId) await api.scheduleClientWorkout(props.targetUserId, payload);
     else await api.post('workout-plans', payload);
     emit('saved');
   } catch (err) {

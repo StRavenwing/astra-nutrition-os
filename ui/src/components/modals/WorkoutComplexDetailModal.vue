@@ -5,7 +5,7 @@ import ModalDialog from '@/components/shared/ModalDialog.vue';
 const props = defineProps<{
   open: boolean;
   complex: WorkoutComplex | null;
-  isAdmin: boolean;
+  canManage: boolean;
   readOnly?: boolean;
 }>();
 
@@ -63,7 +63,7 @@ function itemMetric(item: WorkoutPlanItem) {
 
       <div class="actions">
         <button type="button" @click="emit('close')">Закрыть</button>
-        <button v-if="props.isAdmin && !props.readOnly" type="button" class="primary" @click="emit('edit', complex)">Редактировать</button>
+        <button v-if="props.canManage && !props.readOnly" type="button" class="primary" @click="emit('edit', complex)">Редактировать</button>
       </div>
     </div>
   </ModalDialog>

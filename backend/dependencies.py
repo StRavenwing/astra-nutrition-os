@@ -37,3 +37,9 @@ def require_admin(current_user: User = Depends(get_current_user)) -> User:
     if not current_user.is_admin:
         raise ForbiddenError("Только admin может изменять общие справочники")
     return current_user
+
+
+def require_trainer(current_user: User = Depends(get_current_user)) -> User:
+    if not (current_user.is_admin or current_user.is_trainer):
+        raise ForbiddenError("Раздел доступен только тренерам и администраторам")
+    return current_user

@@ -52,6 +52,16 @@ def _columns(connection: sqlite3.Connection, table: str) -> set[str]:
     return {row[1] for row in connection.execute(f"PRAGMA table_info({table})")}
 
 
+def _ensure_user_columns(connection: sqlite3.Connection) -> None:
+    columns = _columns(connection, "users")
+    if not columns:
+        return
+    if "display_name" not in columns:
+        connection.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
+    if "is_trainer" not in columns:
+        connection.execute("ALTER TABLE users ADD COLUMN is_trainer INTEGER NOT NULL DEFAULT 0")
+
+
 def _ensure_exercise_columns(connection: sqlite3.Connection) -> None:
     columns = _columns(connection, "exercises")
     additions = {
@@ -557,8 +567,10 @@ def _create_users_table(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email VARCHAR(255) NOT NULL UNIQUE,
+            display_name TEXT,
             password_hash VARCHAR(255) NOT NULL,
             is_admin INTEGER NOT NULL,
+            is_trainer INTEGER NOT NULL DEFAULT 0,
             created_at VARCHAR(255) NOT NULL
         )
         """
@@ -805,6 +817,7 @@ def migrate_v2_database(settings: Settings, backup_existing: bool) -> None:
 
     connection = _connect_raw(settings.db_path)
     try:
+        _ensure_user_columns(connection)
         connection.execute("PRAGMA foreign_keys=OFF")
         _create_users_table(connection)
         admin = _admin_row(connection, settings)
@@ -834,6 +847,7 @@ def migrate_v3_database(settings: Settings, backup_existing: bool) -> None:
 
     connection = _connect_raw(settings.db_path)
     try:
+        _ensure_user_columns(connection)
         _ensure_exercise_columns(connection)
         _ensure_progress_target_columns(connection)
         _ensure_recipe_option_columns(connection)
@@ -856,6 +870,7 @@ def migrate_v4_database(settings: Settings, backup_existing: bool) -> None:
 
     connection = _connect_raw(settings.db_path)
     try:
+        _ensure_user_columns(connection)
         _ensure_exercise_columns(connection)
         _ensure_progress_target_columns(connection)
         _ensure_recipe_option_columns(connection)
@@ -884,6 +899,7 @@ def ensure_database(settings: Settings) -> None:
     if status == "normalized":
         connection = _connect_raw(settings.db_path)
         try:
+            _ensure_user_columns(connection)
             _ensure_exercise_columns(connection)
             _ensure_workout_equipment_table(connection)
             _ensure_progress_target_columns(connection)

@@ -90,8 +90,10 @@ class Changelog(BaseModel):
 class User(BaseModel):
     id = AutoField()
     email = CharField(unique=True, index=True)
+    display_name = CharField(null=True)
     password_hash = CharField()
     is_admin = BooleanField(default=False)
+    is_trainer = BooleanField(default=False)
     created_at = CharField()
 
     class Meta:
@@ -474,6 +476,28 @@ class WorkoutComplexItem(BaseModel):
         indexes = ((('complex', 'id'), False),)
 
 
+class TrainerClient(BaseModel):
+    id = AutoField()
+    trainer = ForeignKeyField(User, backref="trainer_clients", on_delete="CASCADE")
+    client = ForeignKeyField(User, backref="client_trainers", on_delete="CASCADE")
+    created_at = CharField()
+
+    class Meta:
+        table_name = "trainer_clients"
+        indexes = ((('trainer', 'client'), True),)
+
+
+class ChatMessage(BaseModel):
+    id = AutoField()
+    trainer_client = ForeignKeyField(TrainerClient, backref="messages", on_delete="CASCADE")
+    sender = ForeignKeyField(User, backref="trainer_chat_messages", null=True, on_delete="SET NULL")
+    message = TextField()
+    created_at = CharField(index=True)
+
+    class Meta:
+        table_name = "trainer_chat_messages"
+
+
 MODELS = [
     AppMeta,
     IdSequence,
@@ -502,4 +526,6 @@ MODELS = [
     WorkoutPlanItem,
     WorkoutComplex,
     WorkoutComplexItem,
+    TrainerClient,
+    ChatMessage,
 ]

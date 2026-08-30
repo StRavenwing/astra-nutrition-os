@@ -1,9 +1,11 @@
-export type PageId = 'dashboard' | 'products' | 'recipes' | 'diary' | 'progress' | 'workouts' | 'theory';
+export type PageId = 'dashboard' | 'products' | 'recipes' | 'diary' | 'progress' | 'workouts' | 'clients' | 'theory';
 
 export interface AuthUser {
   id: number;
   email: string;
+  name: string;
   is_admin: boolean;
+  is_trainer: boolean;
 }
 
 export interface AuthResponse {
@@ -228,6 +230,34 @@ export interface FeedbackMessage {
 }
 
 export interface RegisteredUser extends AuthUser {
+  created_at: string;
+}
+
+export interface ClientSummary {
+  id: number;
+  name: string;
+  email: string;
+  next_workout: { id: number; scheduled_at: string; status: string } | null;
+}
+
+export interface ClientDetail extends ClientSummary {
+  progress: ProgressEntry[];
+  today: {
+    date: string;
+    entries: DiaryEntry[];
+    totals: DiaryTotals;
+    targets: { kcal: number | null; protein: number | null; fat: number | null; carbs: number | null };
+    remaining: { kcal: number | null; protein: number | null; fat: number | null; carbs: number | null };
+  };
+  workouts: WorkoutEntry[];
+  workout_plans: WorkoutPlan[];
+}
+
+export interface TrainerChatMessage {
+  id: number;
+  sender_id: number | null;
+  sender_name: string;
+  message: string;
   created_at: string;
 }
 

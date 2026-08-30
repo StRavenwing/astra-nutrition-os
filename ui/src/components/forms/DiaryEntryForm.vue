@@ -6,7 +6,7 @@ import type { DiaryEntry, Product, ProductMeasure, RecipeSummary } from '@/types
 import { localToday } from '@/utils/format';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 
-const props = defineProps<{ diaryId?: number; initialMealType?: string }>();
+const props = defineProps<{ diaryId?: number; initialMealType?: string; targetUserId?: number }>();
 const emit = defineEmits<{ saved: []; deleted: []; cancel: [] }>();
 
 type RowKind = 'recipe' | 'product' | 'custom';
@@ -146,7 +146,7 @@ onMounted(async () => {
     measures.value = measureList;
 
     if (props.diaryId) {
-      const data = await api.diary();
+      const data = props.targetUserId ? await api.clientDiary(props.targetUserId) : await api.diary();
       const item = data.find((entry) => entry.id === props.diaryId);
       if (item) {
         entryDate.value = item.entry_date;
@@ -201,7 +201,9 @@ async function save() {
     if (props.diaryId) {
       await api.put(`diary/${props.diaryId}`, { entry_date: entryDate.value, ...itemPayload(rows.value[0]) });
     } else {
-      await api.post('diary', { entry_date: entryDate.value, items: rows.value.map(itemPayload) });
+      const payload = { entry_date: entryDate.value, items: rows.value.map(itemPayload) };
+      if (props.targetUserId) await api.addClientDiary(props.targetUserId, payload);
+      else await api.post('diary', payload);
     }
     emit('saved');
   } catch (err) {

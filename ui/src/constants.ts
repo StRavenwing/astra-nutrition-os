@@ -7,6 +7,7 @@ export const pages: PageInfo[] = [
   { id: 'diary', icon: '☷', title: 'Дневник питания' },
   { id: 'progress', icon: '↗', title: 'Прогресс' },
   { id: 'workouts', icon: '⚡', title: 'Тренировки' },
+  { id: 'clients', icon: '👥', title: 'Клиенты' },
   { id: 'theory', icon: '◈', title: 'Информация' }
 ];
 

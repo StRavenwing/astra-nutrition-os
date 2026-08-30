@@ -18,7 +18,10 @@ import type {
   WorkoutPlan,
   ContentCategory,
   Article,
-  ArticleSection
+  ArticleSection,
+  ClientDetail,
+  ClientSummary,
+  TrainerChatMessage
 } from '@/types';
 
 const TOKEN_KEY = 'astra_access_token';
@@ -114,6 +117,16 @@ export const api = {
   progress: () => request<ProgressEntry[]>('progress'),
   workouts: () => request<WorkoutEntry[]>('workouts'),
   workoutPlans: () => request<WorkoutPlan[]>('workout-plans'),
+  clients: () => request<ClientSummary[]>('clients'),
+  addClient: (email: string) => write<ClientSummary>('POST', 'clients', { email }),
+  client: (id: number) => request<ClientDetail>(`clients/${id}`),
+  clientDiary: (id: number) => request<DiaryEntry[]>(`clients/${id}/diary`),
+  addClientDiary: (id: number, body: unknown) => write<DiaryEntry[]>('POST', `clients/${id}/diary`, body),
+  deleteClientDiary: (clientId: number, entryId: number) => write<{ deleted: boolean; id: number }>('DELETE', `clients/${clientId}/diary/${entryId}`),
+  scheduleClientWorkout: (id: number, body: unknown) => write<WorkoutPlan>('POST', `clients/${id}/workout-plans`, body),
+  updateClientTargets: (id: number, body: unknown) => write<ProgressEntry>('PUT', `clients/${id}/nutrition-targets`, body),
+  clientChat: (id: number) => request<TrainerChatMessage[]>(`clients/${id}/chat`),
+  sendClientChat: (id: number, message: string) => write<TrainerChatMessage>('POST', `clients/${id}/chat`, { message }),
   workoutComplexes: () => request<WorkoutComplex[]>('workout-complexes'),
   workoutEquipment: () => request<WorkoutEquipment[]>('workout-equipment'),
   createWorkoutEquipment: (body: unknown) => write<WorkoutEquipment>('POST', 'workout-equipment', body),

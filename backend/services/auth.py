@@ -72,7 +72,9 @@ def serialize_user(user: User) -> dict[str, Any]:
     return {
         "id": user.id,
         "email": user.email,
+        "name": user.display_name or user.email.split("@", 1)[0],
         "is_admin": bool(user.is_admin),
+        "is_trainer": bool(user.is_trainer),
     }
 
 
@@ -82,6 +84,7 @@ def create_access_token(user: User, settings: Settings) -> str:
         "sub": str(user.id),
         "email": user.email,
         "is_admin": bool(user.is_admin),
+        "is_trainer": bool(user.is_trainer),
         "exp": expires_at,
     }
     return jwt.encode(payload, settings.auth_secret, algorithm=JWT_ALGORITHM)

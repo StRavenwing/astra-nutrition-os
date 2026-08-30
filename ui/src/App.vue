@@ -12,6 +12,7 @@ import RecipesView from '@/views/RecipesView.vue';
 import DiaryView from '@/views/DiaryView.vue';
 import ProgressView from '@/views/ProgressView.vue';
 import WorkoutsView from '@/views/WorkoutsView.vue';
+import ClientsView from '@/views/ClientsView.vue';
 import TheoryView from '@/views/TheoryView.vue';
 import ProductForm from '@/components/forms/ProductForm.vue';
 import RecipeForm from '@/components/forms/RecipeForm.vue';
@@ -70,10 +71,13 @@ const articleFormKey = ref(0);
 
 const title = computed(() => pages.find((page) => page.id === currentPage.value)?.title || 'Обзор');
 const isAdmin = computed(() => Boolean(currentUser.value?.is_admin));
+const isTrainer = computed(() => Boolean(currentUser.value?.is_trainer));
+const canManageTraining = computed(() => isAdmin.value || isTrainer.value);
+const canAccessClients = computed(() => canManageTraining.value);
 const isGuest = computed(() => guestMode.value && !currentUser.value);
-const activeUser = computed<AuthUser>(() => currentUser.value || { id: 0, email: 'Гостевой режим', is_admin: false });
+const activeUser = computed<AuthUser>(() => currentUser.value || { id: 0, email: 'Гостевой режим', name: 'Гостевой режим', is_admin: false, is_trainer: false });
 const canAdd = computed(() => {
-  if (isGuest.value || currentPage.value === 'dashboard' || currentPage.value === 'theory') return false;
+  if (isGuest.value || currentPage.value === 'dashboard' || currentPage.value === 'theory' || currentPage.value === 'clients') return false;
   if (currentPage.value === 'workouts') return false;
   if (currentPage.value === 'products') return isAdmin.value;
   return true;
@@ -201,7 +205,7 @@ function editRecipe(id: number) {
 }
 
 function openExerciseAdd() {
-  if (!isAdmin.value) return;
+  if (!canManageTraining.value) return;
   exerciseManagerOpen.value = false;
   workoutBuilderOpen.value = false;
   repeatPlan.value = null;
@@ -210,19 +214,19 @@ function openExerciseAdd() {
 }
 
 function editExercise(id: number) {
-  if (!isAdmin.value) return;
+  if (!canManageTraining.value) return;
   exerciseManagerOpen.value = false;
   modal.value = { kind: 'exercises', id };
 }
 
 function openEquipmentAdd(kind: 'machine' | 'equipment') {
-  if (!isAdmin.value) return;
+  if (!canManageTraining.value) return;
   equipmentKind.value = kind;
   modal.value = { kind: 'equipment' };
 }
 
 function editEquipment(id: number) {
-  if (!isAdmin.value) return;
+  if (!canManageTraining.value) return;
   modal.value = { kind: 'equipment', id };
 }
 
@@ -243,7 +247,7 @@ function editWorkoutFromDetail(plan: WorkoutPlan) {
 }
 
 function buildWorkoutFromComplex(payload: { complex: WorkoutComplex | null; mode: 'create' | 'edit' }) {
-  if (!isAdmin.value) return;
+  if (!canManageTraining.value) return;
   workoutDetailPlan.value = null;
   exerciseDetail.value = null;
   repeatPlan.value = null;
@@ -379,6 +383,7 @@ onBeforeUnmount(() => {
     :user="activeUser"
     :guest-mode="isGuest"
     :feedback-unread="feedbackUnread"
+    :can-access-clients="canAccessClients"
     @navigate="navigate"
     @add="openAdd"
     @collect-day-menu="openDiaryMenu('day')"
@@ -397,6 +402,7 @@ onBeforeUnmount(() => {
       v-else-if="currentPage === 'workouts'"
       :refresh-key="reloadKey"
       :is-admin="isAdmin"
+      :can-manage="canManageTraining"
       :read-only="isGuest"
       @edit="modal = { kind: 'workouts', id: $event }"
       @add-exercise="openExerciseAdd"
@@ -413,14 +419,15 @@ onBeforeUnmount(() => {
       @edit-plan="editPlan = $event; repeatPlan = null; workoutBuilderOpen = true"
       @repeat="repeatPlan = $event; editPlan = null; workoutBuilderOpen = true"
     />
+    <ClientsView v-else-if="currentPage === 'clients'" :refresh-key="reloadKey" :can-access="canAccessClients" :is-admin="isAdmin" @changed="refresh" @feedback="openFeedback" />
     <TheoryView v-else-if="currentPage === 'theory'" :is-admin="isAdmin" :refresh-key="reloadKey" @add-article="openArticleEditor()" @edit-article="openArticleEditor" />
   </AppShell>
 
   <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
-  <ExerciseManagerModal v-if="isAdmin" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @edit="editExercise" @changed="refresh" />
+  <ExerciseManagerModal v-if="canManageTraining" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @edit="editExercise" @changed="refresh" />
   <WorkoutBuilderModal :open="workoutBuilderOpen" :repeat-plan="repeatPlan" :edit-plan="editPlan" :complex="workoutComplexForBuilder" @close="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; workoutComplexForBuilder = null" @saved="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; workoutComplexForBuilder = null; refresh()" />
   <WorkoutComplexModal :open="complexEditorOpen" :complex="complexEditor" :mode="complexEditorMode" @close="complexEditorOpen = false" @saved="complexEditorOpen = false; complexEditor = null; refresh()" @open-exercise="openExerciseDetail" />
-  <WorkoutComplexDetailModal :open="Boolean(workoutComplexDetail)" :complex="workoutComplexDetail" :is-admin="isAdmin" :read-only="isGuest" @close="workoutComplexDetail = null" @edit="editWorkoutComplexFromDetail" />
+  <WorkoutComplexDetailModal :open="Boolean(workoutComplexDetail)" :complex="workoutComplexDetail" :can-manage="canManageTraining" :read-only="isGuest" @close="workoutComplexDetail = null" @edit="editWorkoutComplexFromDetail" />
   <WorkoutDetailModal :plan="workoutDetailPlan" @close="workoutDetailPlan = null" @edit="editWorkoutFromDetail" @repeat="repeatPlan = $event; editPlan = null; workoutDetailPlan = null; workoutBuilderOpen = true" @complete="completeWorkoutFromDetail" @cancel="cancelWorkoutFromDetail" />
   <ExerciseDetailModal :exercise="exerciseDetail" @close="exerciseDetail = null" />
   <FeedbackModal :open="feedbackOpen" :is-admin="isAdmin" @close="feedbackOpen = false" @sent="feedbackOpen = false" @read="loadFeedbackUnread" />

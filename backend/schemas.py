@@ -165,6 +165,21 @@ class DiaryUpdateInput(DiaryItemInput):
     entry_date: str
 
 
+class ClientCreateInput(BaseModel):
+    email: str
+
+
+class ClientNutritionTargetsInput(BaseModel):
+    kcal_target: Any = None
+    protein_target_g: Any = None
+    fat_target_g: Any = None
+    carbs_target_g: Any = None
+
+
+class TrainerChatMessageInput(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+
+
 class ProgressInput(BaseModel):
     measured_at: str
     weight_kg: Any = None

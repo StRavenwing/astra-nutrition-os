@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
 
-from backend.dependencies import get_current_user, get_optional_user, require_admin
+from backend.dependencies import get_current_user, get_optional_user, require_trainer
 from backend.models import User
 from backend.schemas import ExerciseInput, WorkoutComplexInput, WorkoutEquipmentInput, WorkoutInput, WorkoutPlanInput, dump_model
 from backend.services.workouts import (
@@ -39,17 +39,17 @@ def get_exercises() -> list[dict]:
 
 
 @router.post("/exercises", status_code=status.HTTP_201_CREATED)
-def post_exercise(payload: ExerciseInput, current_user: User = Depends(require_admin)) -> dict:
+def post_exercise(payload: ExerciseInput, current_user: User = Depends(require_trainer)) -> dict:
     return create_exercise(dump_model(payload))
 
 
 @router.delete("/exercises/{exercise_id}")
-def remove_exercise(exercise_id: int, current_user: User = Depends(require_admin)) -> dict:
+def remove_exercise(exercise_id: int, current_user: User = Depends(require_trainer)) -> dict:
     return delete_exercise(exercise_id)
 
 
 @router.put("/exercises/{exercise_id}")
-def put_exercise(exercise_id: int, payload: ExerciseInput, current_user: User = Depends(require_admin)) -> dict:
+def put_exercise(exercise_id: int, payload: ExerciseInput, current_user: User = Depends(require_trainer)) -> dict:
     return update_exercise(exercise_id, dump_model(payload))
 
 
@@ -59,17 +59,17 @@ def get_workout_equipment_list() -> list[dict]:
 
 
 @router.post("/workout-equipment", status_code=status.HTTP_201_CREATED)
-def post_workout_equipment(payload: WorkoutEquipmentInput, current_user: User = Depends(require_admin)) -> dict:
+def post_workout_equipment(payload: WorkoutEquipmentInput, current_user: User = Depends(require_trainer)) -> dict:
     return create_workout_equipment(dump_model(payload))
 
 
 @router.put("/workout-equipment/{equipment_id}")
-def put_workout_equipment(equipment_id: int, payload: WorkoutEquipmentInput, current_user: User = Depends(require_admin)) -> dict:
+def put_workout_equipment(equipment_id: int, payload: WorkoutEquipmentInput, current_user: User = Depends(require_trainer)) -> dict:
     return update_workout_equipment(equipment_id, dump_model(payload))
 
 
 @router.delete("/workout-equipment/{equipment_id}")
-def remove_workout_equipment(equipment_id: int, current_user: User = Depends(require_admin)) -> dict:
+def remove_workout_equipment(equipment_id: int, current_user: User = Depends(require_trainer)) -> dict:
     return delete_workout_equipment(equipment_id)
 
 
@@ -79,12 +79,12 @@ def get_workout_complexes() -> list[dict]:
 
 
 @router.post("/workout-complexes", status_code=status.HTTP_201_CREATED)
-def post_workout_complex(payload: WorkoutComplexInput, current_user: User = Depends(require_admin)) -> dict:
+def post_workout_complex(payload: WorkoutComplexInput, current_user: User = Depends(require_trainer)) -> dict:
     return create_workout_complex(dump_model(payload))
 
 
 @router.put("/workout-complexes/{complex_id}")
-def put_workout_complex(complex_id: int, payload: WorkoutComplexInput, current_user: User = Depends(require_admin)) -> dict:
+def put_workout_complex(complex_id: int, payload: WorkoutComplexInput, current_user: User = Depends(require_trainer)) -> dict:
     return update_workout_complex(complex_id, dump_model(payload))
 
 

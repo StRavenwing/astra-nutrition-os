@@ -7,6 +7,7 @@ import { formatDate, fmt } from '@/utils/format';
 const props = defineProps<{
   refreshKey: number;
   isAdmin: boolean;
+  canManage: boolean;
   readOnly?: boolean;
 }>();
 
@@ -243,11 +244,11 @@ async function removeEquipment(id: number) {
             <div class="workout-complex-meta"><span>{{ complex.comment || 'Повторяемая программа' }}</span><strong>{{ complex.items.length }} упражн.</strong></div>
             <div class="workout-complex-actions">
               <button v-if="!props.readOnly" type="button" class="primary create-complex-button" @click.stop="emit('scheduleFromComplex', complex)">Добавить в запланированную тренировку</button>
-              <button v-if="props.isAdmin" type="button" class="icon-action edit-complex-button" aria-label="Редактировать комплекс" title="Редактировать комплекс" @click.stop="emit('buildComplex', { complex, mode: 'edit' })">✎</button>
+              <button v-if="props.canManage" type="button" class="icon-action edit-complex-button" aria-label="Редактировать комплекс" title="Редактировать комплекс" @click.stop="emit('buildComplex', { complex, mode: 'edit' })">✎</button>
             </div>
           </div>
         </article>
-        <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card workout-complex-card" tabindex="0" role="button" @click="emit('buildComplex', { complex: null, mode: 'create' })" @keydown.enter.prevent="emit('buildComplex', { complex: null, mode: 'create' })">
+        <article v-if="props.canManage && !props.readOnly" class="workout-create-card workout-complex-card" tabindex="0" role="button" @click="emit('buildComplex', { complex: null, mode: 'create' })" @keydown.enter.prevent="emit('buildComplex', { complex: null, mode: 'create' })">
           <span class="workout-create-icon">＋</span>
           <div class="workout-create-copy"><p class="eyebrow">НОВЫЙ ПЛАН</p><h3>Создать комплекс тренировок</h3><p>Соберите программу из упражнений и задайте расписание</p></div>
           <button type="button" class="primary" @click.stop="emit('buildComplex', { complex: null, mode: 'create' })">＋ Начать сборку</button>
@@ -258,7 +259,7 @@ async function removeEquipment(id: number) {
     <section v-else-if="section === 'exercises'" class="workout-subsection">
       <div class="subsection-heading">
         <div><p class="eyebrow">СПРАВОЧНИК</p><h2>Упражнения</h2></div>
-        <div v-if="props.isAdmin" class="exercise-actions"><button type="button" class="secondary-button" @click="emit('addExercise')">＋ Добавить</button><button type="button" class="secondary-button" @click="emit('manageExercises')">Управление</button></div>
+        <div v-if="props.canManage" class="exercise-actions"><button type="button" class="secondary-button" @click="emit('addExercise')">＋ Добавить</button><button type="button" class="secondary-button" @click="emit('manageExercises')">Управление</button></div>
       </div>
       <div class="exercise-categories" aria-label="Категории упражнений по группе мышц">
         <button type="button" class="exercise-category-card" :class="{ active: exerciseGroup === 'all' }" @click="exerciseGroup = 'all'"><span><b>Все группы</b><small>Все упражнения</small></span><strong>{{ exercises.length }}</strong></button>
@@ -274,12 +275,12 @@ async function removeEquipment(id: number) {
             <span v-if="exercise.photos?.length">Фото: {{ exercise.photos.length }}</span>
             <span v-if="exercise.video">Видео</span>
           </div>
-          <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions exercise-card-actions">
+          <div v-if="props.canManage" class="workout-tile-actions workout-card-actions exercise-card-actions">
             <button type="button" class="primary edit-workout" @click.stop="emit('editExercise', exercise.id)">Редактировать</button>
             <button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить упражнение" title="Удалить упражнение" @click.stop="removeExercise(exercise.id)">×</button>
           </div>
         </article>
-        <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card exercise-card add-exercise-card" tabindex="0" role="button" @click="emit('addExercise')" @keydown.enter.prevent="emit('addExercise')">
+        <article v-if="props.canManage && !props.readOnly" class="workout-create-card exercise-card add-exercise-card" tabindex="0" role="button" @click="emit('addExercise')" @keydown.enter.prevent="emit('addExercise')">
           <span class="workout-create-icon">＋</span>
           <div class="workout-create-copy"><h3>Добавить упражнение</h3><p>Создайте карточку для нового упражнения</p></div>
           <button type="button" class="primary" @click.stop="emit('addExercise')">＋ Новое упражнение</button>
@@ -289,7 +290,7 @@ async function removeEquipment(id: number) {
     </section>
 
     <section v-else-if="section === 'equipment'" class="workout-subsection">
-      <div class="subsection-heading"><div><p class="eyebrow">СПРАВОЧНИК</p><h2>Тренажёры и инвентарь</h2></div><div v-if="props.isAdmin" class="exercise-actions"><button type="button" class="secondary-button" @click="emit('addEquipment', 'machine')">＋ Добавить тренажёр</button><button type="button" class="secondary-button" @click="emit('addEquipment', 'equipment')">＋ Добавить инвентарь</button></div></div>
+      <div class="subsection-heading"><div><p class="eyebrow">СПРАВОЧНИК</p><h2>Тренажёры и инвентарь</h2></div><div v-if="props.canManage" class="exercise-actions"><button type="button" class="secondary-button" @click="emit('addEquipment', 'machine')">＋ Добавить тренажёр</button><button type="button" class="secondary-button" @click="emit('addEquipment', 'equipment')">＋ Добавить инвентарь</button></div></div>
       <div class="equipment-group">
         <div class="equipment-group-head"><div><p class="eyebrow">ТРЕНАЖЁРЫ</p><h3>Тренажёры</h3></div><span class="subtle">{{ machineCards.length }}</span></div>
         <div class="exercise-grid equipment-grid">
@@ -298,9 +299,9 @@ async function removeEquipment(id: number) {
             <div class="workout-tile-head"><span class="workout-group machine-badge">ТРЕНАЖЁР</span><span class="exercise-code">Т-{{ String(index + 1).padStart(2, '0') }}</span></div>
             <h3>{{ machine.name }}</h3>
             <p>{{ machine.description || 'Оборудование для выполнения упражнений и настройки нагрузки.' }}</p>
-            <div v-if="props.isAdmin && !props.readOnly" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', machine.id)">Редактировать</button><button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить тренажёр" title="Удалить тренажёр" @click.stop="removeEquipment(machine.id)">×</button></div>
+            <div v-if="props.canManage && !props.readOnly" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', machine.id)">Редактировать</button><button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить тренажёр" title="Удалить тренажёр" @click.stop="removeEquipment(machine.id)">×</button></div>
           </article>
-          <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'machine')" @keydown.enter.prevent="emit('addEquipment', 'machine')">
+          <article v-if="props.canManage && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'machine')" @keydown.enter.prevent="emit('addEquipment', 'machine')">
             <span class="workout-create-icon">＋</span><div class="workout-create-copy"><h3>Добавить тренажёр</h3><p>или свободный инвентарь</p></div><button type="button" class="primary" @click.stop="emit('addEquipment', 'machine')">＋ Добавить элемент</button>
           </article>
         </div>
@@ -313,9 +314,9 @@ async function removeEquipment(id: number) {
             <div class="workout-tile-head"><span class="workout-group equipment-badge">ИНВЕНТАРЬ</span><span class="exercise-code">И-{{ String(index + 1).padStart(2, '0') }}</span></div>
             <h3>{{ equipmentItem.name }}</h3>
             <p>{{ equipmentItem.description || 'Инвентарь для выполнения упражнений, усложнения или разнообразия тренировки.' }}</p>
-            <div v-if="props.isAdmin && !props.readOnly" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', equipmentItem.id)">Редактировать</button><button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить инвентарь" title="Удалить инвентарь" @click.stop="removeEquipment(equipmentItem.id)">×</button></div>
+            <div v-if="props.canManage && !props.readOnly" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', equipmentItem.id)">Редактировать</button><button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить инвентарь" title="Удалить инвентарь" @click.stop="removeEquipment(equipmentItem.id)">×</button></div>
           </article>
-          <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'equipment')" @keydown.enter.prevent="emit('addEquipment', 'equipment')">
+          <article v-if="props.canManage && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'equipment')" @keydown.enter.prevent="emit('addEquipment', 'equipment')">
             <span class="workout-create-icon">＋</span><div class="workout-create-copy"><h3>Добавить инвентарь</h3><p>Свободный вес и аксессуары</p></div><button type="button" class="primary" @click.stop="emit('addEquipment', 'equipment')">＋ Добавить элемент</button>
           </article>
         </div>

@@ -3,7 +3,7 @@ import { pages } from '@/constants';
 import type { AuthUser, PageId } from '@/types';
 import PwaInstallButton from '@/components/shared/PwaInstallButton.vue';
 
-defineProps<{ currentPage: PageId; feedbackUnread: number; user: AuthUser }>();
+defineProps<{ currentPage: PageId; feedbackUnread: number; user: AuthUser; canAccessClients: boolean }>();
 defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
 </script>
 
@@ -24,9 +24,12 @@ defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
         :key="item.id"
         type="button"
         :class="{ active: item.id === currentPage }"
-        @click="$emit('navigate', item.id)"
+        :disabled="item.id === 'clients' && !canAccessClients"
+        :title="item.id === 'clients' && !canAccessClients ? 'Доступно только тренерам и администраторам' : undefined"
+        @click="item.id !== 'clients' || canAccessClients ? $emit('navigate', item.id) : undefined"
       >
-        <svg class="nav-icon" aria-hidden="true"><use :href="`/assets/astra-menu-icons.svg#${item.id}`" /></svg>
+        <span v-if="item.id === 'clients'" class="nav-icon clients-nav-icon" aria-hidden="true">👥</span>
+        <svg v-else class="nav-icon" aria-hidden="true"><use :href="`/assets/astra-menu-icons.svg#${item.id}`" /></svg>
         {{ item.title }}
       </button>
     </nav>
