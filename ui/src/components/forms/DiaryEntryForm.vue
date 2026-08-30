@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 import { mealOrder } from '@/constants';
 import { api } from '@/api/client';
 import type { DiaryEntry, Product, ProductMeasure, RecipeSummary } from '@/types';
 import { localToday } from '@/utils/format';
+import ModalDialog from '@/components/shared/ModalDialog.vue';
 
 const props = defineProps<{ diaryId?: number; initialMealType?: string }>();
 const emit = defineEmits<{ saved: []; deleted: []; cancel: [] }>();
 
-type RowKind = 'recipe' | 'product';
+type RowKind = 'recipe' | 'product' | 'custom';
 type DiaryRow = {
   kind: RowKind;
   meal_type: string;
@@ -18,6 +19,11 @@ type DiaryRow = {
   quantity: string;
   measurement_name: string;
   comment: string;
+  custom_name?: string;
+  custom_kcal?: string;
+  custom_protein_g?: string;
+  custom_fat_g?: string;
+  custom_carbs_g?: string;
 };
 
 const loading = ref(false);
@@ -27,6 +33,16 @@ const recipes = ref<RecipeSummary[]>([]);
 const products = ref<Product[]>([]);
 const measures = ref<ProductMeasure[]>([]);
 const rows = ref<DiaryRow[]>([]);
+const customDishOpen = ref(false);
+const customDishError = ref('');
+const customDish = reactive({
+  name: '',
+  kcal: '',
+  protein_g: '',
+  fat_g: '',
+  carbs_g: ''
+});
+const customDishMealType = ref(props.initialMealType || mealOrder[1]);
 
 function productById(productId: number) {
   return products.value.find((product) => product.id === productId) || products.value[0];
@@ -61,6 +77,42 @@ function addRecipeRow(mealType = 'Обед') {
 
 function addProductRow(mealType = 'Перекус') {
   rows.value.push(defaultRow('product', mealType));
+}
+
+function openCustomDish(mealType = props.initialMealType || mealOrder[1]) {
+  customDish.name = '';
+  customDish.kcal = '';
+  customDish.protein_g = '';
+  customDish.fat_g = '';
+  customDish.carbs_g = '';
+  customDishError.value = '';
+  customDishOpen.value = true;
+  customDishMealType.value = mealType;
+}
+
+function saveCustomDish() {
+  customDishError.value = '';
+  const values = [customDish.kcal, customDish.protein_g, customDish.fat_g, customDish.carbs_g].map(Number);
+  if (!customDish.name.trim() || values.some((value) => !Number.isFinite(value) || value < 0)) {
+    customDishError.value = 'Укажите название и неотрицательные значения КБЖУ.';
+    return;
+  }
+  rows.value.push({
+    kind: 'custom',
+    meal_type: customDishMealType.value,
+    recipe_id: 0,
+    servings: '1',
+    product_id: 0,
+    quantity: '',
+    measurement_name: '',
+    comment: '',
+    custom_name: customDish.name.trim(),
+    custom_kcal: customDish.kcal,
+    custom_protein_g: customDish.protein_g,
+    custom_fat_g: customDish.fat_g,
+    custom_carbs_g: customDish.carbs_g
+  });
+  customDishOpen.value = false;
 }
 
 function removeRow(index: number) {
@@ -110,6 +162,20 @@ onMounted(async () => {
 });
 
 function itemPayload(row: DiaryRow) {
+  if (row.kind === 'custom') {
+    return {
+      meal_type: row.meal_type,
+      servings: row.servings,
+      comment: row.comment,
+      custom_dish: {
+        name: row.custom_name,
+        kcal: row.custom_kcal,
+        protein_g: row.custom_protein_g,
+        fat_g: row.custom_fat_g,
+        carbs_g: row.custom_carbs_g
+      }
+    };
+  }
   if (row.kind === 'product') {
     return {
       meal_type: row.meal_type,
@@ -177,8 +243,9 @@ async function remove() {
         <div v-for="(row, index) in rows" :key="index" class="diary-form-row">
           <select v-model="row.meal_type" class="dm"><option v-for="meal in mealOrder" :key="meal">{{ meal }}</option></select>
           <select v-if="row.kind === 'recipe'" v-model="row.recipe_id" class="dr"><option v-for="recipe in recipes" :key="recipe.id" :value="recipe.id">{{ recipe.name }}</option></select>
-          <select v-else v-model="row.product_id" class="dp" @change="productChanged(row)"><option v-for="product in products" :key="product.id" :value="product.id">{{ product.name }}</option></select>
-          <div class="diary-quantity"><input v-if="row.kind === 'recipe'" v-model="row.servings" class="ds" type="number" min="0.25" step="0.25" aria-label="Порций" required><input v-else v-model="row.quantity" class="dq" type="number" min="0.01" step="0.01" aria-label="Количество" required><span v-if="row.kind === 'recipe'">порции</span></div>
+          <select v-else-if="row.kind === 'product'" v-model="row.product_id" class="dp" @change="productChanged(row)"><option v-for="product in products" :key="product.id" :value="product.id">{{ product.name }}</option></select>
+          <div v-else class="diary-custom-selected"><b>{{ row.custom_name }}</b><small>{{ row.custom_kcal }} ккал · Б {{ row.custom_protein_g }} г · Ж {{ row.custom_fat_g }} г · У {{ row.custom_carbs_g }} г</small></div>
+          <div class="diary-quantity"><input v-if="row.kind !== 'product'" v-model="row.servings" class="ds" type="number" min="0.25" step="0.25" aria-label="Порций" required><input v-else v-model="row.quantity" class="dq" type="number" min="0.01" step="0.01" aria-label="Количество" required><span v-if="row.kind !== 'product'">порции</span></div>
           <div class="diary-unit"><select v-if="row.kind === 'product'" v-model="row.measurement_name" class="dmu"><option v-for="measure in measureOptions(row)" :key="measure.measure_name" :value="measure.measure_name">{{ measure.measure_name }}</option></select><span v-else>порция</span></div>
           <input v-model="row.comment" class="dc" placeholder="Комментарий">
           <button type="button" class="remove-diary-row" aria-label="Удалить строку" @click="removeRow(index)">×</button>
@@ -187,6 +254,7 @@ async function remove() {
 
       <div v-if="!props.diaryId" class="diary-add-actions">
         <button type="button" id="add-diary-item" @click="addRecipeRow()">＋ Добавить блюдо</button>
+        <button type="button" id="add-diary-custom" @click="openCustomDish()">＋ Добавить новое блюдо</button>
         <button type="button" id="add-diary-product" @click="addProductRow()">＋ Добавить ингредиент</button>
       </div>
 
@@ -200,10 +268,33 @@ async function remove() {
       </div>
     </template>
   </form>
+  <ModalDialog :open="customDishOpen" title="Добавить новое блюдо" eyebrow="ДНЕВНИК ПИТАНИЯ" @close="customDishOpen = false">
+    <div class="custom-dish-form">
+      <p class="custom-dish-intro">Блюдо сохранится в дневнике и появится в личных рецептах.</p>
+      <div class="field full"><label>Название блюда</label><input v-model="customDish.name" maxlength="200" required autofocus></div>
+      <div class="grid custom-dish-macros">
+        <div class="field"><label>Ккал</label><input v-model="customDish.kcal" type="number" min="0" step="0.01" required></div>
+        <div class="field"><label>Белки, г</label><input v-model="customDish.protein_g" type="number" min="0" step="0.01" required></div>
+        <div class="field"><label>Жиры, г</label><input v-model="customDish.fat_g" type="number" min="0" step="0.01" required></div>
+        <div class="field"><label>Углеводы, г</label><input v-model="customDish.carbs_g" type="number" min="0" step="0.01" required></div>
+      </div>
+      <div class="field full"><label>Приём пищи</label><select v-model="customDishMealType"><option v-for="meal in mealOrder" :key="meal">{{ meal }}</option></select></div>
+      <p class="form-error">{{ customDishError }}</p>
+      <div class="actions"><button type="button" @click="customDishOpen = false">Отмена</button><button type="button" class="primary" @click="saveCustomDish">Добавить в дневник</button></div>
+    </div>
+  </ModalDialog>
 </template>
 
 <style lang="scss">
 #diary-items {
   margin-bottom: 8px;
 }
+
+.diary-custom-selected { min-width: 0; display: grid; gap: 3px; padding: 8px 10px; border: 1px solid #c8d8f7; border-radius: 8px; background: #f7faff; }
+.diary-custom-selected b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.diary-custom-selected small { color: var(--muted); font-size: 10px; }
+.custom-dish-form { min-width: min(520px, 100%); }
+.custom-dish-intro { margin: 0 0 16px; color: var(--muted); }
+.custom-dish-macros { margin-bottom: 14px; }
+.form-error { min-height: 18px; color: #ae2a19; }
 </style>

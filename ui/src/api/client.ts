@@ -118,6 +118,7 @@ export const api = {
   workoutEquipment: () => request<WorkoutEquipment[]>('workout-equipment'),
   createWorkoutEquipment: (body: unknown) => write<WorkoutEquipment>('POST', 'workout-equipment', body),
   updateWorkoutEquipment: (id: number, body: unknown) => write<WorkoutEquipment>('PUT', `workout-equipment/${id}`, body),
+  deleteWorkoutEquipment: (id: number) => write<{ deleted: boolean; id: number }>('DELETE', `workout-equipment/${id}`),
   createWorkoutComplex: (body: unknown) => write<WorkoutComplex>('POST', 'workout-complexes', body),
   updateWorkoutComplex: (id: number, body: unknown) => write<WorkoutComplex>('PUT', `workout-complexes/${id}`, body),
   updateWorkoutPlan: (id: number, body: unknown) => write<WorkoutPlan>('PUT', `workout-plans/${id}`, body),

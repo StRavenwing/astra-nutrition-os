@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue';
-import { recipeCategories, recipeCategoryMap } from '@/constants';
+import { recipeCategories, recipeCategoryLabels, recipeCategoryMap } from '@/constants';
 import { api } from '@/api/client';
 import type { Product, ProductMeasure, RecipeIngredient, RecipeSummary } from '@/types';
 
@@ -84,7 +84,7 @@ onMounted(async () => {
   try {
     extraCategories.value = (await api.categories('recipe'))
       .filter((item) => !recipeCategoryMap[item.name])
-      .map((item) => ({ key: item.name, label: item.name, prefix: 'M', x: 50, y: 50 }));
+      .map((item) => ({ key: item.name, label: recipeCategoryLabels[item.name] || item.name, prefix: 'M', x: 50, y: 50 }));
     const productList = await api.products();
     products.value = [...productList].sort((a, b) => a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' }));
     measures.value = await api.productMeasures();

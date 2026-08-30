@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import math
+
 from backend.models import DiaryEntry, Recipe, User, current_database
 from backend.services.calculations import normalise_measure, number
+from backend.services.codes import next_code
 from backend.services.errors import NotFoundError
 from backend.services.serialization import serialize_diary_entry
+
+DIARY_RECIPE_CATEGORY = "Diary"
 
 
 def list_diary(user: User | None) -> list[dict]:
@@ -32,13 +37,53 @@ def _recipe_available(recipe_id: int, user: User) -> bool:
     ).exists()
 
 
+def _create_custom_recipe(custom_dish: dict, user: User) -> Recipe:
+    name = str(custom_dish.get("name", "")).strip()
+    nutrition = {
+        "kcal": number(custom_dish.get("kcal")),
+        "protein_g": number(custom_dish.get("protein_g")),
+        "fat_g": number(custom_dish.get("fat_g")),
+        "carbs_g": number(custom_dish.get("carbs_g")),
+    }
+    if not name:
+        raise ValueError("Название блюда обязательно")
+    if any(value is None or not math.isfinite(value) or value < 0 for value in nutrition.values()):
+        raise ValueError("Калории и КБЖУ должны быть неотрицательными числами")
+    return Recipe.create(
+        code=next_code("M"),
+        name=name,
+        category=DIARY_RECIPE_CATEGORY,
+        version="1.0",
+        status="Draft",
+        servings=1,
+        tags="Добавлено через дневник питания",
+        is_ready=True,
+        needs_garnish=False,
+        manual_kcal_per_serving=nutrition["kcal"],
+        manual_protein_per_serving_g=nutrition["protein_g"],
+        manual_fat_per_serving_g=nutrition["fat_g"],
+        manual_carbs_per_serving_g=nutrition["carbs_g"],
+        owner=user,
+        submitted_by=user,
+        submission_requested=False,
+        moderation_status="none",
+    )
+
+
 def _create_entry(entry_date: str, item: dict, user: User) -> DiaryEntry:
     shown_quantity = shown_measure = None
     quantity = number(item.get("quantity"))
     product_id = item.get("product_id")
     recipe_id = item.get("recipe_id")
+    custom_dish = item.get("custom_dish")
 
-    if product_id:
+    if custom_dish:
+        if product_id or recipe_id:
+            raise ValueError("Новое блюдо нельзя объединять с рецептом или продуктом")
+        recipe = _create_custom_recipe(custom_dish, user)
+        recipe_id = recipe.id
+        product_id = None
+    elif product_id:
         quantity, _, shown_quantity, shown_measure = normalise_measure(
             product_id,
             item.get("measurement_quantity", item.get("quantity")),

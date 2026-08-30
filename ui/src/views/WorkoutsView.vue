@@ -159,6 +159,16 @@ async function removeExercise(id: number) {
     alert(err instanceof Error ? err.message : String(err));
   }
 }
+
+async function removeEquipment(id: number) {
+  if (!confirm('Удалить тренажёр или инвентарь из справочника? Это действие нельзя отменить.')) return;
+  try {
+    await api.deleteWorkoutEquipment(id);
+    equipment.value = equipment.value.filter((item) => item.id !== id);
+  } catch (err) {
+    alert(err instanceof Error ? err.message : String(err));
+  }
+}
 </script>
 
 <template>
@@ -288,7 +298,7 @@ async function removeExercise(id: number) {
             <div class="workout-tile-head"><span class="workout-group machine-badge">ТРЕНАЖЁР</span><span class="exercise-code">Т-{{ String(index + 1).padStart(2, '0') }}</span></div>
             <h3>{{ machine.name }}</h3>
             <p>{{ machine.description || 'Оборудование для выполнения упражнений и настройки нагрузки.' }}</p>
-            <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', machine.id)">Редактировать</button></div>
+            <div v-if="props.isAdmin && !props.readOnly" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', machine.id)">Редактировать</button><button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить тренажёр" title="Удалить тренажёр" @click.stop="removeEquipment(machine.id)">×</button></div>
           </article>
           <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'machine')" @keydown.enter.prevent="emit('addEquipment', 'machine')">
             <span class="workout-create-icon">＋</span><div class="workout-create-copy"><h3>Добавить тренажёр</h3><p>или свободный инвентарь</p></div><button type="button" class="primary" @click.stop="emit('addEquipment', 'machine')">＋ Добавить элемент</button>
@@ -303,7 +313,7 @@ async function removeExercise(id: number) {
             <div class="workout-tile-head"><span class="workout-group equipment-badge">ИНВЕНТАРЬ</span><span class="exercise-code">И-{{ String(index + 1).padStart(2, '0') }}</span></div>
             <h3>{{ equipmentItem.name }}</h3>
             <p>{{ equipmentItem.description || 'Инвентарь для выполнения упражнений, усложнения или разнообразия тренировки.' }}</p>
-            <div v-if="props.isAdmin" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', equipmentItem.id)">Редактировать</button></div>
+            <div v-if="props.isAdmin && !props.readOnly" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', equipmentItem.id)">Редактировать</button><button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить инвентарь" title="Удалить инвентарь" @click.stop="removeEquipment(equipmentItem.id)">×</button></div>
           </article>
           <article v-if="props.isAdmin && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'equipment')" @keydown.enter.prevent="emit('addEquipment', 'equipment')">
             <span class="workout-create-icon">＋</span><div class="workout-create-copy"><h3>Добавить инвентарь</h3><p>Свободный вес и аксессуары</p></div><button type="button" class="primary" @click.stop="emit('addEquipment', 'equipment')">＋ Добавить элемент</button>

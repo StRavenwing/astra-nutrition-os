@@ -1,0 +1,1361 @@
+{
+  "info": {
+    "_postman_id": "6ee5d4a2-46f4-46c8-a595-9f06bd9d0d0e",
+    "name": "Astra Nutrition OS API",
+    "description": "Полная коллекция запросов для Astra Nutrition OS. Включает REST API, OAuth, MCP и переменные окружения для локального запуска.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /api/health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Проверка доступности API."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "POST /api/v1/auth/register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/auth/login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.access_token) {",
+                  "    pm.environment.set('access_token', json.access_token);",
+                  "    pm.collectionVariables.set('access_token', json.access_token);",
+                  "    console.log('Access token saved');",
+                  "  }",
+                  "}",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Логин и сохранение JWT в переменную access_token."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/auth/logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/auth/me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/auth/users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "users"]
+            },
+            "description": "Только для admin."
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/auth/password-reset/request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/password-reset/request",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "password-reset", "request"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/auth/password-reset/confirm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"code\": \"123456\",\n  \"password\": \"NewPassword123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/password-reset/confirm",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "password-reset", "confirm"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "item": [
+        {
+          "name": "GET /api/v1/dashboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dashboard",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "dashboard"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Content",
+      "item": [
+        {
+          "name": "GET /api/v1/categories?kind=recipe",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/categories?kind=recipe",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "categories"],
+              "query": [
+                { "key": "kind", "value": "recipe" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/categories",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"recipe\",\n  \"title\": \"Завтраки\",\n  \"description\": \"Рецепты на завтрак\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/categories",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "categories"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/article-sections",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/article-sections",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "article-sections"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/article-sections",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"slug\": \"nutrition-basics\",\n  \"title\": \"Основы питания\",\n  \"description\": \"Базовые понятия\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/article-sections",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "article-sections"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/article-sections/{section_id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Основы питания\",\n  \"description\": \"Обновленное описание\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/article-sections/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "article-sections", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/articles",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/articles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "articles"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/articles",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"section_id\": 1,\n  \"slug\": \"protein-overview\",\n  \"title\": \"Белок и восстановление\",\n  \"summary\": \"Короткое описание\",\n  \"content\": \"Детальный текст статьи\",\n  \"published\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/articles",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "articles"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/articles/{article_id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"section_id\": 1,\n  \"slug\": \"protein-overview\",\n  \"title\": \"Белок и восстановление\",\n  \"summary\": \"Короткое описание\",\n  \"content\": \"Обновленный текст статьи\",\n  \"published\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/articles/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "articles", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PATCH /api/v1/articles/{article_id}/flags",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"published\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/articles/1/flags",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "articles", "1", "flags"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/articles/{article_id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/articles/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "articles", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "GET /api/v1/products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/product-measures",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/product-measures",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "product-measures"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/products",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"P-001\",\n  \"title\": \"Греческий йогурт\",\n  \"brand\": \"Astra\",\n  \"description\": \"Натуральный йогурт\",\n  \"serving_size\": 170,\n  \"serving_unit\": \"g\",\n  \"energy_kcal\": 120,\n  \"protein_g\": 10,\n  \"carbs_g\": 4,\n  \"fat_g\": 5,\n  \"fiber_g\": 1,\n  \"price\": 85\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/products",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/products/scan-nutrition-label",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": [] }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/products/scan-nutrition-label",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products", "scan-nutrition-label"]
+            },
+            "description": "Сканирование упаковки. Загрузите изображение продукта."
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/products/{product_id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"P-001\",\n  \"title\": \"Греческий йогурт\",\n  \"brand\": \"Astra\",\n  \"description\": \"Обновленный йогурт\",\n  \"serving_size\": 170,\n  \"serving_unit\": \"g\",\n  \"energy_kcal\": 125,\n  \"protein_g\": 11,\n  \"carbs_g\": 4,\n  \"fat_g\": 5,\n  \"fiber_g\": 1,\n  \"price\": 88\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/products/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/products/{product_id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/products/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "products", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Diary",
+      "item": [
+        {
+          "name": "GET /api/v1/diary",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/diary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "diary"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/diary",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-30\",\n  \"meals\": [\n    {\n      \"meal_type\": \"breakfast\",\n      \"items\": [\n        {\n          \"product_id\": 1,\n          \"quantity\": 200\n        }\n      ]\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/diary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "diary"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/diary/{entry_id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-30\",\n  \"meal_type\": \"breakfast\",\n  \"product_id\": 1,\n  \"quantity\": 250\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/diary/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "diary", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/diary/{entry_id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/diary/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "diary", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Progress",
+      "item": [
+        {
+          "name": "GET /api/v1/progress",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/progress",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "progress"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/progress",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-30\",\n  \"weight_kg\": 75.3,\n  \"waist_cm\": 82,\n  \"chest_cm\": 98\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/progress",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "progress"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/progress/{entry_id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-30\",\n  \"weight_kg\": 74.8,\n  \"waist_cm\": 81,\n  \"chest_cm\": 97\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/progress/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "progress", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/progress/{entry_id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/progress/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "progress", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Recipes",
+      "item": [
+        {
+          "name": "GET /api/v1/recipes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/recipes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "recipes"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/recipes/{recipe_id}",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/recipes/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "recipes", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/recipes",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Овсянка\",\n  \"category_id\": 1,\n  \"description\": \"Полезный завтрак\",\n  \"ingredients\": [\n    { \"product_id\": 1, \"quantity\": 100 }\n  ],\n  \"serving_size\": 200\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/recipes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "recipes"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/recipes/{recipe_id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Овсянка с ягодами\",\n  \"category_id\": 1,\n  \"description\": \"Обновленный завтрак\",\n  \"ingredients\": [\n    { \"product_id\": 1, \"quantity\": 120 }\n  ],\n  \"serving_size\": 220\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/recipes/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "recipes", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/recipes/{recipe_id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/recipes/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "recipes", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/recipes/{recipe_id}/submission-request",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/recipes/1/submission-request",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "recipes", "1", "submission-request"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/recipes/{recipe_id}/submission-request",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/recipes/1/submission-request",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "recipes", "1", "submission-request"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/recipes/{recipe_id}/moderation",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"approve\",\n  \"note\": \"Рецепт соответствует правилам\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/recipes/1/moderation",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "recipes", "1", "moderation"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Workouts",
+      "item": [
+        {
+          "name": "GET /api/v1/exercises",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/exercises",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "exercises"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/exercises",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"EX-001\",\n  \"title\": \"Приседания\",\n  \"description\": \"Базовое упражнение\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/exercises",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "exercises"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/exercises/{exercise_id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"EX-001\",\n  \"title\": \"Приседания с весом\",\n  \"description\": \"Обновленное упражнение\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/exercises/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "exercises", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/exercises/{exercise_id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/exercises/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "exercises", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/workout-equipment",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-equipment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-equipment"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/workout-complexes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-complexes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-complexes"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/workouts",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workouts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workouts"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/workouts",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-30\",\n  \"exercise_id\": 1,\n  \"sets\": 4,\n  \"reps\": 10,\n  \"weight_kg\": 40\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/workouts",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workouts"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/workouts/{log_id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-30\",\n  \"exercise_id\": 1,\n  \"sets\": 5,\n  \"reps\": 10,\n  \"weight_kg\": 42\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/workouts/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workouts", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/workouts/{log_id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workouts/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workouts", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/workout-plans",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-plans"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/workout-plans",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"План на неделю\",\n  \"description\": \"Тренировки для набора массы\",\n  \"days\": [\n    {\n      \"day\": \"monday\",\n      \"exercise_ids\": [1]\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-plans"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/workout-plans/{plan_id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"План на 2 недели\",\n  \"description\": \"Обновленный план\",\n  \"days\": []\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-plans/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-plans", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/workout-plans/{plan_id}/complete",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-plans/1/complete",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-plans", "1", "complete"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/workout-plans/{plan_id}/cancel",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-plans/1/cancel",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-plans", "1", "cancel"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/workout-plans/{plan_id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-plans/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-plans", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Feedback",
+      "item": [
+        {
+          "name": "GET /api/v1/feedback/unread-count",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/feedback/unread-count",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "feedback", "unread-count"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/feedback",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/feedback",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "feedback"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/feedback/mine",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/feedback/mine",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "feedback", "mine"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/feedback/{message_id}/read",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/feedback/1/read",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "feedback", "1", "read"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/feedback/{message_id}/reply",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reply\": \"Спасибо за отзыв, обновим функционал\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/feedback/1/reply",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "feedback", "1", "reply"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/feedback",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"bug\",\n  \"subject\": \"Проблема с импортом\",\n  \"message\": \"Не работает импорт продуктов\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/feedback",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "feedback"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "OAuth / MCP",
+      "item": [
+        {
+          "name": "GET /.well-known/oauth-authorization-server",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/oauth-authorization-server",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "oauth-authorization-server"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /.well-known/oauth-protected-resource/mcp",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/oauth-protected-resource/mcp",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "oauth-protected-resource", "mcp"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /oauth/register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_name\": \"Postman Test Client\",\n  \"redirect_uris\": [\"https://example.com/callback\"],\n  \"grant_types\": [\"authorization_code\", \"refresh_token\"],\n  \"response_types\": [\"code\"],\n  \"token_endpoint_auth_method\": \"client_secret_post\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/register",
+              "host": ["{{base_url}}"],
+              "path": ["oauth", "register"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /oauth/authorize",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/oauth/authorize?client_id={{client_id}}&redirect_uri={{redirect_uri}}&response_type=code&code_challenge={{code_challenge}}&code_challenge_method=S256&scope=recipes:read+recipes:write",
+              "host": ["{{base_url}}"],
+              "path": ["oauth", "authorize"],
+              "query": [
+                { "key": "client_id", "value": "{{client_id}}" },
+                { "key": "redirect_uri", "value": "{{redirect_uri}}" },
+                { "key": "response_type", "value": "code" },
+                { "key": "code_challenge", "value": "{{code_challenge}}" },
+                { "key": "code_challenge_method", "value": "S256" },
+                { "key": "scope", "value": "recipes:read recipes:write" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /oauth/login",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/oauth/login?request={{oauth_request_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["oauth", "login"],
+              "query": [
+                { "key": "request", "value": "{{oauth_request_id}}" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /oauth/login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "request", "value": "{{oauth_request_id}}" },
+                { "key": "email", "value": "{{admin_email}}" },
+                { "key": "password", "value": "{{admin_password}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/login",
+              "host": ["{{base_url}}"],
+              "path": ["oauth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /oauth/token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "authorization_code" },
+                { "key": "code", "value": "{{oauth_code}}" },
+                { "key": "redirect_uri", "value": "{{redirect_uri}}" },
+                { "key": "client_id", "value": "{{client_id}}" },
+                { "key": "code_verifier", "value": "{{code_verifier}}" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/token",
+              "host": ["{{base_url}}"],
+              "path": ["oauth", "token"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /oauth/revoke",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/x-www-form-urlencoded" }
+            ],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "token", "value": "{{refresh_token}}" },
+                { "key": "token_type_hint", "value": "refresh_token" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/revoke",
+              "host": ["{{base_url}}"],
+              "path": ["oauth", "revoke"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /mcp",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"jsonrpc\": \"2.0\",\n  \"id\": 1,\n  \"method\": \"tools/list\",\n  \"params\": {}\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/mcp",
+              "host": ["{{base_url}}"],
+              "path": ["mcp"]
+            },
+            "description": "Streamable HTTP MCP endpoint."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8787", "type": "string" },
+    { "key": "access_token", "value": "", "type": "string" },
+    { "key": "admin_email", "value": "admin@example.com", "type": "string" },
+    { "key": "admin_password", "value": "Password123!", "type": "string" },
+    { "key": "client_id", "value": "", "type": "string" },
+    { "key": "redirect_uri", "value": "https://example.com/callback", "type": "string" },
+    { "key": "code_challenge", "value": "", "type": "string" },
+    { "key": "code_verifier", "value": "", "type": "string" },
+    { "key": "oauth_request_id", "value": "", "type": "string" },
+    { "key": "oauth_code", "value": "", "type": "string" },
+    { "key": "refresh_token", "value": "", "type": "string" }
+  ]
+}

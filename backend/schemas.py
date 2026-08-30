@@ -127,10 +127,19 @@ class RecipeModerationInput(BaseModel):
     note: str | None = None
 
 
+class CustomDishInput(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    kcal: Any
+    protein_g: Any
+    fat_g: Any
+    carbs_g: Any
+
+
 class DiaryItemInput(BaseModel):
     meal_type: str | None = None
     recipe_id: int | None = None
     product_id: int | None = None
+    custom_dish: CustomDishInput | None = None
     servings: Any = 1
     quantity: Any = None
     measurement_name: str | None = None
@@ -144,6 +153,7 @@ class DiaryCreateInput(BaseModel):
     meal_type: str | None = None
     recipe_id: int | None = None
     product_id: int | None = None
+    custom_dish: CustomDishInput | None = None
     servings: Any = 1
     quantity: Any = None
     measurement_name: str | None = None

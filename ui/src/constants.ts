@@ -13,11 +13,15 @@ export const pages: PageInfo[] = [
 export const productCategoryOptions = [
   'Белковые', 'Добавки', 'Зелень', 'Крупы', 'Масла', 'Молочные',
   'Морепродукты', 'Мясо', 'Напитки', 'Овощи', 'Основа', 'Перекусы',
-  'Рыба', 'Соусы', 'Сыры', 'Фрукты', 'Хлеб', 'Ягоды'
+  'Рыба', 'Соусы', 'Сыры', 'Фрукты', 'Хлеб', 'Ягоды', 'Десерты'
 ];
 
 export const productUnitOptions = ['г', 'мл', 'шт', 'бут.'];
 export const mealOrder = ['Завтрак', 'Обед', 'Ужин', 'Перекус', 'Напиток', 'Десерт'];
+export const diaryRecipeCategory = 'Diary';
+export const recipeCategoryLabels: Record<string, string> = {
+  Diary: 'Добавленные через дневник питания'
+};
 export const recipeCategories = [
   { key: 'Main', label: 'Основные блюда', prefix: 'M', x: 50, y: 0 },
   { key: 'Breakfast', label: 'Завтраки', prefix: 'B', x: 0, y: 0 },

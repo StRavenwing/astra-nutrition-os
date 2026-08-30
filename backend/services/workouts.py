@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 
 from backend.models import (
+    AppMeta,
     Exercise,
     ExerciseVariant,
     User,
@@ -57,9 +58,17 @@ def get_exercise(exercise_id: int) -> Exercise:
 
 
 def _ensure_default_workout_equipment() -> None:
-    for kind, names in DEFAULT_WORKOUT_EQUIPMENT.items():
-        for name in names:
-            WorkoutEquipment.get_or_create(kind=kind, name=name)
+    marker = AppMeta.get_or_none(AppMeta.key == "workout_equipment_defaults_seeded")
+    if marker is not None:
+        return
+    if WorkoutEquipment.select().count() == 0:
+        for kind, names in DEFAULT_WORKOUT_EQUIPMENT.items():
+            for name in names:
+                WorkoutEquipment.get_or_create(kind=kind, name=name)
+    AppMeta.get_or_create(
+        key="workout_equipment_defaults_seeded",
+        defaults={"value": "1"},
+    )
 
 
 def serialize_workout_equipment(item: WorkoutEquipment) -> dict:
@@ -124,6 +133,12 @@ def update_workout_equipment(equipment_id: int, data: dict) -> dict:
     item.photo_url = photo
     item.save()
     return serialize_workout_equipment(item)
+
+
+def delete_workout_equipment(equipment_id: int) -> dict:
+    item = get_workout_equipment(equipment_id)
+    item.delete_instance()
+    return {"deleted": True, "id": equipment_id}
 
 
 def _complex_media_values(data: dict) -> tuple[str | None, str | None]:

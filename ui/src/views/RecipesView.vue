@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
-import { idLegend, recipeCategories, recipeCategoryMap } from '@/constants';
+import { idLegend, recipeCategories, recipeCategoryLabels, recipeCategoryMap } from '@/constants';
 import type { RecipeSummary, SortState } from '@/types';
 import { compareValues, fmt, searchable } from '@/utils/format';
 import Toolbar from '@/components/shared/Toolbar.vue';
@@ -58,7 +58,7 @@ const visibleCategories = computed(() => [
   ...recipeCategories.filter((item) => counts.value[item.key]),
   ...Object.keys(counts.value)
     .filter((key) => !recipeCategoryMap[key])
-    .map((key) => ({ key, label: key, prefix: 'M', x: 50, y: 50 }))
+    .map((key) => ({ key, label: recipeCategoryLabels[key] || key, prefix: 'M', x: 50, y: 50 }))
 ]);
 const commonCount = computed(() => data.value.filter((item) => item.collection === 'common').length);
 const localCount = computed(() => data.value.filter((item) => item.collection === 'local').length);
@@ -258,7 +258,7 @@ async function removeRecipe(item: RecipeSummary) {
         <div class="recipe-tile-head">
           <span class="recipe-id">{{ item.code }}</span>
         </div>
-        <div class="recipe-category">{{ recipeCategoryMap[item.category]?.label || item.category }}<span v-if="item.is_ready" class="recipe-option-badge">Готовое блюдо</span><span v-if="item.needs_garnish" class="recipe-option-badge">Нужен гарнир</span></div>
+        <div class="recipe-category">{{ recipeCategoryMap[item.category]?.label || recipeCategoryLabels[item.category] || item.category }}<span v-if="item.is_ready" class="recipe-option-badge">Готовое блюдо</span><span v-if="item.needs_garnish" class="recipe-option-badge">Нужен гарнир</span></div>
         <h3>{{ item.name }}</h3>
         <p>{{ item.subcategory || item.tags || 'Рецепт из личной коллекции' }}</p>
         <div class="tile-macros">

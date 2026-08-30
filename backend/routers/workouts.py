@@ -24,6 +24,7 @@ from backend.services.workouts import (
     list_workout_complexes,
     update_workout_complex,
     create_workout_equipment,
+    delete_workout_equipment,
     list_workout_equipment,
     update_workout_equipment,
 )
@@ -65,6 +66,11 @@ def post_workout_equipment(payload: WorkoutEquipmentInput, current_user: User = 
 @router.put("/workout-equipment/{equipment_id}")
 def put_workout_equipment(equipment_id: int, payload: WorkoutEquipmentInput, current_user: User = Depends(require_admin)) -> dict:
     return update_workout_equipment(equipment_id, dump_model(payload))
+
+
+@router.delete("/workout-equipment/{equipment_id}")
+def remove_workout_equipment(equipment_id: int, current_user: User = Depends(require_admin)) -> dict:
+    return delete_workout_equipment(equipment_id)
 
 
 @router.get("/workout-complexes")

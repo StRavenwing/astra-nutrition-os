@@ -194,7 +194,7 @@ function shiftIsoDate(iso: string, days: number) {
 }
 
 function recipePool(category: string, source: RecipeSummary[]) {
-  return source.filter((recipe) => recipe.category === category);
+  return source.filter((recipe) => recipeCategoryMatches(recipe, category));
 }
 
 function mainMealRecipes(source: RecipeSummary[]) {
@@ -203,6 +203,16 @@ function mainMealRecipes(source: RecipeSummary[]) {
 
 function recipeCategoryKey(recipe: RecipeSummary) {
   return recipe.category.trim().toLowerCase();
+}
+
+function recipeCategoryMatches(recipe: RecipeSummary, category: string) {
+  const key = recipeCategoryKey(recipe);
+  if (category === 'Drink') return key === 'drink' || key.includes('напит');
+  if (category === 'Dessert') return key === 'dessert' || key.includes('десерт');
+  if (category === 'Snack') return key === 'snack' || key.includes('перекус');
+  if (category === 'Garnish') return key === 'garnish' || key.includes('гарнир');
+  if (category === 'Salad') return key === 'salad' || key.includes('салат');
+  return key === category.trim().toLowerCase();
 }
 
 function isBreakfastRecipe(recipe: RecipeSummary) {
@@ -257,7 +267,7 @@ type MenuItem = {
 };
 type MenuNutrition = { kcal: number; protein: number; fat: number; carbs: number };
 type MenuKind = 'main' | 'garnish' | 'salad' | 'protein' | 'vegetable' | 'fruit' | 'dairy' | 'cheese' | 'bread' | 'drink' | 'snack' | 'dessert' | 'other';
-type MenuRole = { mealType: string; preferred: RecipeSummary[]; fallback: RecipeSummary[]; kind: MenuKind };
+type MenuRole = { mealType: string; preferred: RecipeSummary[]; fallback: RecipeSummary[]; kind: MenuKind; allowedCategories?: string[] };
 type MenuCandidate = {
   item: MenuItem;
   nutrition: MenuNutrition;
@@ -355,6 +365,7 @@ function productKind(category: string): MenuKind {
   if (category === 'Хлеб') return 'bread';
   if (category === 'Напитки') return 'drink';
   if (category === 'Перекусы') return 'snack';
+  if (category === 'Десерты' || category === 'Десерт') return 'dessert';
   return 'other';
 }
 
@@ -481,7 +492,10 @@ function firstFittingMenu(states: MenuState[]) {
 
 function candidateRecipes(role: MenuRole, globalUsed: Set<number>, state: MenuState, dayIndex: number) {
   const pool = [...role.preferred, ...role.fallback.filter((recipe) => !role.preferred.some((item) => item.id === recipe.id))]
-    .filter((recipe) => recipeAllowedForMeal(recipe, role.mealType) && !globalUsed.has(recipe.id) && !state.usedRecipes.has(recipe.id));
+    .filter((recipe) => recipeAllowedForMeal(recipe, role.mealType)
+      && (!role.allowedCategories || role.allowedCategories.some((category) => recipeCategoryMatches(recipe, category)))
+      && !globalUsed.has(recipe.id)
+      && !state.usedRecipes.has(recipe.id));
   if (pool.length > 1) {
     const offset = dayIndex % pool.length;
     const rotated = [...pool.slice(offset), ...pool.slice(0, offset)];
@@ -570,28 +584,24 @@ function extraCandidates(dayIndex: number, globalUsed: Set<number>, compact = fa
 
   for (const role of optionalRoles) {
     const mealRecipes = availableRecipes.filter((recipe) => recipeAllowedForMeal(recipe, role.mealType));
-    const preferred = mealRecipes.filter((recipe) => recipe.category === role.category);
-    const fallback = mealRecipes.filter((recipe) => recipe.category !== role.category);
-    [...preferred, ...fallback].slice(0, compact ? 12 : 24).forEach((recipe) => pushExtraRecipeCandidates(candidates, recipe, role.mealType, 'Дополнение для добора нормы', role.kind));
+    const matchingRecipes = mealRecipes.filter((recipe) => recipeCategoryMatches(recipe, role.category));
+    matchingRecipes.slice(0, compact ? 12 : 24).forEach((recipe) => pushExtraRecipeCandidates(candidates, recipe, role.mealType, 'Дополнение для добора нормы', role.kind));
   }
 
-  const saladRecipes = availableRecipes.filter((recipe) => {
-    const category = recipeCategoryKey(recipe);
-    return (category === 'salad' || category.includes('салат')) && !isMainMealRecipe(recipe);
-  }).slice(0, compact ? 8 : 20);
+  const saladRecipes = availableRecipes.filter((recipe) => recipeCategoryMatches(recipe, 'Salad') && !isMainMealRecipe(recipe)).slice(0, compact ? 8 : 20);
   for (const recipe of saladRecipes) {
     pushExtraRecipeCandidates(candidates, recipe, mealOrder[1], 'Дополнение к обеду', 'salad');
     pushExtraRecipeCandidates(candidates, recipe, mealOrder[2], 'Дополнение к ужину', 'salad');
   }
 
-  const garnishRecipes = availableRecipes.filter((recipe) => recipe.category === 'Garnish').slice(0, compact ? 8 : 20);
+  const garnishRecipes = availableRecipes.filter((recipe) => recipeCategoryMatches(recipe, 'Garnish')).slice(0, compact ? 8 : 20);
   for (const recipe of garnishRecipes) {
     for (const [index, mealType] of mealOrder.slice(0, 3).entries()) {
       pushExtraRecipeCandidates(candidates, recipe, mealType, index === 0 ? 'Гарнир к завтраку' : index === 1 ? 'Гарнир к обеду' : 'Гарнир к ужину', 'garnish');
     }
   }
 
-  const noCookCategories = new Set(['Белковые', 'Молочные', 'Овощи', 'Фрукты', 'Ягоды', 'Напитки', 'Перекусы', 'Сыры', 'Хлеб']);
+  const noCookCategories = new Set(['Белковые', 'Молочные', 'Овощи', 'Фрукты', 'Ягоды', 'Напитки', 'Перекусы', 'Сыры', 'Хлеб', 'Десерты', 'Десерт']);
   for (const category of noCookCategories) {
     const categoryProducts = products.value
       .filter((product) => product.category === category && product.unit && !/лук|чеснок/i.test(product.name))
@@ -601,7 +611,15 @@ function extraCandidates(dayIndex: number, globalUsed: Set<number>, compact = fa
         return rightValue - leftValue;
     });
     for (const product of categoryProducts.slice(0, compact ? 4 : 8)) {
-      for (const mealType of mealOrder.slice(0, 3)) {
+      const categoryKey = category.toLowerCase();
+      const mealTypes = categoryKey.includes('десерт')
+        ? [mealOrder[5]]
+        : categoryKey === 'напитки'
+          ? [...mealOrder.slice(0, 3), mealOrder[4]]
+          : categoryKey === 'перекусы'
+            ? [...mealOrder.slice(0, 3), mealOrder[3]]
+            : mealOrder.slice(0, 3);
+      for (const mealType of mealTypes) {
         for (const quantity of productQuantities(product, category, compact)) candidates.push(productCandidate(product, category, mealType, quantity));
       }
     }
@@ -631,9 +649,9 @@ async function menuForDate(dayIndex: number, globalUsed: Set<number>, options: M
     { mealType: mealOrder[2], preferred: recipePool('Main', mainRecipes), fallback: mainRecipes, kind: 'main' },
   ];
   const optionalRecipes = menuRecipeSource(includeReady);
-  if (menuOptions.value.drink) roles.push({ mealType: mealOrder[4], preferred: recipePool('Drink', optionalRecipes), fallback: optionalRecipes, kind: 'drink' });
-  if (menuOptions.value.snack) roles.push({ mealType: mealOrder[3], preferred: recipePool('Snack', optionalRecipes), fallback: optionalRecipes, kind: 'snack' });
-  if (menuOptions.value.dessert) roles.push({ mealType: mealOrder[5], preferred: recipePool('Dessert', optionalRecipes), fallback: optionalRecipes, kind: 'dessert' });
+  if (menuOptions.value.drink) roles.push({ mealType: mealOrder[4], preferred: recipePool('Drink', optionalRecipes), fallback: optionalRecipes, kind: 'drink', allowedCategories: ['Drink'] });
+  if (menuOptions.value.snack) roles.push({ mealType: mealOrder[3], preferred: recipePool('Snack', optionalRecipes), fallback: optionalRecipes, kind: 'snack', allowedCategories: ['Snack'] });
+  if (menuOptions.value.dessert) roles.push({ mealType: mealOrder[5], preferred: recipePool('Dessert', optionalRecipes), fallback: optionalRecipes, kind: 'dessert', allowedCategories: ['Dessert'] });
 
   let beam: MenuState[] = [{ items: [], usedRecipes: new Set(), usedProducts: new Set<string>(), mealCategoryAmounts: new Map(), mealKinds: new Map(), mealsNeedingGarnish: new Set(), mealsAllowingBread: new Set(), mealComponentCounts: new Map(), nutrition: { kcal: 0, protein: 0, fat: 0, carbs: 0 } }];
   for (const role of roles) {
@@ -791,7 +809,7 @@ function editEntry(id: number) {
         </div>
         <div class="diary-current-stats">
           <span><small>Заполнено дней в месяце</small><b>{{ filledDays }}</b></span>
-          <span><small>Средняя стоимость дня</small><b>{{ fmt(filledDays ? monthTotals.cost / filledDays : 0) }} RSD</b></span>
+          <span><small>Стоимость текущего дня</small><b>{{ fmt(todayTotals.cost) }} RSD</b></span>
         </div>
         <button type="button" class="today-badge" @click="openDay(todayIso)">Сегодня</button>
       </div>
@@ -805,14 +823,14 @@ function editEntry(id: number) {
     <div class="diary-current-grid">
       <section class="diary-meals-card">
         <p class="eyebrow">{{ todayLabel }}</p>
-        <h2>Сегодня</h2>
+        <div class="diary-day-heading"><h2>Сегодня</h2><span>Стоимость дня: <b>{{ fmt(todayTotals.cost) }} RSD</b></span></div>
         <div class="diary-meal-list">
           <template v-for="meal in mealOrder" :key="meal">
             <article v-if="todayItems.filter((item) => item.meal_type === meal).length" class="diary-meal-card">
               <span class="diary-meal-icon">{{ meal.slice(0, 1) }}</span>
               <div>
                 <b>{{ meal }}</b>
-                <small>{{ todayItems.filter((item) => item.meal_type === meal).length }} блюда · {{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).kcal) }} ккал</small>
+                <small>{{ todayItems.filter((item) => item.meal_type === meal).length }} блюда · {{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).kcal) }} ккал · {{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).cost) }} RSD</small>
                 <p>{{ todayItems.filter((item) => item.meal_type === meal).map((item) => item.name).join(' · ') }}</p>
               </div>
               <strong>{{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).kcal) }} ккал<small>белок {{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).protein) }} г</small></strong>
@@ -884,7 +902,7 @@ function editEntry(id: number) {
           <span class="diary-day-number">{{ day }}</span>
           <span class="diary-day-copy">
             <b>{{ itemsForDay(day).length ? `${itemsForDay(day).length} ${itemsForDay(day).length === 1 ? 'запись' : 'записи'}` : 'Нет записей' }}</b>
-            <small>{{ itemsForDay(day).length ? `${new Set(itemsForDay(day).map((item) => item.meal_type)).size} приём. · ${fmt(diaryTotals(itemsForDay(day)).kcal)} ккал` : 'Открыть день' }}</small>
+            <small>{{ itemsForDay(day).length ? `${new Set(itemsForDay(day).map((item) => item.meal_type)).size} приём. · ${fmt(diaryTotals(itemsForDay(day)).kcal)} ккал · ${fmt(diaryTotals(itemsForDay(day)).cost)} RSD` : 'Открыть день' }}</small>
           </span>
           <span class="diary-day-arrow">→</span>
         </button>
@@ -954,7 +972,7 @@ function editEntry(id: number) {
 
   <CalendarModal :open="calendarMode === 'day'" :title="selectedDayLabel" @close="calendarMode = null">
     <div class="diary-day-summary">
-      <div><span>ИТОГ ЗА ДЕНЬ</span><b>{{ selectedDayItems.length }} приёма · {{ fmt(selectedDayTotals.kcal) }} ккал · белок {{ fmt(selectedDayTotals.protein) }} г · жиры {{ fmt(selectedDayTotals.fat) }} г</b></div>
+      <div><span>ИТОГ ЗА ДЕНЬ</span><b>{{ selectedDayItems.length }} приёма · {{ fmt(selectedDayTotals.kcal) }} ккал · стоимость {{ fmt(selectedDayTotals.cost) }} RSD · белок {{ fmt(selectedDayTotals.protein) }} г · жиры {{ fmt(selectedDayTotals.fat) }} г</b></div>
       <button v-if="!props.readOnly" type="button" class="diary-day-edit" @click="emit('add'); calendarMode = null">Изменить день</button>
     </div>
     <template v-for="meal in mealOrder" :key="meal">
@@ -963,7 +981,7 @@ function editEntry(id: number) {
         <template v-for="item in selectedDayItems.filter((entry) => entry.meal_type === meal)" :key="item.id">
           <button type="button" class="meal-entry" :disabled="props.readOnly" @click="editEntry(item.id)">
             <span><b>{{ item.name }}</b><small>{{ entryCaption(item) }}</small></span>
-            <strong>{{ fmt((Number(item.kcal_per_serving) || 0) * (Number(item.servings) || 0)) }} ккал</strong>
+            <strong>{{ fmt((Number(item.kcal_per_serving) || 0) * (Number(item.servings) || 0)) }} ккал<small>стоимость {{ fmt((Number(item.cost_per_serving_rsd) || 0) * (Number(item.servings) || 0)) }} RSD</small></strong>
           </button>
           <div v-if="!props.readOnly" class="diary-entry-actions">
             <button type="button" class="edit-diary-entry" @click="editEntry(item.id)">Редактировать</button>
@@ -1035,5 +1053,38 @@ function editEntry(id: number) {
 
 .diary-day-grid {
   align-items: stretch;
+}
+
+.diary-day-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.diary-day-heading h2 {
+  margin: 0;
+  font-size: 19px;
+}
+
+.diary-day-heading > span {
+  color: #7d879b;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.diary-day-heading > span b {
+  color: #172033;
+}
+
+.diary-popup-meal-group .meal-entry > strong small {
+  display: block;
+  margin-top: 4px;
+  color: #7d879b;
+  font-size: 10px;
+  font-weight: 550;
+  text-transform: none;
 }
 </style>

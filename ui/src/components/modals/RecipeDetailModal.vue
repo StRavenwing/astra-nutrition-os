@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { api } from '@/api/client';
+import { recipeCategoryLabels } from '@/constants';
 import type { RecipeDetail, RecipeSummary } from '@/types';
 import { fmt } from '@/utils/format';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
@@ -86,7 +87,7 @@ function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; car
     wide
     @close="$emit('close')"
   >
-    <p v-if="recipe" class="subtle recipe-meta">{{ recipe.code }} · {{ recipe.category }}<template v-if="recipe.subcategory"> / {{ recipe.subcategory }}</template> · v{{ recipe.version }} · {{ fmt(recipe.servings) }} порц.</p>
+    <p v-if="recipe" class="subtle recipe-meta">{{ recipe.code }} · {{ recipeCategoryLabels[recipe.category] || recipe.category }}<template v-if="recipe.subcategory"> / {{ recipe.subcategory }}</template> · v{{ recipe.version }} · {{ fmt(recipe.servings) }} порц.</p>
     <div v-if="loading" class="panel">Загрузка…</div>
     <div v-else-if="error" class="panel empty">{{ error }}</div>
     <div v-else-if="recipe && detail" class="recipe-body">
