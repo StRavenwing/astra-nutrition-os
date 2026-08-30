@@ -394,8 +394,8 @@ onBeforeUnmount(() => {
     @login="openLogin"
   >
     <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" :is-admin="isAdmin" @navigate="navigate" @open-recipe="openRecipe" />
-    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @add="openAdd" @add-category="openCategory('product')" />
-    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" :read-only="isGuest" @open-recipe="openRecipe" @edit="editRecipe" @add="openAdd" @add-category="openCategory('recipe')" />
+    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @add="openAdd" @add-category="openCategory('product')" />
+    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :read-only="isGuest" @open-recipe="openRecipe" @edit="editRecipe" @add="openAdd" @add-category="openCategory('recipe')" />
     <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" :read-only="isGuest" :menu-action="diaryMenuAction" @edit="modal = { kind: 'diary', id: $event }" @add="openAdd" />
     <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" :read-only="isGuest" @edit="modal = { kind: 'progress', id: $event }" @add="openAdd" />
     <WorkoutsView
@@ -420,10 +420,10 @@ onBeforeUnmount(() => {
       @repeat="repeatPlan = $event; editPlan = null; workoutBuilderOpen = true"
     />
     <ClientsView v-else-if="currentPage === 'clients'" :refresh-key="reloadKey" :can-access="canAccessClients" :is-admin="isAdmin" @changed="refresh" @feedback="openFeedback" />
-    <TheoryView v-else-if="currentPage === 'theory'" :is-admin="isAdmin" :refresh-key="reloadKey" @add-article="openArticleEditor()" @edit-article="openArticleEditor" />
+    <TheoryView v-else-if="currentPage === 'theory'" :is-admin="isAdmin" :can-manage="canManageTraining" :refresh-key="reloadKey" @add-article="openArticleEditor()" @edit-article="openArticleEditor" />
   </AppShell>
 
-  <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
+  <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" :can-manage="canManageTraining" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
   <ExerciseManagerModal v-if="canManageTraining" :open="exerciseManagerOpen" @close="exerciseManagerOpen = false" @add="openExerciseAdd" @edit="editExercise" @changed="refresh" />
   <WorkoutBuilderModal :open="workoutBuilderOpen" :repeat-plan="repeatPlan" :edit-plan="editPlan" :complex="workoutComplexForBuilder" @close="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; workoutComplexForBuilder = null" @saved="workoutBuilderOpen = false; repeatPlan = null; editPlan = null; workoutComplexForBuilder = null; refresh()" />
   <WorkoutComplexModal :open="complexEditorOpen" :complex="complexEditor" :mode="complexEditorMode" @close="complexEditorOpen = false" @saved="complexEditorOpen = false; complexEditor = null; refresh()" @open-exercise="openExerciseDetail" />

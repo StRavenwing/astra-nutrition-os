@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { WorkoutComplex, WorkoutPlanItem } from '@/types';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
+import SendToClientButton from '@/components/shared/SendToClientButton.vue';
 
 const props = defineProps<{
   open: boolean;
@@ -64,6 +65,7 @@ function itemMetric(item: WorkoutPlanItem) {
       <div class="actions">
         <button type="button" @click="emit('close')">Закрыть</button>
         <button v-if="props.canManage && !props.readOnly" type="button" class="primary" @click="emit('edit', complex)">Редактировать</button>
+        <SendToClientButton :item-type="'workout_complex'" :item-id="complex.id" :can-manage="props.canManage" />
       </div>
     </div>
   </ModalDialog>

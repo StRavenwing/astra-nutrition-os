@@ -8,9 +8,15 @@ from backend.models import (
     ChatMessage,
     DiaryEntry,
     Exercise,
+    Article,
     ProgressEntry,
+    Product,
+    Recipe,
     TrainerClient,
+    TrainerSharedItem,
     User,
+    WorkoutComplex,
+    WorkoutEquipment,
     WorkoutLog,
     WorkoutPlan,
     current_database,
@@ -248,6 +254,7 @@ def list_chat_messages(client_id: int, actor: User) -> list[dict]:
             "sender_id": item.sender_id,
             "sender_name": _display_name(item.sender) if item.sender else "Пользователь",
             "message": item.message,
+            "shared_item": _shared_item_payload(item),
             "created_at": item.created_at,
         }
         for item in query
@@ -265,5 +272,61 @@ def send_chat_message(client_id: int, data: dict, actor: User) -> dict:
         "sender_id": actor.id,
         "sender_name": _display_name(actor),
         "message": item.message,
+        "shared_item": None,
         "created_at": item.created_at,
+    }
+
+
+def _shared_item_payload(item: ChatMessage) -> dict | None:
+    if not item.shared_item_type or item.shared_item_id is None:
+        return None
+    return {
+        "type": item.shared_item_type,
+        "id": item.shared_item_id,
+        "name": item.shared_item_name or "Отправленный материал",
+    }
+
+
+def share_item(data: dict, actor: User) -> dict:
+    relation = _relationship(int(data.get("client_id")), actor)
+    item_type = str(data.get("item_type") or "")
+    item_id = int(data.get("item_id"))
+    item_models = {
+        "recipe": Recipe,
+        "product": Product,
+        "article": Article,
+        "workout_complex": WorkoutComplex,
+        "workout_equipment": WorkoutEquipment,
+    }
+    model = item_models.get(item_type)
+    if model is None or model.get_or_none(model.id == item_id) is None:
+        raise NotFoundError("Элемент для отправки не найден")
+    with current_database().atomic():
+        shared, created = TrainerSharedItem.get_or_create(
+            trainer_client=relation,
+            item_type=item_type,
+            item_id=item_id,
+            defaults={"created_at": utc_now()},
+        )
+        if created:
+            shared_model = model.get_by_id(item_id)
+            item_name = getattr(shared_model, "title", None) or getattr(shared_model, "name", None) or "Отправленный материал"
+            chat_message = ChatMessage.create(
+                trainer_client=relation,
+                sender=actor,
+                message=f"Отправлен материал: {item_name}",
+                shared_item_type=item_type,
+                shared_item_id=item_id,
+                shared_item_name=item_name,
+                created_at=utc_now(),
+            )
+        else:
+            chat_message = None
+    return {
+        "id": shared.id,
+        "client_id": relation.client_id,
+        "item_type": item_type,
+        "item_id": item_id,
+        "already_shared": not created,
+        "chat_message_id": chat_message.id if chat_message else None,
     }

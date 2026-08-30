@@ -6,8 +6,9 @@ import type { RecipeSummary, SortState } from '@/types';
 import { compareValues, fmt, searchable } from '@/utils/format';
 import Toolbar from '@/components/shared/Toolbar.vue';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
+import SendToClientButton from '@/components/shared/SendToClientButton.vue';
 
-const props = defineProps<{ refreshKey: number; isAdmin: boolean; readOnly?: boolean }>();
+const props = defineProps<{ refreshKey: number; isAdmin: boolean; canManage: boolean; readOnly?: boolean }>();
 const emit = defineEmits<{ openRecipe: [id: number]; edit: [id: number]; addCategory: []; add: [] }>();
 
 const data = ref<RecipeSummary[]>([]);
@@ -269,7 +270,7 @@ async function removeRecipe(item: RecipeSummary) {
         </div>
         <div class="recipe-card-footer">
           <button type="button" class="primary card-primary recipe-open-primary" @click.stop="emit('openRecipe', item.id)">Просмотр</button>
-          <div v-if="!props.readOnly && (isAdmin || item.collection === 'local')" class="recipe-tile-actions" @click.stop>
+          <div v-if="!props.readOnly && (isAdmin || item.collection === 'local' || props.canManage)" class="recipe-tile-actions" @click.stop>
             <button
               v-if="item.collection === 'local'"
               type="button"
@@ -280,6 +281,7 @@ async function removeRecipe(item: RecipeSummary) {
             >⇧</button>
             <button type="button" class="icon-action edit-recipe" aria-label="Редактировать рецепт" title="Редактировать рецепт" @click="emit('edit', item.id)">✎</button>
             <button type="button" class="icon-action danger-icon delete-recipe" aria-label="Удалить рецепт" title="Удалить рецепт" @click="removeRecipe(item)">×</button>
+            <SendToClientButton :item-type="'recipe'" :item-id="item.id" :can-manage="props.canManage" />
           </div>
         </div>
       </article>

@@ -258,7 +258,19 @@ export interface TrainerChatMessage {
   sender_id: number | null;
   sender_name: string;
   message: string;
+  shared_item: { type: ShareItemType; id: number; name: string } | null;
   created_at: string;
+}
+
+export type ShareItemType = 'recipe' | 'product' | 'article' | 'workout_complex' | 'workout_equipment';
+
+export interface SharedItemResult {
+  id: number;
+  client_id: number;
+  item_type: ShareItemType;
+  item_id: number;
+  already_shared: boolean;
+  chat_message_id: number | null;
 }
 
 export interface WorkoutEntry {

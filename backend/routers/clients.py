@@ -8,6 +8,7 @@ from backend.schemas import (
     ClientCreateInput,
     ClientNutritionTargetsInput,
     DiaryCreateInput,
+    ShareItemInput,
     TrainerChatMessageInput,
     WorkoutPlanInput,
     dump_model,
@@ -22,6 +23,7 @@ from backend.services.clients import (
     list_clients,
     schedule_client_workout,
     send_chat_message,
+    share_item,
     update_client_targets,
 )
 
@@ -37,6 +39,11 @@ def get_clients(current_user: User = Depends(require_trainer)) -> list[dict]:
 @router.post("", status_code=status.HTTP_201_CREATED)
 def post_client(payload: ClientCreateInput, current_user: User = Depends(require_trainer)) -> dict:
     return add_client(dump_model(payload), current_user)
+
+
+@router.post("/shares", status_code=status.HTTP_201_CREATED)
+def post_shared_item(payload: ShareItemInput, current_user: User = Depends(require_trainer)) -> dict:
+    return share_item(dump_model(payload), current_user)
 
 
 @router.get("/{client_id}")

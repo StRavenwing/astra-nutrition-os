@@ -3,6 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
 import type { Exercise, WorkoutComplex, WorkoutEquipment, WorkoutPlan } from '@/types';
 import { formatDate, fmt } from '@/utils/format';
+import SendToClientButton from '@/components/shared/SendToClientButton.vue';
 
 const props = defineProps<{
   refreshKey: number;
@@ -245,6 +246,7 @@ async function removeEquipment(id: number) {
             <div class="workout-complex-actions">
               <button v-if="!props.readOnly" type="button" class="primary create-complex-button" @click.stop="emit('scheduleFromComplex', complex)">Добавить в запланированную тренировку</button>
               <button v-if="props.canManage" type="button" class="icon-action edit-complex-button" aria-label="Редактировать комплекс" title="Редактировать комплекс" @click.stop="emit('buildComplex', { complex, mode: 'edit' })">✎</button>
+              <SendToClientButton :item-type="'workout_complex'" :item-id="complex.id" :can-manage="props.canManage" />
             </div>
           </div>
         </article>
@@ -299,7 +301,7 @@ async function removeEquipment(id: number) {
             <div class="workout-tile-head"><span class="workout-group machine-badge">ТРЕНАЖЁР</span><span class="exercise-code">Т-{{ String(index + 1).padStart(2, '0') }}</span></div>
             <h3>{{ machine.name }}</h3>
             <p>{{ machine.description || 'Оборудование для выполнения упражнений и настройки нагрузки.' }}</p>
-            <div v-if="props.canManage && !props.readOnly" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', machine.id)">Редактировать</button><button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить тренажёр" title="Удалить тренажёр" @click.stop="removeEquipment(machine.id)">×</button></div>
+            <div v-if="props.canManage && !props.readOnly" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', machine.id)">Редактировать</button><button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить тренажёр" title="Удалить тренажёр" @click.stop="removeEquipment(machine.id)">×</button><SendToClientButton :item-type="'workout_equipment'" :item-id="machine.id" :can-manage="props.canManage" /></div>
           </article>
           <article v-if="props.canManage && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'machine')" @keydown.enter.prevent="emit('addEquipment', 'machine')">
             <span class="workout-create-icon">＋</span><div class="workout-create-copy"><h3>Добавить тренажёр</h3><p>или свободный инвентарь</p></div><button type="button" class="primary" @click.stop="emit('addEquipment', 'machine')">＋ Добавить элемент</button>
@@ -314,7 +316,7 @@ async function removeEquipment(id: number) {
             <div class="workout-tile-head"><span class="workout-group equipment-badge">ИНВЕНТАРЬ</span><span class="exercise-code">И-{{ String(index + 1).padStart(2, '0') }}</span></div>
             <h3>{{ equipmentItem.name }}</h3>
             <p>{{ equipmentItem.description || 'Инвентарь для выполнения упражнений, усложнения или разнообразия тренировки.' }}</p>
-            <div v-if="props.canManage && !props.readOnly" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', equipmentItem.id)">Редактировать</button><button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить инвентарь" title="Удалить инвентарь" @click.stop="removeEquipment(equipmentItem.id)">×</button></div>
+            <div v-if="props.canManage && !props.readOnly" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', equipmentItem.id)">Редактировать</button><button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить инвентарь" title="Удалить инвентарь" @click.stop="removeEquipment(equipmentItem.id)">×</button><SendToClientButton :item-type="'workout_equipment'" :item-id="equipmentItem.id" :can-manage="props.canManage" /></div>
           </article>
           <article v-if="props.canManage && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'equipment')" @keydown.enter.prevent="emit('addEquipment', 'equipment')">
             <span class="workout-create-icon">＋</span><div class="workout-create-copy"><h3>Добавить инвентарь</h3><p>Свободный вес и аксессуары</p></div><button type="button" class="primary" @click.stop="emit('addEquipment', 'equipment')">＋ Добавить элемент</button>

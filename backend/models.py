@@ -492,10 +492,25 @@ class ChatMessage(BaseModel):
     trainer_client = ForeignKeyField(TrainerClient, backref="messages", on_delete="CASCADE")
     sender = ForeignKeyField(User, backref="trainer_chat_messages", null=True, on_delete="SET NULL")
     message = TextField()
+    shared_item_type = CharField(null=True)
+    shared_item_id = IntegerField(null=True)
+    shared_item_name = CharField(null=True)
     created_at = CharField(index=True)
 
     class Meta:
         table_name = "trainer_chat_messages"
+
+
+class TrainerSharedItem(BaseModel):
+    id = AutoField()
+    trainer_client = ForeignKeyField(TrainerClient, backref="shared_items", on_delete="CASCADE")
+    item_type = CharField()
+    item_id = IntegerField()
+    created_at = CharField(index=True)
+
+    class Meta:
+        table_name = "trainer_shared_items"
+        indexes = ((('trainer_client', 'item_type', 'item_id'), True),)
 
 
 MODELS = [
@@ -528,4 +543,5 @@ MODELS = [
     WorkoutComplexItem,
     TrainerClient,
     ChatMessage,
+    TrainerSharedItem,
 ]

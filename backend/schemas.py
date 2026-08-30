@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -178,6 +178,12 @@ class ClientNutritionTargetsInput(BaseModel):
 
 class TrainerChatMessageInput(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
+
+
+class ShareItemInput(BaseModel):
+    client_id: int
+    item_type: Literal['recipe', 'product', 'article', 'workout_complex', 'workout_equipment']
+    item_id: int
 
 
 class ProgressInput(BaseModel):

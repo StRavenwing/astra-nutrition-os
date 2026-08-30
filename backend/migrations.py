@@ -62,6 +62,19 @@ def _ensure_user_columns(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE users ADD COLUMN is_trainer INTEGER NOT NULL DEFAULT 0")
 
 
+def _ensure_chat_columns(connection: sqlite3.Connection) -> None:
+    columns = _columns(connection, "trainer_chat_messages")
+    if not columns:
+        return
+    for column, column_type in {
+        "shared_item_type": "TEXT",
+        "shared_item_id": "INTEGER",
+        "shared_item_name": "TEXT",
+    }.items():
+        if column not in columns:
+            connection.execute(f"ALTER TABLE trainer_chat_messages ADD COLUMN {column} {column_type}")
+
+
 def _ensure_exercise_columns(connection: sqlite3.Connection) -> None:
     columns = _columns(connection, "exercises")
     additions = {
@@ -818,6 +831,7 @@ def migrate_v2_database(settings: Settings, backup_existing: bool) -> None:
     connection = _connect_raw(settings.db_path)
     try:
         _ensure_user_columns(connection)
+        _ensure_chat_columns(connection)
         connection.execute("PRAGMA foreign_keys=OFF")
         _create_users_table(connection)
         admin = _admin_row(connection, settings)
@@ -848,6 +862,7 @@ def migrate_v3_database(settings: Settings, backup_existing: bool) -> None:
     connection = _connect_raw(settings.db_path)
     try:
         _ensure_user_columns(connection)
+        _ensure_chat_columns(connection)
         _ensure_exercise_columns(connection)
         _ensure_progress_target_columns(connection)
         _ensure_recipe_option_columns(connection)
@@ -871,6 +886,7 @@ def migrate_v4_database(settings: Settings, backup_existing: bool) -> None:
     connection = _connect_raw(settings.db_path)
     try:
         _ensure_user_columns(connection)
+        _ensure_chat_columns(connection)
         _ensure_exercise_columns(connection)
         _ensure_progress_target_columns(connection)
         _ensure_recipe_option_columns(connection)
@@ -900,6 +916,7 @@ def ensure_database(settings: Settings) -> None:
         connection = _connect_raw(settings.db_path)
         try:
             _ensure_user_columns(connection)
+            _ensure_chat_columns(connection)
             _ensure_exercise_columns(connection)
             _ensure_workout_equipment_table(connection)
             _ensure_progress_target_columns(connection)

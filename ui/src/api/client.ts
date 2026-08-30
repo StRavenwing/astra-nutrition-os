@@ -21,7 +21,9 @@ import type {
   ArticleSection,
   ClientDetail,
   ClientSummary,
-  TrainerChatMessage
+  TrainerChatMessage,
+  ShareItemResult,
+  ShareItemType
 } from '@/types';
 
 const TOKEN_KEY = 'astra_access_token';
@@ -127,6 +129,7 @@ export const api = {
   updateClientTargets: (id: number, body: unknown) => write<ProgressEntry>('PUT', `clients/${id}/nutrition-targets`, body),
   clientChat: (id: number) => request<TrainerChatMessage[]>(`clients/${id}/chat`),
   sendClientChat: (id: number, message: string) => write<TrainerChatMessage>('POST', `clients/${id}/chat`, { message }),
+  shareItem: (clientId: number, itemType: ShareItemType, itemId: number) => write<ShareItemResult>('POST', 'clients/shares', { client_id: clientId, item_type: itemType, item_id: itemId }),
   workoutComplexes: () => request<WorkoutComplex[]>('workout-complexes'),
   workoutEquipment: () => request<WorkoutEquipment[]>('workout-equipment'),
   createWorkoutEquipment: (body: unknown) => write<WorkoutEquipment>('POST', 'workout-equipment', body),

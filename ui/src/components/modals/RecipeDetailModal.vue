@@ -5,10 +5,12 @@ import { recipeCategoryLabels } from '@/constants';
 import type { RecipeDetail, RecipeSummary } from '@/types';
 import { fmt } from '@/utils/format';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
+import SendToClientButton from '@/components/shared/SendToClientButton.vue';
 
 const props = defineProps<{
   recipeId: number | null;
   isAdmin: boolean;
+  canManage: boolean;
 }>();
 const emit = defineEmits<{
   close: [];
@@ -21,7 +23,7 @@ const loading = ref(false);
 const error = ref('');
 const detail = ref<RecipeDetail | null>(null);
 const recipe = computed<RecipeSummary | null>(() => detail.value?.recipe || null);
-const canManage = computed(() => Boolean(recipe.value && (props.isAdmin || recipe.value.collection === 'local')));
+const canEdit = computed(() => Boolean(recipe.value && (props.isAdmin || recipe.value.collection === 'local')));
 
 watch(
   () => props.recipeId,
@@ -99,10 +101,11 @@ function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; car
           <button type="button" @click="cancelSubmission">Отменить отправку</button>
         </div>
       </div>
-      <div v-if="canManage" class="recipe-actions">
+      <div v-if="canEdit" class="recipe-actions">
         <button type="button" class="edit-recipe" @click="$emit('edit', recipe.id)">✎ Редактировать</button>
         <button type="button" class="danger-button" @click="removeRecipe">Удалить</button>
       </div>
+      <SendToClientButton :item-type="'recipe'" :item-id="recipe.id" :can-manage="props.canManage" />
 
       <h3 class="macro-heading">КБЖУ на порцию</h3>
       <div class="recipe-kpis">
