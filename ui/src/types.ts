@@ -262,7 +262,7 @@ export interface TrainerChatMessage {
   created_at: string;
 }
 
-export type ShareItemType = 'recipe' | 'product' | 'article' | 'workout_complex' | 'workout_equipment';
+export type ShareItemType = 'recipe' | 'product' | 'article' | 'progress' | 'workout_complex' | 'workout_equipment';
 
 export interface SharedItemResult {
   id: number;

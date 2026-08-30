@@ -295,6 +295,7 @@ def share_item(data: dict, actor: User) -> dict:
         "recipe": Recipe,
         "product": Product,
         "article": Article,
+        "progress": ProgressEntry,
         "workout_complex": WorkoutComplex,
         "workout_equipment": WorkoutEquipment,
     }
@@ -310,7 +311,11 @@ def share_item(data: dict, actor: User) -> dict:
         )
         if created:
             shared_model = model.get_by_id(item_id)
-            item_name = getattr(shared_model, "title", None) or getattr(shared_model, "name", None) or "Отправленный материал"
+            item_name = (
+                f"Показатели за {shared_model.measured_at}"
+                if item_type == "progress"
+                else getattr(shared_model, "title", None) or getattr(shared_model, "name", None) or "Отправленный материал"
+            )
             chat_message = ChatMessage.create(
                 trainer_client=relation,
                 sender=actor,

@@ -182,7 +182,7 @@ class TrainerChatMessageInput(BaseModel):
 
 class ShareItemInput(BaseModel):
     client_id: int
-    item_type: Literal['recipe', 'product', 'article', 'workout_complex', 'workout_equipment']
+    item_type: Literal['recipe', 'product', 'article', 'progress', 'workout_complex', 'workout_equipment']
     item_id: int
 
 

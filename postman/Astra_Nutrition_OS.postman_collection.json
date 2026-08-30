@@ -1167,6 +1167,425 @@
       ]
     },
     {
+      "name": "Trainer / Coach",
+      "item": [
+        {
+          "name": "POST /api/v1/auth/login (trainer)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const json = pm.response.json();",
+                  "  if (json.access_token) {",
+                  "    pm.environment.set('trainer_access_token', json.access_token);",
+                  "    pm.collectionVariables.set('trainer_access_token', json.access_token);",
+                  "    console.log('Trainer access token saved');",
+                  "  }",
+                  "}",
+                  ""
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{trainer_email}}\",\n  \"password\": \"{{trainer_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Логин тренера и сохранение JWT в переменную trainer_access_token."
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/clients",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/clients",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"client@example.com\",\n  \"display_name\": \"Клиент 1\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/clients/shares",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": 1,\n  \"item_type\": \"recipe\",\n  \"item_id\": 1\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/shares",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients", "shares"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/clients/{client_id}",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/clients/{client_id}/diary",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"date\": \"2026-08-30\",\n  \"meals\": [{\n    \"meal_type\": \"breakfast\",\n    \"items\": [{\n      \"product_id\": 1,\n      \"quantity\": 200\n    }]\n  }]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/1/diary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients", "1", "diary"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/clients/{client_id}/diary",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/1/diary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients", "1", "diary"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/clients/{client_id}/diary/{entry_id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/1/diary/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients", "1", "diary", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/clients/{client_id}/workout-plans",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"План клиента\",\n  \"description\": \"Тренировка для клиента\",\n  \"days\": [{\n    \"day\": \"monday\",\n    \"exercise_ids\": [1]\n  }]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/1/workout-plans",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients", "1", "workout-plans"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/clients/{client_id}/nutrition-targets",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"calories_kcal\": 2200,\n  \"protein_g\": 140,\n  \"carbs_g\": 220,\n  \"fat_g\": 70\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/1/nutrition-targets",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients", "1", "nutrition-targets"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/clients/{client_id}/chat",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/1/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients", "1", "chat"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/clients/{client_id}/chat",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Как прошло занятие?\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/clients/1/chat",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "clients", "1", "chat"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/exercises",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/exercises",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "exercises"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/exercises",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"EX-002\",\n  \"title\": \"Жим лежа\",\n  \"description\": \"Базовое упражнение для тренера\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/exercises",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "exercises"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/exercises/{exercise_id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"EX-002\",\n  \"title\": \"Жим лежа с поясом\",\n  \"description\": \"Обновленное упражнение\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/exercises/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "exercises", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/workout-equipment",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-equipment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-equipment"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/workout-equipment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Штанга\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-equipment",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-equipment"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/workout-equipment/{equipment_id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Штанга 20 кг\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-equipment/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-equipment", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "DELETE /api/v1/workout-equipment/{equipment_id}",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-equipment/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-equipment", "1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GET /api/v1/workout-complexes",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-complexes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-complexes"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "POST /api/v1/workout-complexes",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Комплекс для клиента\",\n  \"description\": \"Упражнения для клиента\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-complexes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-complexes"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "PUT /api/v1/workout-complexes/{complex_id}",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{trainer_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Комплекс для клиента 2\",\n  \"description\": \"Обновленный комплекс\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/workout-complexes/1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "workout-complexes", "1"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "OAuth / MCP",
       "item": [
         {
@@ -1348,8 +1767,11 @@
   "variable": [
     { "key": "base_url", "value": "http://127.0.0.1:8787", "type": "string" },
     { "key": "access_token", "value": "", "type": "string" },
+    { "key": "trainer_access_token", "value": "", "type": "string" },
     { "key": "admin_email", "value": "admin@example.com", "type": "string" },
     { "key": "admin_password", "value": "Password123!", "type": "string" },
+    { "key": "trainer_email", "value": "trainer@example.com", "type": "string" },
+    { "key": "trainer_password", "value": "TrainerPassword123!", "type": "string" },
     { "key": "client_id", "value": "", "type": "string" },
     { "key": "redirect_uri", "value": "https://example.com/callback", "type": "string" },
     { "key": "code_challenge", "value": "", "type": "string" },

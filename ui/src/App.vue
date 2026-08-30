@@ -397,7 +397,7 @@ onBeforeUnmount(() => {
     <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @add="openAdd" @add-category="openCategory('product')" />
     <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :read-only="isGuest" @open-recipe="openRecipe" @edit="editRecipe" @add="openAdd" @add-category="openCategory('recipe')" />
     <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" :read-only="isGuest" :menu-action="diaryMenuAction" @edit="modal = { kind: 'diary', id: $event }" @add="openAdd" />
-    <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" :read-only="isGuest" @edit="modal = { kind: 'progress', id: $event }" @add="openAdd" />
+    <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" :can-manage="canManageTraining" :read-only="isGuest" @edit="modal = { kind: 'progress', id: $event }" @add="openAdd" />
     <WorkoutsView
       v-else-if="currentPage === 'workouts'"
       :refresh-key="reloadKey"

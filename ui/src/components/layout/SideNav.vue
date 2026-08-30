@@ -24,9 +24,9 @@ defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
         :key="item.id"
         type="button"
         :class="{ active: item.id === currentPage }"
-        :disabled="item.id === 'clients' && !canAccessClients"
-        :title="item.id === 'clients' && !canAccessClients ? 'Доступно только тренерам и администраторам' : undefined"
-        @click="item.id !== 'clients' || canAccessClients ? $emit('navigate', item.id) : undefined"
+        :disabled="item.id === 'clients' && !(user.is_admin || user.is_trainer)"
+        :title="item.id === 'clients' && !(user.is_admin || user.is_trainer) ? 'Доступно только тренерам и администраторам' : undefined"
+        @click="item.id !== 'clients' || user.is_admin || user.is_trainer ? $emit('navigate', item.id) : undefined"
       >
         <span v-if="item.id === 'clients'" class="nav-icon clients-nav-icon" aria-hidden="true">👥</span>
         <svg v-else class="nav-icon" aria-hidden="true"><use :href="`/assets/astra-menu-icons.svg#${item.id}`" /></svg>

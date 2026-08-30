@@ -59,7 +59,9 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutside));
 .product-tile-actions > .send-client-control,
 .recipe-tile-actions > .send-client-control,
 .workout-complex-actions > .send-client-control,
-.equipment-card-actions > .send-client-control { grid-column: 1 / -1; }
+.equipment-card-actions > .send-client-control,
+.progress-tile-actions > .send-client-control { grid-column: 1 / -1; }
+.progress-latest-card > .send-client-control { margin-top: 18px; }
 .send-client-button { width: 100%; min-height: 36px; border: 1px solid #85b8ff; border-radius: 8px; padding: 8px 9px; background: #e9f2ff; color: var(--blue); font-size: 10px; font-weight: 750; line-height: 1.1; cursor: pointer; }
 .send-client-button:hover { background: #dcecff; }
 .send-client-menu { position: absolute; z-index: 20; right: 0; bottom: calc(100% + 8px); display: grid; min-width: 230px; max-width: min(280px, 80vw); max-height: 280px; overflow-y: auto; padding: 8px; border: 1px solid #cbd8e8; border-radius: 10px; background: #fff; box-shadow: 0 12px 30px rgba(23, 43, 77, .18); }
