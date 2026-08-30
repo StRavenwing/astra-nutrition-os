@@ -66,13 +66,21 @@ def _ensure_chat_columns(connection: sqlite3.Connection) -> None:
     columns = _columns(connection, "trainer_chat_messages")
     if not columns:
         return
+    added_read_state = False
     for column, column_type in {
         "shared_item_type": "TEXT",
         "shared_item_id": "INTEGER",
         "shared_item_name": "TEXT",
+        "read_by_trainer": "INTEGER NOT NULL DEFAULT 0",
+        "read_by_client": "INTEGER NOT NULL DEFAULT 0",
     }.items():
         if column not in columns:
             connection.execute(f"ALTER TABLE trainer_chat_messages ADD COLUMN {column} {column_type}")
+            added_read_state = added_read_state or column in {"read_by_trainer", "read_by_client"}
+    if added_read_state:
+        connection.execute(
+            "UPDATE trainer_chat_messages SET read_by_trainer=1, read_by_client=1"
+        )
 
 
 def _ensure_exercise_columns(connection: sqlite3.Connection) -> None:

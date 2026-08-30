@@ -22,10 +22,11 @@ from backend.models import (
     current_database,
 )
 from backend.services.auth import normalize_email, utc_now
+from backend.services.articles import serialize_article
 from backend.services.diary import create_diary_entries
 from backend.services.errors import ConflictError, ForbiddenError, NotFoundError
-from backend.services.serialization import serialize_diary_entry, serialize_progress, serialize_workout, serialize_workout_plan
-from backend.services.workouts import create_workout_plan
+from backend.services.serialization import serialize_diary_entry, serialize_exercise, serialize_product, serialize_progress, serialize_recipe_detail, serialize_workout, serialize_workout_plan
+from backend.services.workouts import create_workout_plan, serialize_workout_complex, serialize_workout_equipment
 
 
 def _display_name(user: User) -> str:
@@ -69,12 +70,59 @@ def _next_workout(client: User) -> dict | None:
     return {"id": plan.id, "scheduled_at": plan.scheduled_at, "status": plan.status}
 
 
-def serialize_client_summary(client: User) -> dict:
+def _trainer_unread_count(relation: TrainerClient) -> int:
+    return (
+        ChatMessage
+        .select()
+        .where(
+            (ChatMessage.trainer_client == relation)
+            & (ChatMessage.read_by_trainer == False)
+        )
+        .count()
+    )
+
+
+def _client_unread_count(relation: TrainerClient) -> int:
+    return (
+        ChatMessage
+        .select()
+        .where(
+            (ChatMessage.trainer_client == relation)
+            & (ChatMessage.read_by_client == False)
+        )
+        .count()
+    )
+
+
+def _mark_chat_read(relation: TrainerClient, audience: str) -> None:
+    if audience == "trainer":
+        field_name = "read_by_trainer"
+        recipient = relation.trainer
+    else:
+        field_name = "read_by_client"
+        recipient = relation.client
+    read_field = getattr(ChatMessage, field_name)
+    ChatMessage.update(**{field_name: True}).where(
+        (ChatMessage.trainer_client == relation)
+        & (read_field == False)
+        & (ChatMessage.sender.is_null(True) | (ChatMessage.sender != recipient))
+    ).execute()
+
+
+def _message_read_flags(relation: TrainerClient, sender: User) -> dict[str, bool]:
+    return {
+        "read_by_trainer": sender.id == relation.trainer_id,
+        "read_by_client": sender.id == relation.client_id,
+    }
+
+
+def serialize_client_summary(client: User, relation: TrainerClient | None = None) -> dict:
     return {
         "id": client.id,
         "name": _display_name(client),
         "email": client.email,
         "next_workout": _next_workout(client),
+        "unread_messages": _trainer_unread_count(relation) if relation else 0,
     }
 
 
@@ -95,7 +143,7 @@ def list_clients(actor: User) -> list[dict]:
         if client.id in seen:
             continue
         seen.add(client.id)
-        result.append(serialize_client_summary(client))
+        result.append(serialize_client_summary(client, relation))
     return result
 
 
@@ -114,7 +162,7 @@ def add_client(data: dict, actor: User) -> dict:
     )
     if not created:
         raise ConflictError("Этот клиент уже добавлен")
-    return serialize_client_summary(client)
+    return serialize_client_summary(client, relation)
 
 
 def _user_progress(client: User) -> list[ProgressEntry]:
@@ -180,7 +228,7 @@ def get_client_detail(client_id: int, actor: User) -> dict:
     targets = _targets(progress[0] if progress else None)
     workouts, plans = _user_workouts(client)
     return {
-        **serialize_client_summary(client),
+        **serialize_client_summary(client, relation),
         "progress": [serialize_progress(item) for item in progress],
         "today": {
             "date": _today(),
@@ -248,17 +296,12 @@ def list_chat_messages(client_id: int, actor: User) -> list[dict]:
     relation = _relationship(client_id, actor)
     query = ChatMessage.select(ChatMessage, User).join(User, on=(ChatMessage.sender == User.id), join_type=JOIN.LEFT_OUTER)
     query = query.where(ChatMessage.trainer_client == relation).order_by(ChatMessage.created_at, ChatMessage.id)
-    return [
-        {
-            "id": item.id,
-            "sender_id": item.sender_id,
-            "sender_name": _display_name(item.sender) if item.sender else "Пользователь",
-            "message": item.message,
-            "shared_item": _shared_item_payload(item),
-            "created_at": item.created_at,
-        }
+    messages = [
+        _chat_message_payload(item)
         for item in query
     ]
+    _mark_chat_read(relation, "trainer")
+    return messages
 
 
 def send_chat_message(client_id: int, data: dict, actor: User) -> dict:
@@ -266,13 +309,23 @@ def send_chat_message(client_id: int, data: dict, actor: User) -> dict:
     message = str(data.get("message") or "").strip()
     if not message:
         raise ValueError("Сообщение не может быть пустым")
-    item = ChatMessage.create(trainer_client=relation, sender=actor, message=message, created_at=utc_now())
+    item = ChatMessage.create(
+        trainer_client=relation,
+        sender=actor,
+        message=message,
+        created_at=utc_now(),
+        **_message_read_flags(relation, actor),
+    )
+    return _chat_message_payload(item)
+
+
+def _chat_message_payload(item: ChatMessage) -> dict:
     return {
         "id": item.id,
-        "sender_id": actor.id,
-        "sender_name": _display_name(actor),
+        "sender_id": item.sender_id,
+        "sender_name": _display_name(item.sender) if item.sender else "Пользователь",
         "message": item.message,
-        "shared_item": None,
+        "shared_item": _shared_item_payload(item),
         "created_at": item.created_at,
     }
 
@@ -287,14 +340,128 @@ def _shared_item_payload(item: ChatMessage) -> dict | None:
     }
 
 
-def share_item(data: dict, actor: User) -> dict:
-    relation = _relationship(int(data.get("client_id")), actor)
-    item_type = str(data.get("item_type") or "")
-    item_id = int(data.get("item_id"))
+def _shared_item_name(item_type: str, item: object) -> str:
+    if item_type == "progress":
+        return f"Показатели за {getattr(item, 'measured_at')}"
+    if item_type == "article":
+        return str(getattr(item, "title"))
+    return str(getattr(item, "name"))
+
+
+def _client_relationship(actor: User) -> TrainerClient | None:
+    return (
+        TrainerClient
+        .select()
+        .where(TrainerClient.client == actor)
+        .order_by(TrainerClient.created_at, TrainerClient.id)
+        .first()
+    )
+
+
+def get_my_trainer(actor: User) -> dict:
+    relation = _client_relationship(actor)
+    if relation is None:
+        return {"trainer": None}
+    return {
+        "trainer": {
+            "id": relation.trainer_id,
+            "name": _display_name(relation.trainer),
+            "email": relation.trainer.email,
+        }
+    }
+
+
+def get_my_trainer_chat(actor: User) -> dict:
+    relation = _client_relationship(actor)
+    if relation is None:
+        return {"trainer": None, "messages": [], "unread_count": 0}
+    unread_count = _client_unread_count(relation)
+    query = (
+        ChatMessage
+        .select(ChatMessage, User)
+        .join(User, on=(ChatMessage.sender == User.id), join_type=JOIN.LEFT_OUTER)
+        .where(ChatMessage.trainer_client == relation)
+        .order_by(ChatMessage.created_at, ChatMessage.id)
+    )
+    result = {
+        "trainer": {
+            "id": relation.trainer_id,
+            "name": _display_name(relation.trainer),
+            "email": relation.trainer.email,
+        },
+        "messages": [_chat_message_payload(item) for item in query],
+        "unread_count": unread_count,
+    }
+    _mark_chat_read(relation, "client")
+    return result
+
+
+def send_my_trainer_chat(actor: User, data: dict) -> dict:
+    relation = _client_relationship(actor)
+    if relation is None:
+        raise NotFoundError("Тренер пока не назначен")
+    message = str(data.get("message") or "").strip()
+    if not message:
+        raise ValueError("Сообщение не может быть пустым")
+    item = ChatMessage.create(
+        trainer_client=relation,
+        sender=actor,
+        message=message,
+        created_at=utc_now(),
+        **_message_read_flags(relation, actor),
+    )
+    return _chat_message_payload(item)
+
+
+def get_my_shared_item(actor: User, item_type: str, item_id: int) -> dict:
+    relation = _client_relationship(actor)
+    if relation is None:
+        raise NotFoundError("Тренер пока не назначен")
+    shared = TrainerSharedItem.get_or_none(
+        (TrainerSharedItem.trainer_client == relation)
+        & (TrainerSharedItem.item_type == item_type)
+        & (TrainerSharedItem.item_id == item_id)
+    )
+    if shared is None:
+        raise NotFoundError("Материал не найден в чате")
+
     item_models = {
         "recipe": Recipe,
         "product": Product,
         "article": Article,
+        "exercise": Exercise,
+        "progress": ProgressEntry,
+        "workout_complex": WorkoutComplex,
+        "workout_equipment": WorkoutEquipment,
+    }
+    model = item_models.get(item_type)
+    item = model.get_or_none(model.id == item_id) if model is not None else None
+    if item is None:
+        raise NotFoundError("Отправленный материал больше не существует")
+
+    serializers = {
+        "recipe": serialize_recipe_detail,
+        "product": serialize_product,
+        "article": serialize_article,
+        "exercise": serialize_exercise,
+        "progress": serialize_progress,
+        "workout_complex": serialize_workout_complex,
+        "workout_equipment": serialize_workout_equipment,
+    }
+    return {
+        "type": item_type,
+        "id": item_id,
+        "name": _shared_item_name(item_type, item),
+        "data": serializers[item_type](item),
+    }
+
+
+def _share_item_for_relation(item_type: str, item_id: int, relation: TrainerClient, actor: User) -> dict:
+    item_models = {
+        "recipe": Recipe,
+        "product": Product,
+        "article": Article,
+        "exercise": Exercise,
         "progress": ProgressEntry,
         "workout_complex": WorkoutComplex,
         "workout_equipment": WorkoutEquipment,
@@ -311,11 +478,7 @@ def share_item(data: dict, actor: User) -> dict:
         )
         if created:
             shared_model = model.get_by_id(item_id)
-            item_name = (
-                f"Показатели за {shared_model.measured_at}"
-                if item_type == "progress"
-                else getattr(shared_model, "title", None) or getattr(shared_model, "name", None) or "Отправленный материал"
-            )
+            item_name = _shared_item_name(item_type, shared_model)
             chat_message = ChatMessage.create(
                 trainer_client=relation,
                 sender=actor,
@@ -324,6 +487,7 @@ def share_item(data: dict, actor: User) -> dict:
                 shared_item_id=item_id,
                 shared_item_name=item_name,
                 created_at=utc_now(),
+                **_message_read_flags(relation, actor),
             )
         else:
             chat_message = None
@@ -335,3 +499,15 @@ def share_item(data: dict, actor: User) -> dict:
         "already_shared": not created,
         "chat_message_id": chat_message.id if chat_message else None,
     }
+
+
+def share_item(data: dict, actor: User) -> dict:
+    relation = _relationship(int(data.get("client_id")), actor)
+    return _share_item_for_relation(str(data.get("item_type") or ""), int(data.get("item_id")), relation, actor)
+
+
+def share_item_to_trainer(data: dict, actor: User) -> dict:
+    relation = _client_relationship(actor)
+    if relation is None:
+        raise NotFoundError("Тренер пока не назначен")
+    return _share_item_for_relation(str(data.get("item_type") or ""), int(data.get("item_id")), relation, actor)

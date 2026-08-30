@@ -495,6 +495,8 @@ class ChatMessage(BaseModel):
     shared_item_type = CharField(null=True)
     shared_item_id = IntegerField(null=True)
     shared_item_name = CharField(null=True)
+    read_by_trainer = BooleanField(default=False)
+    read_by_client = BooleanField(default=False)
     created_at = CharField(index=True)
 
     class Meta:

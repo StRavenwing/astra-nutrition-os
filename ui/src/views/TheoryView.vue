@@ -5,8 +5,9 @@ import type { Article, ArticleSection } from '@/types';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 import ArticleSectionInfoForm from '@/components/forms/ArticleSectionInfoForm.vue';
 import SendToClientButton from '@/components/shared/SendToClientButton.vue';
+import SendToTrainerButton from '@/components/shared/SendToTrainerButton.vue';
 
-const props = defineProps<{ isAdmin: boolean; canManage: boolean; refreshKey: number }>();
+const props = defineProps<{ isAdmin: boolean; canManage: boolean; hasTrainer: boolean; refreshKey: number }>();
 const emit = defineEmits<{ addArticle: []; editArticle: [article: Article] }>();
 const sections = ref<ArticleSection[]>([]);
 const articles = ref<Article[]>([]);
@@ -168,7 +169,8 @@ async function createSection() {
           <div class="article-card-head"><p class="eyebrow">{{ item.section_name }}</p><span v-if="item.is_hidden" class="hidden-badge">Скрыта</span></div>
           <h3 class="article-title">{{ item.title }}</h3><div class="article-lead"><span class="article-open-icon" aria-hidden="true">↗</span><div class="article-excerpt" v-html="articleHtml(item.body)"></div></div><div v-if="articleTags(item).length" class="article-tags" @click.stop><button v-for="tag in articleTags(item)" :key="tag" type="button" @click="filterByTag(tag)">{{ tag }}</button></div>
           <button type="button" class="primary card-primary article-card-primary" @click.stop="openArticle(item)">Читать статью</button>
-          <SendToClientButton :item-type="'article'" :item-id="item.id" :can-manage="props.canManage" />
+          <SendToClientButton :item-type="'article'" :item-id="item.id" :can-manage="props.canManage" compact />
+          <SendToTrainerButton :item-type="'article'" :item-id="item.id" :can-send="props.hasTrainer && !props.canManage" compact />
           <div v-if="props.isAdmin" class="article-card-actions" @click.stop><button type="button" class="icon-action article-visibility-button" :class="{ 'article-return-button': item.is_hidden }" :aria-label="item.is_hidden ? 'Вернуть статью' : 'Скрыть статью'" :title="item.is_hidden ? 'Вернуть статью' : 'Скрыть статью'" @click="toggleFlag(item, 'is_hidden')">{{ item.is_hidden ? '↶' : '◌' }}</button><button type="button" class="icon-action edit-article-button" aria-label="Редактировать статью" title="Редактировать статью" @click="editArticle(item)">✎</button></div>
         </article>
       </div>
@@ -198,7 +200,8 @@ async function createSection() {
           <div class="article-card-head"><p class="eyebrow">{{ item.section_name }}</p><span v-if="item.is_hidden" class="hidden-badge">Скрыта</span></div>
           <h3 class="article-title">{{ item.title }}</h3><div class="article-lead"><span class="article-open-icon" aria-hidden="true">↗</span><div class="article-excerpt" v-html="articleHtml(item.body)"></div></div><div v-if="articleTags(item).length" class="article-tags" @click.stop><button v-for="tag in articleTags(item)" :key="tag" type="button" @click="filterByTag(tag)">{{ tag }}</button></div>
           <button type="button" class="primary card-primary article-card-primary" @click.stop="openArticle(item)">Читать статью</button>
-          <SendToClientButton :item-type="'article'" :item-id="item.id" :can-manage="props.canManage" />
+          <SendToClientButton :item-type="'article'" :item-id="item.id" :can-manage="props.canManage" compact />
+          <SendToTrainerButton :item-type="'article'" :item-id="item.id" :can-send="props.hasTrainer && !props.canManage" compact />
           <div v-if="props.isAdmin" class="article-card-actions" @click.stop><button type="button" class="icon-action article-visibility-button" :class="{ 'article-return-button': item.is_hidden }" :aria-label="item.is_hidden ? 'Вернуть статью' : 'Скрыть статью'" :title="item.is_hidden ? 'Вернуть статью' : 'Скрыть статью'" @click="toggleFlag(item, 'is_hidden')">{{ item.is_hidden ? '↶' : '◌' }}</button><button type="button" class="icon-action edit-article-button" aria-label="Редактировать статью" title="Редактировать статью" @click="editArticle(item)">✎</button></div>
         </article>
       </div>

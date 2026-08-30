@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
 
-from backend.dependencies import require_trainer
+from backend.dependencies import get_current_user, require_trainer
 from backend.models import User
 from backend.schemas import (
     ClientCreateInput,
+    ClientShareItemInput,
     ClientNutritionTargetsInput,
     DiaryCreateInput,
     ShareItemInput,
@@ -19,10 +20,15 @@ from backend.services.clients import (
     delete_client_diary_entry,
     get_client_diary,
     get_client_detail,
+    get_my_shared_item,
+    get_my_trainer,
+    get_my_trainer_chat,
     list_chat_messages,
     list_clients,
     schedule_client_workout,
     send_chat_message,
+    send_my_trainer_chat,
+    share_item_to_trainer,
     share_item,
     update_client_targets,
 )
@@ -44,6 +50,31 @@ def post_client(payload: ClientCreateInput, current_user: User = Depends(require
 @router.post("/shares", status_code=status.HTTP_201_CREATED)
 def post_shared_item(payload: ShareItemInput, current_user: User = Depends(require_trainer)) -> dict:
     return share_item(dump_model(payload), current_user)
+
+
+@router.get("/me/chat")
+def get_my_chat(current_user: User = Depends(get_current_user)) -> dict:
+    return get_my_trainer_chat(current_user)
+
+
+@router.get("/me/trainer")
+def get_my_trainer_route(current_user: User = Depends(get_current_user)) -> dict:
+    return get_my_trainer(current_user)
+
+
+@router.post("/me/chat", status_code=status.HTTP_201_CREATED)
+def post_my_chat(payload: TrainerChatMessageInput, current_user: User = Depends(get_current_user)) -> dict:
+    return send_my_trainer_chat(current_user, dump_model(payload))
+
+
+@router.get("/me/shared-items/{item_type}/{item_id}")
+def get_my_shared_item_route(item_type: str, item_id: int, current_user: User = Depends(get_current_user)) -> dict:
+    return get_my_shared_item(current_user, item_type, item_id)
+
+
+@router.post("/me/shares", status_code=status.HTTP_201_CREATED)
+def post_shared_item_to_trainer(payload: ClientShareItemInput, current_user: User = Depends(get_current_user)) -> dict:
+    return share_item_to_trainer(dump_model(payload), current_user)
 
 
 @router.get("/{client_id}")

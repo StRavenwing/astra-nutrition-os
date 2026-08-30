@@ -75,6 +75,7 @@ const isTrainer = computed(() => Boolean(currentUser.value?.is_trainer));
 const canManageTraining = computed(() => isAdmin.value || isTrainer.value);
 const canAccessClients = computed(() => canManageTraining.value);
 const isGuest = computed(() => guestMode.value && !currentUser.value);
+const hasTrainer = ref(false);
 const activeUser = computed<AuthUser>(() => currentUser.value || { id: 0, email: 'Гостевой режим', name: 'Гостевой режим', is_admin: false, is_trainer: false });
 const canAdd = computed(() => {
   if (isGuest.value || currentPage.value === 'dashboard' || currentPage.value === 'theory' || currentPage.value === 'clients') return false;
@@ -301,6 +302,7 @@ function authenticated(user: AuthUser) {
   currentUser.value = user;
   guestMode.value = false;
   authOpen.value = false;
+  void loadTrainerAvailability();
   refresh();
   startFeedbackPolling();
 }
@@ -309,6 +311,7 @@ function clearSession() {
   const hadSession = Boolean(currentUser.value || getAccessToken());
   clearAccessToken();
   currentUser.value = null;
+  hasTrainer.value = false;
   if (hadSession) {
     guestMode.value = true;
     authOpen.value = false;
@@ -328,6 +331,18 @@ function clearSession() {
   repeatPlan.value = null;
   editPlan.value = null;
   workoutComplexForBuilder.value = null;
+}
+
+async function loadTrainerAvailability() {
+  if (!currentUser.value) {
+    hasTrainer.value = false;
+    return;
+  }
+  try {
+    hasTrainer.value = Boolean((await api.myTrainer()).trainer);
+  } catch {
+    hasTrainer.value = false;
+  }
 }
 
 async function logout() {
@@ -351,6 +366,7 @@ onMounted(async () => {
   }
   try {
     currentUser.value = await api.me();
+    await loadTrainerAvailability();
     await loadFeedbackUnread();
     startFeedbackPolling();
   } catch {
@@ -393,16 +409,17 @@ onBeforeUnmount(() => {
     @feedback="openFeedback"
     @login="openLogin"
   >
-    <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" :is-admin="isAdmin" @navigate="navigate" @open-recipe="openRecipe" />
-    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @add="openAdd" @add-category="openCategory('product')" />
-    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :read-only="isGuest" @open-recipe="openRecipe" @edit="editRecipe" @add="openAdd" @add-category="openCategory('recipe')" />
+    <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-use-trainer-chat="!isGuest" @navigate="navigate" @open-recipe="openRecipe" />
+    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :has-trainer="hasTrainer" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @add="openAdd" @add-category="openCategory('product')" />
+    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :has-trainer="hasTrainer" :read-only="isGuest" @open-recipe="openRecipe" @edit="editRecipe" @add="openAdd" @add-category="openCategory('recipe')" />
     <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" :read-only="isGuest" :menu-action="diaryMenuAction" @edit="modal = { kind: 'diary', id: $event }" @add="openAdd" />
-    <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" :can-manage="canManageTraining" :read-only="isGuest" @edit="modal = { kind: 'progress', id: $event }" @add="openAdd" />
+    <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" :can-manage="canManageTraining" :has-trainer="hasTrainer" :read-only="isGuest" @edit="modal = { kind: 'progress', id: $event }" @add="openAdd" />
     <WorkoutsView
       v-else-if="currentPage === 'workouts'"
       :refresh-key="reloadKey"
       :is-admin="isAdmin"
       :can-manage="canManageTraining"
+      :has-trainer="hasTrainer"
       :read-only="isGuest"
       @edit="modal = { kind: 'workouts', id: $event }"
       @add-exercise="openExerciseAdd"
@@ -420,7 +437,7 @@ onBeforeUnmount(() => {
       @repeat="repeatPlan = $event; editPlan = null; workoutBuilderOpen = true"
     />
     <ClientsView v-else-if="currentPage === 'clients'" :refresh-key="reloadKey" :can-access="canAccessClients" :is-admin="isAdmin" @changed="refresh" @feedback="openFeedback" />
-    <TheoryView v-else-if="currentPage === 'theory'" :is-admin="isAdmin" :can-manage="canManageTraining" :refresh-key="reloadKey" @add-article="openArticleEditor()" @edit-article="openArticleEditor" />
+    <TheoryView v-else-if="currentPage === 'theory'" :is-admin="isAdmin" :can-manage="canManageTraining" :has-trainer="hasTrainer" :refresh-key="reloadKey" @add-article="openArticleEditor()" @edit-article="openArticleEditor" />
   </AppShell>
 
   <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" :can-manage="canManageTraining" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
@@ -3839,7 +3856,7 @@ body .progress-history-rows { display: grid; gap: 0; margin: 10px 0 22px; }
 body .progress-history-rows > div { display: flex; justify-content: space-between; gap: 14px; padding: 7px 0; }
 body .progress-history-rows span { color: #7d879b; font-size: 11px; }
 body .progress-history-rows b { color: #172033; font-size: 12px; }
-body .progress-tile-actions { grid-template-columns: minmax(0, 1fr) 78px 62px; gap: 8px; min-height: 30px; }
+body .progress-tile-actions { grid-template-columns: minmax(0, 1fr) 36px 36px 36px; gap: 8px; min-height: 30px; }
 body .progress-tile-actions button { min-height: 30px; height: 30px; padding: 0 8px; border-radius: 8px; font-size: 10px; }
 body .progress-tile-actions .progress-open-button { border: 1px solid #79a8ff; background: #eaf2ff; color: #6f82ff; }
 body .progress-tile-actions .progress-open-button:only-child { grid-column: 1 / -1; }
@@ -3862,7 +3879,7 @@ body .icon-action:hover, body .icon-action:focus-visible { border-color: #6f82ff
 body .icon-action.danger-icon { border-color: #f0caca; background: #fff7f7; color: #d55555; }
 body .icon-action.danger-icon:hover, body .icon-action.danger-icon:focus-visible { border-color: #d55555; background: #fff0ed; color: #d55555; }
 body .card-primary { min-height: 36px; height: 36px; border-radius: 10px; font-size: 11px; }
-body .product-tile .product-tile-actions { display: grid; grid-template-columns: minmax(0, 1fr) 36px; align-items: center; gap: 8px; min-height: 36px; margin-top: 10px; }
+body .product-tile .product-tile-actions { display: grid; grid-template-columns: minmax(0, 1fr) 36px 36px; align-items: center; gap: 8px; min-height: 36px; margin-top: 10px; }
 body .product-tile .product-tile-actions .card-primary { width: 100%; }
 body .recipe-tile .recipe-open-primary { width: 100%; margin-top: 10px; }
 body .recipe-tile .submit-to-common { align-self: flex-end; margin-top: 8px; }
@@ -4074,7 +4091,7 @@ body main .product-catalog-layout .product-tile .product-macros small { display:
 body main .product-catalog-layout .product-tile .product-tile-foot { display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-top: auto; padding-top: 9px; border-top: 0; }
 body main .product-catalog-layout .product-tile .product-tile-foot span { overflow: hidden; color: #7d879b; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 body main .product-catalog-layout .product-tile .product-tile-foot b { color: #7d879b; font-size: 10px; white-space: nowrap; }
-body main .product-catalog-layout .product-tile .product-tile-actions { display: grid !important; grid-template-columns: minmax(0, 1fr) 36px; gap: 8px; min-height: 32px; margin-top: 8px; }
+body main .product-catalog-layout .product-tile .product-tile-actions { display: grid !important; grid-template-columns: minmax(0, 1fr) 36px 36px; gap: 8px; min-height: 32px; margin-top: 8px; }
 body main .product-catalog-layout .product-tile .product-tile-actions .edit-product { width: 100%; min-height: 28px; height: 28px; border-radius: 8px; padding: 0 11px; font-size: 10px; }
 body main .product-catalog-layout .product-tile .product-tile-actions .delete-product { width: 36px; min-width: 36px; min-height: 28px; height: 28px; border-radius: 8px; }
 body main .product-catalog-layout > .product-grid > .product-add-card { min-height: 312px; }
@@ -4793,5 +4810,27 @@ body main .theory-page .article-section-card {
 @media (max-width: 700px) {
   body main .theory-page .article-grid { grid-template-columns: 1fr !important; }
   body main .theory-page .article-sections { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+
+/* Shared card actions: keep one readable primary action and compact icon actions beside it. */
+body main .product-catalog-layout .product-tile .product-tile-actions {
+  grid-template-columns: minmax(0, 1fr) 36px 36px !important;
+}
+body main .product-catalog-layout .product-tile .product-tile-actions .edit-product {
+  width: 100% !important;
+  min-width: 0 !important;
+  font-size: 11px !important;
+}
+body main .product-catalog-layout .product-tile .product-tile-actions .delete-product,
+body main .product-catalog-layout .product-tile .product-tile-actions > .send-client-control.compact {
+  width: 36px !important;
+  min-width: 36px !important;
+}
+body main .product-catalog-layout .product-tile .product-tile-actions.trainer-only-actions {
+  grid-template-columns: 1fr !important;
+  justify-items: end;
+}
+body main .progress-tile-actions {
+  grid-template-columns: minmax(0, 1fr) 36px 36px 36px !important;
 }
 </style>

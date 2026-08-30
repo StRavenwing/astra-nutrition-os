@@ -4,11 +4,13 @@ import { api } from '@/api/client';
 import type { Exercise, WorkoutComplex, WorkoutEquipment, WorkoutPlan } from '@/types';
 import { formatDate, fmt } from '@/utils/format';
 import SendToClientButton from '@/components/shared/SendToClientButton.vue';
+import SendToTrainerButton from '@/components/shared/SendToTrainerButton.vue';
 
 const props = defineProps<{
   refreshKey: number;
   isAdmin: boolean;
   canManage: boolean;
+  hasTrainer: boolean;
   readOnly?: boolean;
 }>();
 
@@ -246,7 +248,8 @@ async function removeEquipment(id: number) {
             <div class="workout-complex-actions">
               <button v-if="!props.readOnly" type="button" class="primary create-complex-button" @click.stop="emit('scheduleFromComplex', complex)">Добавить в запланированную тренировку</button>
               <button v-if="props.canManage" type="button" class="icon-action edit-complex-button" aria-label="Редактировать комплекс" title="Редактировать комплекс" @click.stop="emit('buildComplex', { complex, mode: 'edit' })">✎</button>
-              <SendToClientButton :item-type="'workout_complex'" :item-id="complex.id" :can-manage="props.canManage" />
+              <SendToClientButton :item-type="'workout_complex'" :item-id="complex.id" :can-manage="props.canManage" compact />
+              <SendToTrainerButton :item-type="'workout_complex'" :item-id="complex.id" :can-send="props.hasTrainer && !props.canManage && !props.readOnly" compact />
             </div>
           </div>
         </article>
@@ -277,9 +280,11 @@ async function removeEquipment(id: number) {
             <span v-if="exercise.photos?.length">Фото: {{ exercise.photos.length }}</span>
             <span v-if="exercise.video">Видео</span>
           </div>
-          <div v-if="props.canManage" class="workout-tile-actions workout-card-actions exercise-card-actions">
-            <button type="button" class="primary edit-workout" @click.stop="emit('editExercise', exercise.id)">Редактировать</button>
-            <button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить упражнение" title="Удалить упражнение" @click.stop="removeExercise(exercise.id)">×</button>
+          <div v-if="props.canManage || (props.hasTrainer && !props.readOnly)" class="workout-tile-actions workout-card-actions exercise-card-actions">
+            <button v-if="props.canManage" type="button" class="primary edit-workout" @click.stop="emit('editExercise', exercise.id)">Редактировать</button>
+            <button v-if="props.canManage" type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить упражнение" title="Удалить упражнение" @click.stop="removeExercise(exercise.id)">×</button>
+            <SendToClientButton :item-type="'exercise'" :item-id="exercise.id" :can-manage="props.canManage" compact />
+            <SendToTrainerButton :item-type="'exercise'" :item-id="exercise.id" :can-send="props.hasTrainer && !props.canManage && !props.readOnly" compact />
           </div>
         </article>
         <article v-if="props.canManage && !props.readOnly" class="workout-create-card exercise-card add-exercise-card" tabindex="0" role="button" @click="emit('addExercise')" @keydown.enter.prevent="emit('addExercise')">
@@ -301,7 +306,7 @@ async function removeEquipment(id: number) {
             <div class="workout-tile-head"><span class="workout-group machine-badge">ТРЕНАЖЁР</span><span class="exercise-code">Т-{{ String(index + 1).padStart(2, '0') }}</span></div>
             <h3>{{ machine.name }}</h3>
             <p>{{ machine.description || 'Оборудование для выполнения упражнений и настройки нагрузки.' }}</p>
-            <div v-if="props.canManage && !props.readOnly" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', machine.id)">Редактировать</button><button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить тренажёр" title="Удалить тренажёр" @click.stop="removeEquipment(machine.id)">×</button><SendToClientButton :item-type="'workout_equipment'" :item-id="machine.id" :can-manage="props.canManage" /></div>
+            <div v-if="props.canManage || (props.hasTrainer && !props.readOnly)" class="workout-tile-actions workout-card-actions equipment-card-actions"><button v-if="props.canManage" type="button" class="primary card-primary edit-workout" @click.stop="emit('editEquipment', machine.id)">Редактировать</button><button v-if="props.canManage" type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить тренажёр" title="Удалить тренажёр" @click.stop="removeEquipment(machine.id)">×</button><SendToClientButton :item-type="'workout_equipment'" :item-id="machine.id" :can-manage="props.canManage" compact /><SendToTrainerButton :item-type="'workout_equipment'" :item-id="machine.id" :can-send="props.hasTrainer && !props.canManage && !props.readOnly" compact /></div>
           </article>
           <article v-if="props.canManage && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'machine')" @keydown.enter.prevent="emit('addEquipment', 'machine')">
             <span class="workout-create-icon">＋</span><div class="workout-create-copy"><h3>Добавить тренажёр</h3><p>или свободный инвентарь</p></div><button type="button" class="primary" @click.stop="emit('addEquipment', 'machine')">＋ Добавить элемент</button>
@@ -316,7 +321,7 @@ async function removeEquipment(id: number) {
             <div class="workout-tile-head"><span class="workout-group equipment-badge">ИНВЕНТАРЬ</span><span class="exercise-code">И-{{ String(index + 1).padStart(2, '0') }}</span></div>
             <h3>{{ equipmentItem.name }}</h3>
             <p>{{ equipmentItem.description || 'Инвентарь для выполнения упражнений, усложнения или разнообразия тренировки.' }}</p>
-            <div v-if="props.canManage && !props.readOnly" class="workout-tile-actions workout-card-actions equipment-card-actions"><button type="button" class="card-action edit-workout" @click.stop="emit('editEquipment', equipmentItem.id)">Редактировать</button><button type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить инвентарь" title="Удалить инвентарь" @click.stop="removeEquipment(equipmentItem.id)">×</button><SendToClientButton :item-type="'workout_equipment'" :item-id="equipmentItem.id" :can-manage="props.canManage" /></div>
+            <div v-if="props.canManage || (props.hasTrainer && !props.readOnly)" class="workout-tile-actions workout-card-actions equipment-card-actions"><button v-if="props.canManage" type="button" class="primary card-primary edit-workout" @click.stop="emit('editEquipment', equipmentItem.id)">Редактировать</button><button v-if="props.canManage" type="button" class="icon-action danger-icon delete-workout" aria-label="Удалить инвентарь" title="Удалить инвентарь" @click.stop="removeEquipment(equipmentItem.id)">×</button><SendToClientButton :item-type="'workout_equipment'" :item-id="equipmentItem.id" :can-manage="props.canManage" compact /><SendToTrainerButton :item-type="'workout_equipment'" :item-id="equipmentItem.id" :can-send="props.hasTrainer && !props.canManage && !props.readOnly" compact /></div>
           </article>
           <article v-if="props.canManage && !props.readOnly" class="workout-create-card exercise-card equipment-card add-equipment-card" tabindex="0" role="button" @click="emit('addEquipment', 'equipment')" @keydown.enter.prevent="emit('addEquipment', 'equipment')">
             <span class="workout-create-icon">＋</span><div class="workout-create-copy"><h3>Добавить инвентарь</h3><p>Свободный вес и аксессуары</p></div><button type="button" class="primary" @click.stop="emit('addEquipment', 'equipment')">＋ Добавить элемент</button>
@@ -732,7 +737,7 @@ async function removeEquipment(id: number) {
 }
 
 .exercise-card-actions {
-  grid-template-columns: minmax(0, 1fr) 82px;
+  grid-template-columns: minmax(0, 1fr) 36px 36px;
 }
 
 .equipment-group + .equipment-group {
@@ -771,7 +776,7 @@ async function removeEquipment(id: number) {
 }
 
 .equipment-card-actions {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr) 36px 36px;
   margin-top: auto;
 }
 

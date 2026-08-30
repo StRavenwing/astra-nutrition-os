@@ -21,7 +21,10 @@ import type {
   ArticleSection,
   ClientDetail,
   ClientSummary,
+  TrainerChatParticipant,
   TrainerChatMessage,
+  TrainerChatResponse,
+  SharedItemDetail,
   SharedItemResult,
   ShareItemType
 } from '@/types';
@@ -129,7 +132,12 @@ export const api = {
   updateClientTargets: (id: number, body: unknown) => write<ProgressEntry>('PUT', `clients/${id}/nutrition-targets`, body),
   clientChat: (id: number) => request<TrainerChatMessage[]>(`clients/${id}/chat`),
   sendClientChat: (id: number, message: string) => write<TrainerChatMessage>('POST', `clients/${id}/chat`, { message }),
+  myTrainer: () => request<{ trainer: TrainerChatParticipant | null }>('clients/me/trainer'),
+  myTrainerChat: () => request<TrainerChatResponse>('clients/me/chat'),
+  sendMyTrainerChat: (message: string) => write<TrainerChatMessage>('POST', 'clients/me/chat', { message }),
+  mySharedItem: (itemType: ShareItemType, itemId: number) => request<SharedItemDetail>(`clients/me/shared-items/${itemType}/${itemId}`),
   shareItem: (clientId: number, itemType: ShareItemType, itemId: number) => write<SharedItemResult>('POST', 'clients/shares', { client_id: clientId, item_type: itemType, item_id: itemId }),
+  shareItemToTrainer: (itemType: ShareItemType, itemId: number) => write<SharedItemResult>('POST', 'clients/me/shares', { item_type: itemType, item_id: itemId }),
   workoutComplexes: () => request<WorkoutComplex[]>('workout-complexes'),
   workoutEquipment: () => request<WorkoutEquipment[]>('workout-equipment'),
   createWorkoutEquipment: (body: unknown) => write<WorkoutEquipment>('POST', 'workout-equipment', body),

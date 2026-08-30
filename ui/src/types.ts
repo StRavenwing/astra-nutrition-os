@@ -238,6 +238,7 @@ export interface ClientSummary {
   name: string;
   email: string;
   next_workout: { id: number; scheduled_at: string; status: string } | null;
+  unread_messages: number;
 }
 
 export interface ClientDetail extends ClientSummary {
@@ -262,7 +263,26 @@ export interface TrainerChatMessage {
   created_at: string;
 }
 
-export type ShareItemType = 'recipe' | 'product' | 'article' | 'progress' | 'workout_complex' | 'workout_equipment';
+export interface TrainerChatParticipant {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export interface TrainerChatResponse {
+  trainer: TrainerChatParticipant | null;
+  messages: TrainerChatMessage[];
+  unread_count: number;
+}
+
+export interface SharedItemDetail {
+  type: ShareItemType;
+  id: number;
+  name: string;
+  data: unknown;
+}
+
+export type ShareItemType = 'recipe' | 'product' | 'article' | 'exercise' | 'progress' | 'workout_complex' | 'workout_equipment';
 
 export interface SharedItemResult {
   id: number;

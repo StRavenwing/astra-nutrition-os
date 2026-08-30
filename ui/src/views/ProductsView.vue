@@ -6,11 +6,13 @@ import type { Product, SortState } from '@/types';
 import { compareValues, fmt, searchable } from '@/utils/format';
 import Toolbar from '@/components/shared/Toolbar.vue';
 import SendToClientButton from '@/components/shared/SendToClientButton.vue';
+import SendToTrainerButton from '@/components/shared/SendToTrainerButton.vue';
 
 const props = defineProps<{
   refreshKey: number;
   isAdmin: boolean;
   canManage: boolean;
+  hasTrainer: boolean;
   readOnly?: boolean;
 }>();
 const emit = defineEmits<{ edit: [id: number]; addCategory: []; add: [] }>();
@@ -203,10 +205,11 @@ function productCategoryTone(categoryName: string) {
         <div class="product-tile-foot">
           <span>{{ fmt(item.price_per_100_or_unit_rsd) }} RSD / {{ basis(item).slice(3) }}</span>
         </div>
-        <div v-if="props.isAdmin || props.canManage" class="product-tile-actions">
-          <button v-if="props.isAdmin" type="button" class="card-action edit-product" @click.stop="emit('edit', item.id)">Изменить</button>
+        <div v-if="props.isAdmin || props.canManage || props.hasTrainer" class="product-tile-actions" :class="{ 'trainer-only-actions': props.hasTrainer && !props.isAdmin && !props.canManage && !props.readOnly }">
+          <button v-if="props.isAdmin" type="button" class="primary card-primary edit-product" @click.stop="emit('edit', item.id)">Изменить</button>
           <button v-if="props.isAdmin" type="button" class="icon-action danger-icon delete-product" aria-label="Удалить продукт" title="Удалить продукт" @click.stop="remove(item.id)">×</button>
-          <SendToClientButton :item-type="'product'" :item-id="item.id" :can-manage="props.canManage" />
+          <SendToClientButton :item-type="'product'" :item-id="item.id" :can-manage="props.canManage" compact />
+          <SendToTrainerButton :item-type="'product'" :item-id="item.id" :can-send="props.hasTrainer && !props.canManage && !props.readOnly" compact />
         </div>
       </article>
       <article v-if="!props.readOnly" class="product-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">

@@ -80,6 +80,8 @@ async function openChat(client: ClientSummary) {
   selected.value = selected.value?.id === client.id ? selected.value : null;
   try {
     chatMessages.value = await api.clientChat(client.id);
+    client.unread_messages = 0;
+    if (selected.value?.id === client.id) selected.value.unread_messages = 0;
     chatOpen.value = true;
   } catch (err) { chatError.value = err instanceof Error ? err.message : String(err); }
 }
@@ -128,14 +130,14 @@ watch(() => [props.refreshKey, props.canAccess], () => { void load(); }, { immed
       <article v-for="client in clients" :key="client.id" class="client-card" tabindex="0" @click="openClient(client.id)" @keydown.enter.prevent="openClient(client.id)">
         <div class="client-next-workout"><span>БЛИЖАЙШАЯ ТРЕНИРОВКА</span><strong>{{ scheduled(client.next_workout?.scheduled_at) }}</strong></div>
         <div class="client-card-body"><div class="client-avatar">{{ client.name.slice(0, 1).toUpperCase() }}</div><div><h2>{{ client.name }}</h2><p>{{ client.email }}</p></div></div>
-        <button type="button" class="secondary-button client-chat-button" @click.stop="openChat(client)">💬 Чат с клиентом</button>
+        <button type="button" class="secondary-button client-chat-button" @click.stop="openChat(client)"><span>💬 Чат с клиентом</span><strong v-if="client.unread_messages" class="chat-unread-badge">{{ client.unread_messages > 99 ? '99+' : client.unread_messages }}</strong></button>
       </article>
     </div>
   </section>
 
   <ModalDialog :open="Boolean(selected)" :title="selected?.name || 'Клиент'" eyebrow="КАРТОЧКА КЛИЕНТА" wide @close="selected = null">
     <div v-if="selected" class="client-detail">
-      <div class="client-detail-head"><div><p>{{ selected.email }}</p><small>Данные доступны тренеру и администратору</small></div><button type="button" class="secondary-button" @click="openChat(selected)">💬 Чат</button></div>
+      <div class="client-detail-head"><div><p>{{ selected.email }}</p><small>Данные доступны тренеру и администратору</small></div><button type="button" class="secondary-button client-detail-chat-button" @click="openChat(selected)"><span>💬 Чат</span><strong v-if="selected.unread_messages" class="chat-unread-badge">{{ selected.unread_messages > 99 ? '99+' : selected.unread_messages }}</strong></button></div>
       <div class="client-detail-grid">
         <section class="client-detail-section"><div class="section-heading"><div><p class="eyebrow">ЗАМЕРЫ</p><h3>Последние показатели</h3></div><button type="button" class="text-button" @click="targetsOpen = true">Редактировать нормы</button></div>
           <div v-if="latestProgress()" class="measure-grid"><div><span>Вес</span><b>{{ fmt(latestProgress()?.weight_kg) }} кг</b></div><div><span>Рост</span><b>{{ fmt(latestProgress()?.height_cm) }} см</b></div><div><span>Жир</span><b>{{ fmt(latestProgress()?.body_fat_pct) }}%</b></div><div><span>Дата</span><b>{{ formatDate(latestProgress()?.measured_at) }}</b></div></div>
@@ -155,7 +157,7 @@ watch(() => [props.refreshKey, props.canAccess], () => { void load(); }, { immed
   <WorkoutBuilderModal :open="scheduleOpen" :target-user-id="selected?.id" @close="scheduleOpen = false" @saved="scheduleOpen = false; refreshSelected()" />
   <ModalDialog :open="targetsOpen" title="Нормы питания" eyebrow="ПАРАМЕТРЫ КЛИЕНТА" @close="targetsOpen = false"><form class="client-form" @submit.prevent="saveTargets"><p>Тренер может задать персональные суточные нормы.</p><div class="grid targets-grid"><div class="field"><label>Ккал</label><input v-model="targets.kcal_target" type="number" min="0" step="1"></div><div class="field"><label>Белки, г</label><input v-model="targets.protein_target_g" type="number" min="0" step="0.1"></div><div class="field"><label>Жиры, г</label><input v-model="targets.fat_target_g" type="number" min="0" step="0.1"></div><div class="field"><label>Углеводы, г</label><input v-model="targets.carbs_target_g" type="number" min="0" step="0.1"></div></div><div class="actions"><button type="button" @click="targetsOpen = false">Отмена</button><button type="submit" class="primary">Сохранить нормы</button></div></form></ModalDialog>
   <ModalDialog :open="historyOpen" title="История тренировок" eyebrow="ТРЕНИРОВКИ" wide @close="historyOpen = false"><div class="client-history"><h3>Запланированные</h3><div v-for="plan in selected?.workout_plans" :key="plan.id" class="history-row"><b>{{ formatDate(plan.scheduled_at) }}</b><span>{{ plan.items.length }} упражн. · {{ plan.status === 'planned' ? 'запланирована' : 'завершена' }}</span></div><p v-if="!selected?.workout_plans.length" class="subtle">Планов пока нет.</p><h3>Выполненные упражнения</h3><div v-for="item in selected?.workouts" :key="item.id" class="history-row"><b>{{ item.name }}</b><span>{{ formatDate(item.performed_at) }} · {{ fmt(item.working_weight) }} {{ item.default_unit || '' }}</span></div><p v-if="!selected?.workouts.length" class="subtle">История пока пуста.</p></div></ModalDialog>
-  <ModalDialog :open="chatOpen" :title="chatClient?.name ? `Чат · ${chatClient.name}` : 'Чат с клиентом'" eyebrow="СООБЩЕНИЯ" @close="chatOpen = false"><div class="chat-box"><div class="chat-messages"><p v-if="!chatMessages.length" class="subtle">Сообщений пока нет.</p><div v-for="message in chatMessages" :key="message.id" class="chat-message"><b>{{ message.sender_name }}</b><span v-if="!message.shared_item">{{ message.message }}</span><div v-else class="shared-chat-card"><span>ОТПРАВЛЕНО В ЧАТ</span><strong>{{ message.shared_item.name }}</strong><small>{{ message.shared_item.type === 'article' ? 'Статья' : message.shared_item.type === 'recipe' ? 'Блюдо' : message.shared_item.type === 'product' ? 'Продукт' : message.shared_item.type === 'progress' ? 'Показатели' : message.shared_item.type === 'workout_complex' ? 'Комплекс тренировки' : 'Тренажёр или инвентарь' }}</small></div><small>{{ formatDateTime(message.created_at) }}</small></div></div><p class="form-error">{{ chatError }}</p><form class="chat-compose" @submit.prevent="sendChat"><input v-model="chatText" maxlength="2000" placeholder="Написать сообщение…"><button type="submit" class="primary">Отправить</button></form></div></ModalDialog>
+  <ModalDialog :open="chatOpen" :title="chatClient?.name ? `Чат · ${chatClient.name}` : 'Чат с клиентом'" eyebrow="СООБЩЕНИЯ" @close="chatOpen = false"><div class="chat-box"><div class="chat-messages"><p v-if="!chatMessages.length" class="subtle">Сообщений пока нет.</p><div v-for="message in chatMessages" :key="message.id" class="chat-message"><b>{{ message.sender_name }}</b><span v-if="!message.shared_item">{{ message.message }}</span><div v-else class="shared-chat-card"><span>ОТПРАВЛЕНО В ЧАТ</span><strong>{{ message.shared_item.name }}</strong><small>{{ message.shared_item.type === 'article' ? 'Статья' : message.shared_item.type === 'recipe' ? 'Блюдо' : message.shared_item.type === 'product' ? 'Продукт' : message.shared_item.type === 'progress' ? 'Показатели' : message.shared_item.type === 'exercise' ? 'Упражнение' : message.shared_item.type === 'workout_complex' ? 'Комплекс тренировки' : 'Тренажёр или инвентарь' }}</small></div><small>{{ formatDateTime(message.created_at) }}</small></div></div><p class="form-error">{{ chatError }}</p><form class="chat-compose" @submit.prevent="sendChat"><input v-model="chatText" maxlength="2000" placeholder="Написать сообщение…"><button type="submit" class="primary">Отправить</button></form></div></ModalDialog>
 </template>
 
 <style lang="scss">
@@ -163,16 +165,16 @@ watch(() => [props.refreshKey, props.canAccess], () => { void load(); }, { immed
 .clients-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; margin-bottom: 26px; }
 .clients-head h1 { margin: 0; font-size: clamp(30px, 4vw, 48px); }
 .clients-lead { margin: 8px 0 0; color: var(--muted); }
-.clients-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
-.client-card { overflow: hidden; border: 1px solid #dce4ef; border-radius: 16px; background: #fff; box-shadow: 0 10px 30px rgba(34, 62, 105, .06); cursor: pointer; transition: transform .18s, box-shadow .18s; }
+.clients-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; }
+.client-card { display: flex; box-sizing: border-box; flex-direction: column; height: 300px; min-height: 300px; overflow: hidden; border: 1px solid #dce4ef; border-radius: 18px; background: #fff; box-shadow: 0 8px 24px rgba(34, 62, 105, .08); cursor: pointer; transition: transform .18s, box-shadow .18s; }
 .client-card:hover, .client-card:focus { transform: translateY(-2px); box-shadow: 0 14px 34px rgba(34, 62, 105, .12); outline: none; }
 .client-next-workout { display: grid; gap: 6px; padding: 13px 16px; background: #eef7ff; color: #326ca5; }
 .client-next-workout span { font-size: 9px; font-weight: 850; letter-spacing: .8px; }
 .client-next-workout strong { font-size: 13px; }
-.client-card-body { display: flex; align-items: center; gap: 13px; padding: 20px 16px 14px; }
+.client-card-body { display: flex; align-items: center; gap: 13px; padding: 20px 20px 14px; }
 .client-avatar { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: #e6defe; color: #624eb1; font-size: 20px; font-weight: 850; }
 .client-card h2 { margin: 0; font-size: 17px; }.client-card p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
-.client-chat-button { margin: 0 16px 16px; width: calc(100% - 32px); }
+.client-chat-button { display: flex; align-items: center; justify-content: space-between; margin: auto 20px 20px; width: calc(100% - 40px); }.client-detail-chat-button { display: inline-flex; align-items: center; gap: 8px; }.chat-unread-badge { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 99px; background: #6f82ff; color: #fff; font-size: 10px; line-height: 1; }
 .trainer-lock-page { position: relative; min-height: calc(100vh - 90px); overflow: hidden; }
 .trainer-lock-background { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; opacity: .3; filter: blur(2px); pointer-events: none; }.ghost-card { height: 190px; padding: 20px; border: 1px solid #dce4ef; border-radius: 16px; background: #fff; }.ghost-card span { display: block; height: 13px; margin-bottom: 16px; border-radius: 6px; background: #e6edf6; }.ghost-card span:first-child { width: 70%; height: 55px; background: #eef7ff; }
 .trainer-lock-overlay { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; padding: 30px; background: rgba(248, 250, 253, .68); text-align: center; }.trainer-lock-overlay h1 { max-width: 580px; margin: 0; font-size: clamp(26px, 4vw, 44px); }.trainer-lock-overlay p:not(.eyebrow) { max-width: 480px; color: var(--muted); line-height: 1.5; }.trainer-lock-overlay a { color: var(--blue); font-weight: 800; }

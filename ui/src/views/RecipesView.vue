@@ -7,8 +7,9 @@ import { compareValues, fmt, searchable } from '@/utils/format';
 import Toolbar from '@/components/shared/Toolbar.vue';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 import SendToClientButton from '@/components/shared/SendToClientButton.vue';
+import SendToTrainerButton from '@/components/shared/SendToTrainerButton.vue';
 
-const props = defineProps<{ refreshKey: number; isAdmin: boolean; canManage: boolean; readOnly?: boolean }>();
+const props = defineProps<{ refreshKey: number; isAdmin: boolean; canManage: boolean; hasTrainer: boolean; readOnly?: boolean }>();
 const emit = defineEmits<{ openRecipe: [id: number]; edit: [id: number]; addCategory: []; add: [] }>();
 
 const data = ref<RecipeSummary[]>([]);
@@ -281,8 +282,9 @@ async function removeRecipe(item: RecipeSummary) {
             >⇧</button>
             <button type="button" class="icon-action edit-recipe" aria-label="Редактировать рецепт" title="Редактировать рецепт" @click="emit('edit', item.id)">✎</button>
             <button type="button" class="icon-action danger-icon delete-recipe" aria-label="Удалить рецепт" title="Удалить рецепт" @click="removeRecipe(item)">×</button>
-            <SendToClientButton :item-type="'recipe'" :item-id="item.id" :can-manage="props.canManage" />
+            <SendToClientButton :item-type="'recipe'" :item-id="item.id" :can-manage="props.canManage" compact />
           </div>
+          <SendToTrainerButton :item-type="'recipe'" :item-id="item.id" :can-send="props.hasTrainer && !props.canManage && !props.readOnly" compact />
         </div>
       </article>
       <article v-if="!props.readOnly" class="recipe-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">

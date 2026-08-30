@@ -5,8 +5,9 @@ import type { ProgressEntry, SortState } from '@/types';
 import { compareValues, formatDate, fmt, fmtValue, searchable } from '@/utils/format';
 import Toolbar from '@/components/shared/Toolbar.vue';
 import SendToClientButton from '@/components/shared/SendToClientButton.vue';
+import SendToTrainerButton from '@/components/shared/SendToTrainerButton.vue';
 
-const props = defineProps<{ refreshKey: number; canManage: boolean; readOnly?: boolean }>();
+const props = defineProps<{ refreshKey: number; canManage: boolean; hasTrainer: boolean; readOnly?: boolean }>();
 const emit = defineEmits<{ edit: [id: number]; add: [] }>();
 
 const data = ref<ProgressEntry[]>([]);
@@ -141,6 +142,7 @@ async function remove(id: number) {
         <button v-if="!props.readOnly" type="button" class="primary card-primary progress-latest-edit" @click="emit('edit', latest.id)">Редактировать</button>
         <button type="button" class="icon-action progress-details-link" aria-label="Открыть подробности текущего замера" title="Открыть подробности текущего замера" @click="emit('edit', latest.id)">↗</button>
         <SendToClientButton :item-type="'progress'" :item-id="latest.id" :can-manage="props.canManage" />
+        <SendToTrainerButton :item-type="'progress'" :item-id="latest.id" :can-send="props.hasTrainer && !props.canManage && !props.readOnly" />
       </aside>
     </div>
     <div v-else class="panel empty">Замеров пока нет</div>
@@ -184,7 +186,8 @@ async function remove(id: number) {
           <button type="button" class="primary card-primary progress-open-button" @click="emit('edit', item.id)">Открыть</button>
           <button v-if="!props.readOnly" type="button" class="icon-action edit-progress-tile" aria-label="Изменить замер" title="Изменить замер" @click="emit('edit', item.id)">✎</button>
           <button v-if="!props.readOnly" type="button" class="icon-action danger-icon delete-progress-tile" aria-label="Удалить замер" title="Удалить замер" @click="remove(item.id)">×</button>
-          <SendToClientButton :item-type="'progress'" :item-id="item.id" :can-manage="props.canManage" />
+          <SendToClientButton :item-type="'progress'" :item-id="item.id" :can-manage="props.canManage" compact />
+          <SendToTrainerButton :item-type="'progress'" :item-id="item.id" :can-send="props.hasTrainer && !props.canManage && !props.readOnly" compact />
         </div>
       </article>
       <article v-if="!props.readOnly" class="progress-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">

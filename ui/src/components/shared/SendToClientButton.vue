@@ -3,7 +3,7 @@ import { onBeforeUnmount, ref, watch } from 'vue';
 import { api } from '@/api/client';
 import type { ClientSummary, ShareItemType } from '@/types';
 
-const props = defineProps<{ itemType: ShareItemType; itemId: number; canManage: boolean }>();
+const props = defineProps<{ itemType: ShareItemType; itemId: number; canManage: boolean; compact?: boolean }>();
 const root = ref<HTMLElement | null>(null);
 const open = ref(false);
 const loading = ref(false);
@@ -41,8 +41,8 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutside));
 </script>
 
 <template>
-  <div v-if="props.canManage" ref="root" class="send-client-control">
-    <button type="button" class="card-action send-client-button" :aria-expanded="open" aria-haspopup="menu" @click.stop="toggle">↗ Отправить клиенту</button>
+  <div v-if="props.canManage" ref="root" class="send-client-control" :class="{ compact: props.compact }">
+    <button type="button" class="card-action send-client-button" :class="{ compact: props.compact }" :aria-label="props.compact ? 'Отправить клиенту' : undefined" :title="props.compact ? 'Отправить клиенту' : undefined" :aria-expanded="open" aria-haspopup="menu" @click.stop="toggle">↗<span v-if="!props.compact"> Отправить клиенту</span></button>
     <div v-if="open" class="send-client-menu" role="menu">
       <p class="send-client-menu-title">Выберите клиента</p>
       <p v-if="loading" class="send-client-muted">Загрузка…</p>
@@ -61,8 +61,10 @@ onBeforeUnmount(() => document.removeEventListener('click', closeOnOutside));
 .workout-complex-actions > .send-client-control,
 .equipment-card-actions > .send-client-control,
 .progress-tile-actions > .send-client-control { grid-column: 1 / -1; }
+.send-client-control.compact { grid-column: auto !important; }
 .progress-latest-card > .send-client-control { margin-top: 18px; }
 .send-client-button { width: 100%; min-height: 36px; border: 1px solid #85b8ff; border-radius: 8px; padding: 8px 9px; background: #e9f2ff; color: var(--blue); font-size: 10px; font-weight: 750; line-height: 1.1; cursor: pointer; }
+.send-client-button.compact { width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; font-size: 16px; line-height: 1; }
 .send-client-button:hover { background: #dcecff; }
 .send-client-menu { position: absolute; z-index: 20; right: 0; bottom: calc(100% + 8px); display: grid; min-width: 230px; max-width: min(280px, 80vw); max-height: 280px; overflow-y: auto; padding: 8px; border: 1px solid #cbd8e8; border-radius: 10px; background: #fff; box-shadow: 0 12px 30px rgba(23, 43, 77, .18); }
 .send-client-menu-title { margin: 2px 5px 6px; color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; }

@@ -1,18 +1,24 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
-import type { DashboardResponse, DiaryEntry, PageId, RegisteredUser } from '@/types';
+import type { DashboardResponse, DiaryEntry, PageId, RegisteredUser, SharedItemDetail, TrainerChatMessage, TrainerChatResponse } from '@/types';
 import { mealOrder } from '@/constants';
-import { diaryTotals, fmt, formatDate, localToday } from '@/utils/format';
+import { diaryTotals, fmt, formatDate, formatDateTime, localToday } from '@/utils/format';
 import MetricCard from '@/components/shared/MetricCard.vue';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
+import SharedItemModal from '@/components/modals/SharedItemModal.vue';
 
-const props = defineProps<{ refreshKey: number; isAdmin: boolean }>();
+const props = defineProps<{ refreshKey: number; isAdmin: boolean; canUseTrainerChat: boolean }>();
 const emit = defineEmits<{ navigate: [page: PageId]; openRecipe: [id: number] }>();
 
 const data = ref<DashboardResponse | null>(null);
 const users = ref<RegisteredUser[]>([]);
 const diary = ref<DiaryEntry[]>([]);
+const trainerChat = ref<TrainerChatResponse>({ trainer: null, messages: [], unread_count: 0 });
+const chatText = ref('');
+const chatError = ref('');
+const chatSending = ref(false);
+const sharedItem = ref<SharedItemDetail | null>(null);
 const usersOpen = ref(false);
 const loading = ref(false);
 const error = ref('');
@@ -21,14 +27,16 @@ async function load() {
   loading.value = true;
   error.value = '';
   try {
-    const [dashboardData, registeredUsers, diaryData] = await Promise.all([
+    const [dashboardData, registeredUsers, diaryData, trainerChatData] = await Promise.all([
       api.dashboard(),
       props.isAdmin ? api.users() : Promise.resolve([] as RegisteredUser[]),
-      api.diary()
+      api.diary(),
+      props.canUseTrainerChat ? api.myTrainerChat() : Promise.resolve({ trainer: null, messages: [], unread_count: 0 } as TrainerChatResponse)
     ]);
     data.value = dashboardData;
     users.value = registeredUsers;
     diary.value = diaryData;
+    trainerChat.value = trainerChatData;
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -42,7 +50,35 @@ const dayCompletion = computed(() => Math.min(Math.round((todayTotals.value.kcal
 const todayLabel = computed(() => new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()));
 
 onMounted(load);
-watch(() => props.refreshKey, load);
+watch(() => [props.refreshKey, props.canUseTrainerChat], load);
+
+const visibleChatMessages = computed(() => trainerChat.value.messages.slice(-5));
+
+async function sendTrainerChat() {
+  const message = chatText.value.trim();
+  if (!message || chatSending.value) return;
+  chatError.value = '';
+  chatSending.value = true;
+  try {
+    const sent = await api.sendMyTrainerChat(message);
+    trainerChat.value.messages = [...trainerChat.value.messages, sent];
+    chatText.value = '';
+  } catch (err) {
+    chatError.value = err instanceof Error ? err.message : String(err);
+  } finally {
+    chatSending.value = false;
+  }
+}
+
+async function openSharedItem(message: TrainerChatMessage) {
+  if (!message.shared_item) return;
+  chatError.value = '';
+  try {
+    sharedItem.value = await api.mySharedItem(message.shared_item.type, message.shared_item.id);
+  } catch (err) {
+    chatError.value = err instanceof Error ? err.message : String(err);
+  }
+}
 </script>
 
 <template>
@@ -58,6 +94,25 @@ watch(() => props.refreshKey, load);
           <button type="button" class="mint-button" @click="emit('navigate', 'diary')">Открыть дневник</button>
         </div>
         <div class="dashboard-ring" :style="{ '--progress': `${dayCompletion}%` }"><strong>{{ dayCompletion }}%</strong><span>дня</span></div>
+      </section>
+
+      <section v-if="trainerChat.trainer" class="dashboard-trainer-chat dashboard-span">
+        <div class="dashboard-trainer-chat-head">
+          <div><p class="eyebrow">ВАШ ТРЕНЕР</p><h3>Чат с {{ trainerChat.trainer.name }}</h3><span>{{ trainerChat.trainer.email }}</span></div>
+          <span v-if="trainerChat.unread_count" class="trainer-chat-unread">{{ trainerChat.unread_count > 99 ? '99+' : trainerChat.unread_count }} новых</span>
+          <span class="trainer-chat-status">На связи</span>
+        </div>
+        <div class="dashboard-chat-messages">
+          <p v-if="!visibleChatMessages.length" class="subtle">Напишите тренеру первый вопрос.</p>
+          <div v-for="message in visibleChatMessages" :key="message.id" class="dashboard-chat-message">
+            <b>{{ message.sender_name }}</b>
+            <button v-if="message.shared_item" type="button" class="dashboard-chat-shared" @click="openSharedItem(message)"><strong>{{ message.shared_item.name }}</strong><small>Открыть отправленный материал · {{ message.shared_item.type === 'article' ? 'статья' : message.shared_item.type === 'recipe' ? 'блюдо' : message.shared_item.type === 'product' ? 'продукт' : message.shared_item.type === 'exercise' ? 'упражнение' : message.shared_item.type === 'progress' ? 'показатели' : message.shared_item.type === 'workout_complex' ? 'комплекс тренировки' : 'тренажёр или инвентарь' }}</small></button>
+            <span v-else>{{ message.message }}</span>
+            <time>{{ formatDateTime(message.created_at) }}</time>
+          </div>
+        </div>
+        <form class="dashboard-chat-compose" @submit.prevent="sendTrainerChat"><input v-model="chatText" maxlength="2000" placeholder="Написать тренеру…"><button type="submit" class="mint-button" :disabled="chatSending">Отправить</button></form>
+        <p v-if="chatError" class="dashboard-chat-error">{{ chatError }}</p>
       </section>
 
       <section class="dashboard-database">
@@ -113,6 +168,7 @@ watch(() => props.refreshKey, load);
       <div v-if="!users.length" class="empty">Зарегистрированных пользователей пока нет</div>
     </div>
   </ModalDialog>
+  <SharedItemModal :item="sharedItem" @close="sharedItem = null" />
 </template>
 
 <style lang="scss">
@@ -155,6 +211,15 @@ watch(() => props.refreshKey, load);
 .dashboard-protein-row i { display: block; height: 8px; margin-top: 10px; border-radius: 99px; background: #e6e7ff; overflow: hidden; }
 .dashboard-protein-row em { display: block; height: 100%; border-radius: inherit; background: var(--blue); }
 .dashboard-protein-row strong { font-size: 12px; white-space: nowrap; }
+.dashboard-trainer-chat { padding: 24px 28px; border: 1px solid #cfe0ff; border-radius: 20px; background: #f4f8ff; }
+.dashboard-trainer-chat-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.dashboard-trainer-chat-head h3 { margin: 0 0 4px; }.dashboard-trainer-chat-head span:not(.trainer-chat-status) { color: var(--muted); font-size: 12px; }
+.trainer-chat-unread { border-radius: 99px; padding: 6px 9px; background: #fff0dc; color: #b56a16 !important; font-size: 10px !important; font-weight: 800; white-space: nowrap; }
+.trainer-chat-status { border-radius: 99px; padding: 6px 9px; background: #e2f7eb; color: #329a63; font-size: 10px; font-weight: 800; }
+.dashboard-chat-messages { display: grid; gap: 8px; max-height: 230px; overflow: auto; margin-top: 18px; }
+.dashboard-chat-message { display: grid; gap: 4px; max-width: 80%; padding: 10px 12px; border-radius: 11px; background: #fff; }.dashboard-chat-message:nth-child(even) { justify-self: end; background: #e2f7eb; }.dashboard-chat-message b { font-size: 11px; }.dashboard-chat-message > span { white-space: pre-wrap; }.dashboard-chat-message time { color: var(--muted); font-size: 10px; }
+.dashboard-chat-shared { display: grid; gap: 3px; border: 1px solid #b8d5ff; border-radius: 9px; padding: 9px; background: #eaf3ff; color: var(--ink); text-align: left; cursor: pointer; }.dashboard-chat-shared:hover { background: #dcecff; }.dashboard-chat-shared small { color: var(--blue); font-size: 10px; }
+.dashboard-chat-compose { display: flex; gap: 10px; margin-top: 16px; }.dashboard-chat-compose input { min-width: 0; flex: 1; }.dashboard-chat-compose .mint-button { border: 0; }.dashboard-chat-error { margin: 8px 0 0; color: #ae2a19; font-size: 11px; }
 @media (max-width: 900px) { .dashboard-layout { grid-template-columns: 1fr; } .dashboard-database, .dashboard-diary, .dashboard-protein { grid-column: 1; } .dashboard-quick-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .dashboard-hero { align-items: flex-start; flex-direction: column; padding: 24px; } .dashboard-ring { align-self: center; } .dashboard-quick-grid { grid-template-columns: 1fr; } }
 .registered-users-list { display: grid; gap: 8px; }
