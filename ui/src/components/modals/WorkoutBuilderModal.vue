@@ -146,7 +146,8 @@ async function save() {
         speed_kmh: item.speed_kmh || null
       }))
     };
-    if (props.editPlan) await api.updateWorkoutPlan(props.editPlan.id, payload);
+    if (props.editPlan && props.targetUserId) await api.updateClientWorkout(props.targetUserId, props.editPlan.id, payload);
+    else if (props.editPlan) await api.updateWorkoutPlan(props.editPlan.id, payload);
     else if (props.targetUserId) await api.scheduleClientWorkout(props.targetUserId, payload);
     else await api.post('workout-plans', payload);
     emit('saved');

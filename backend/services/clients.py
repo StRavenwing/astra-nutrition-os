@@ -26,7 +26,7 @@ from backend.services.articles import serialize_article
 from backend.services.diary import create_diary_entries
 from backend.services.errors import ConflictError, ForbiddenError, NotFoundError
 from backend.services.serialization import serialize_diary_entry, serialize_exercise, serialize_product, serialize_progress, serialize_recipe_detail, serialize_workout, serialize_workout_plan
-from backend.services.workouts import create_workout_plan, serialize_workout_complex, serialize_workout_equipment
+from backend.services.workouts import create_workout_plan, serialize_workout_complex, serialize_workout_equipment, update_workout_plan
 
 
 def _display_name(user: User) -> str:
@@ -264,6 +264,11 @@ def delete_client_diary_entry(client_id: int, entry_id: int, actor: User) -> dic
 def schedule_client_workout(client_id: int, data: dict, actor: User) -> dict:
     client = _relationship(client_id, actor).client
     return create_workout_plan(data, client)
+
+
+def update_client_workout(client_id: int, plan_id: int, data: dict, actor: User) -> dict:
+    client = _relationship(client_id, actor).client
+    return update_workout_plan(plan_id, data, client)
 
 
 def update_client_targets(client_id: int, data: dict, actor: User) -> dict:

@@ -31,6 +31,7 @@ from backend.services.clients import (
     send_my_trainer_chat,
     share_item_to_trainer,
     share_item,
+    update_client_workout,
     update_client_targets,
 )
 
@@ -106,6 +107,11 @@ def remove_client_diary(client_id: int, entry_id: int, current_user: User = Depe
 @router.post("/{client_id}/workout-plans", status_code=status.HTTP_201_CREATED)
 def post_client_workout_plan(client_id: int, payload: WorkoutPlanInput, current_user: User = Depends(require_trainer)) -> dict:
     return schedule_client_workout(client_id, dump_model(payload), current_user)
+
+
+@router.put("/{client_id}/workout-plans/{plan_id}")
+def put_client_workout_plan(client_id: int, plan_id: int, payload: WorkoutPlanInput, current_user: User = Depends(require_trainer)) -> dict:
+    return update_client_workout(client_id, plan_id, dump_model(payload), current_user)
 
 
 @router.put("/{client_id}/nutrition-targets")

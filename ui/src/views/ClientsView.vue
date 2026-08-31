@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
 import { api } from '@/api/client';
-import type { ClientDetail, ClientSummary, ProgressEntry, SharedItemDetail, TrainerChatMessage } from '@/types';
+import type { ClientDetail, ClientSummary, ProgressEntry, SharedItemDetail, TrainerChatMessage, WorkoutPlan } from '@/types';
 import { formatDate, formatDateTime, formatScheduledAt, fmt } from '@/utils/format';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 import DiaryEntryForm from '@/components/forms/DiaryEntryForm.vue';
@@ -20,6 +20,7 @@ const email = ref('');
 const addError = ref('');
 const diaryOpen = ref(false);
 const scheduleOpen = ref(false);
+const editingPlan = ref<WorkoutPlan | null>(null);
 const targetsOpen = ref(false);
 const historyOpen = ref(false);
 const chatOpen = ref(false);
@@ -111,6 +112,12 @@ function entryCaption(item: { servings: number | null; quantity: number | null; 
   return `${fmt(item.servings || 1)} порц.`;
 }
 function latestProgress() { return selected.value?.progress[0] || null; }
+function plannedClientWorkouts() { return selected.value?.workout_plans.filter((plan) => plan.status === 'planned') || []; }
+function editClientWorkout(plan: WorkoutPlan) {
+  editingPlan.value = plan;
+  historyOpen.value = false;
+  scheduleOpen.value = true;
+}
 
 watch(() => [props.refreshKey, props.canAccess], () => { void load(); }, { immediate: true });
 </script>
@@ -158,13 +165,23 @@ watch(() => [props.refreshKey, props.canAccess], () => { void load(); }, { immed
           <div class="macro-summary"><div><span>Съедено</span><b>{{ fmt(selected.today.totals.kcal) }} ккал</b></div><div><span>Осталось</span><b>{{ remaining(selected.today.remaining.kcal) }} ккал</b></div><div><span>Б / Ж / У</span><b>{{ fmt(selected.today.totals.protein) }} / {{ fmt(selected.today.totals.fat) }} / {{ fmt(selected.today.totals.carbs) }} г</b></div><div><span>Остаток Б / Ж / У</span><b>{{ remaining(selected.today.remaining.protein) }} / {{ remaining(selected.today.remaining.fat) }} / {{ remaining(selected.today.remaining.carbs) }} г</b></div></div>
         </section>
       </div>
-      <div class="client-detail-actions"><button type="button" class="secondary-button" @click="scheduleOpen = true">＋ Запланировать тренировку</button><button type="button" class="secondary-button" @click="historyOpen = true">История тренировок</button><button type="button" class="secondary-button" @click="targetsOpen = true">Параметры и нормы</button></div>
+      <section class="client-detail-section client-planned-workouts">
+        <div class="section-heading"><div><p class="eyebrow">ПЛАН</p><h3>Запланированные тренировки</h3></div><button type="button" class="text-button" @click="editingPlan = null; scheduleOpen = true">＋ Добавить</button></div>
+        <div v-if="plannedClientWorkouts().length" class="client-planned-list">
+          <article v-for="plan in plannedClientWorkouts()" :key="plan.id" class="client-planned-row">
+            <div><b>{{ formatScheduledAt(plan.scheduled_at) }}</b><small>{{ plan.items.map((item) => item.name).join(' · ') }}</small></div>
+            <div class="client-planned-meta"><span v-if="plan.duration_minutes">{{ plan.duration_minutes }} мин</span><button type="button" class="text-button" title="Редактировать тренировку" aria-label="Редактировать тренировку" @click.stop="editClientWorkout(plan)">✎</button></div>
+          </article>
+        </div>
+        <p v-else class="subtle">Запланированных тренировок пока нет.</p>
+      </section>
+      <div class="client-detail-actions"><button type="button" class="secondary-button" @click="editingPlan = null; scheduleOpen = true">＋ Запланировать тренировку</button><button type="button" class="secondary-button" @click="historyOpen = true">История тренировок</button><button type="button" class="secondary-button" @click="targetsOpen = true">Параметры и нормы</button></div>
     </div>
   </ModalDialog>
 
   <ModalDialog :open="addOpen" title="Добавить клиента" eyebrow="КЛИЕНТ" @close="addOpen = false"><form class="client-form" @submit.prevent="addClient"><p>Введите email уже зарегистрированного пользователя.</p><div class="field full"><label>Email клиента</label><input v-model="email" type="email" required autofocus placeholder="client@example.com"></div><p class="form-error">{{ addError }}</p><div class="actions"><button type="button" @click="addOpen = false">Отмена</button><button type="submit" class="primary">Добавить</button></div></form></ModalDialog>
   <ModalDialog :open="diaryOpen" title="Добавить блюдо клиенту" eyebrow="ДНЕВНИК ПИТАНИЯ" wide @close="diaryOpen = false"><DiaryEntryForm v-if="selected" :target-user-id="selected.id" @saved="diaryOpen = false; refreshSelected()" @cancel="diaryOpen = false" /></ModalDialog>
-  <WorkoutBuilderModal :open="scheduleOpen" :target-user-id="selected?.id" @close="scheduleOpen = false" @saved="scheduleOpen = false; refreshSelected()" />
+  <WorkoutBuilderModal :open="scheduleOpen" :edit-plan="editingPlan" :target-user-id="selected?.id" @close="scheduleOpen = false; editingPlan = null" @saved="scheduleOpen = false; editingPlan = null; refreshSelected()" />
   <ModalDialog :open="targetsOpen" title="Нормы питания" eyebrow="ПАРАМЕТРЫ КЛИЕНТА" @close="targetsOpen = false"><form class="client-form" @submit.prevent="saveTargets"><p>Тренер может задать персональные суточные нормы.</p><div class="grid targets-grid"><div class="field"><label>Ккал</label><input v-model="targets.kcal_target" type="number" min="0" step="1"></div><div class="field"><label>Белки, г</label><input v-model="targets.protein_target_g" type="number" min="0" step="0.1"></div><div class="field"><label>Жиры, г</label><input v-model="targets.fat_target_g" type="number" min="0" step="0.1"></div><div class="field"><label>Углеводы, г</label><input v-model="targets.carbs_target_g" type="number" min="0" step="0.1"></div></div><div class="actions"><button type="button" @click="targetsOpen = false">Отмена</button><button type="submit" class="primary">Сохранить нормы</button></div></form></ModalDialog>
   <ModalDialog :open="historyOpen" title="История тренировок" eyebrow="ТРЕНИРОВКИ" wide @close="historyOpen = false"><div class="client-history"><h3>Запланированные</h3><div v-for="plan in selected?.workout_plans" :key="plan.id" class="history-row"><b>{{ formatScheduledAt(plan.scheduled_at) }}</b><span>{{ plan.items.length }} упражн. · {{ plan.status === 'planned' ? 'запланирована' : 'завершена' }}</span></div><p v-if="!selected?.workout_plans.length" class="subtle">Планов пока нет.</p><h3>Выполненные упражнения</h3><div v-for="item in selected?.workouts" :key="item.id" class="history-row"><b>{{ item.name }}</b><span>{{ formatDate(item.performed_at) }} · {{ fmt(item.working_weight) }} {{ item.default_unit || '' }}</span></div><p v-if="!selected?.workouts.length" class="subtle">История пока пуста.</p></div></ModalDialog>
   <ModalDialog :open="chatOpen" :title="chatClient?.name ? `Чат · ${chatClient.name}` : 'Чат с клиентом'" eyebrow="СООБЩЕНИЯ" @close="chatOpen = false"><div class="chat-box"><div class="chat-messages"><p v-if="!chatMessages.length" class="subtle">Сообщений пока нет.</p><div v-for="message in chatMessages" :key="message.id" class="chat-message"><b>{{ message.sender_name }}</b><span v-if="!message.shared_item">{{ message.message }}</span><button v-else type="button" class="shared-chat-card" @click="openSharedItem(message)"><span>ОТПРАВЛЕНО В ЧАТ</span><strong>{{ message.shared_item.name }}</strong><small>{{ message.shared_item.type === 'article' ? 'Статья' : message.shared_item.type === 'recipe' ? 'Блюдо' : message.shared_item.type === 'product' ? 'Продукт' : message.shared_item.type === 'progress' ? 'Показатели' : message.shared_item.type === 'exercise' ? 'Упражнение' : message.shared_item.type === 'workout_complex' ? 'Комплекс тренировки' : 'Тренажёр или инвентарь' }}</small></button><small>{{ formatDateTime(message.created_at) }}</small></div></div><p class="form-error">{{ chatError }}</p><form class="chat-compose" @submit.prevent="sendChat"><input v-model="chatText" maxlength="2000" placeholder="Написать сообщение…"><button type="submit" class="primary">Отправить</button></form></div></ModalDialog>
@@ -197,4 +214,11 @@ watch(() => [props.refreshKey, props.canAccess], () => { void load(); }, { immed
   .shared-chat-card span { color: var(--blue); font-size: 9px; font-weight: 850; letter-spacing: .6px; }
   .shared-chat-card strong { font-size: 13px; }
   .shared-chat-card small { color: var(--muted); font-size: 10px; }
+  .client-planned-workouts { margin-top: 16px; }
+  .client-planned-list { display: grid; gap: 8px; margin-top: 14px; }
+  .client-planned-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 12px; border: 1px solid #edf0f5; border-radius: 10px; background: #fafbfc; }
+  .client-planned-row b, .client-planned-row small { display: block; }
+  .client-planned-row small { margin-top: 4px; color: var(--muted); font-size: 11px; }
+  .client-planned-meta { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 11px; white-space: nowrap; }
+  .client-planned-meta .text-button { padding: 4px 7px; border-radius: 7px; background: #e9f2ff; color: var(--blue); font-size: 16px; line-height: 1; }
 </style>
