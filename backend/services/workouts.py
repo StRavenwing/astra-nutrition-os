@@ -437,7 +437,12 @@ def create_workout_plan(data: dict, user: User) -> dict:
     if not items:
         raise ValueError("Добавьте хотя бы одно упражнение")
     with current_database().atomic():
-        plan = WorkoutPlan.create(user=user, scheduled_at=data["scheduled_at"], status="planned")
+        plan = WorkoutPlan.create(
+            user=user,
+            scheduled_at=data["scheduled_at"],
+            duration_minutes=int_number(data.get("duration_minutes")),
+            status="planned",
+        )
         for item in items:
             exercise = get_exercise(int(item["exercise_id"]))
             WorkoutPlanItem.create(
@@ -473,6 +478,7 @@ def update_workout_plan(plan_id: int, data: dict, user: User) -> dict:
         if plan.status != "planned":
             raise ConflictError("Редактировать можно только запланированную тренировку")
         plan.scheduled_at = data["scheduled_at"]
+        plan.duration_minutes = int_number(data.get("duration_minutes"))
         plan.save()
         _replace_workout_plan_items(plan, data.get("items") or [])
         return serialize_workout_plan(plan)

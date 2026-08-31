@@ -428,6 +428,7 @@ class WorkoutPlan(BaseModel):
     id = AutoField()
     user = ForeignKeyField(User, backref="workout_plans", on_delete="CASCADE")
     scheduled_at = CharField(index=True)
+    duration_minutes = IntegerField(null=True)
     status = CharField(default="planned", index=True)
     completed_at = CharField(null=True)
 

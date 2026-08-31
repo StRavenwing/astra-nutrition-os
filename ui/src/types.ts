@@ -326,6 +326,7 @@ export interface WorkoutPlanItem {
 export interface WorkoutPlan {
   id: number;
   scheduled_at: string;
+  duration_minutes: number | null;
   status: 'planned' | 'archived' | string;
   completed_at: string | null;
   items: WorkoutPlanItem[];

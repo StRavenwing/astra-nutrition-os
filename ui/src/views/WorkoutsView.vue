@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
 import type { Exercise, WorkoutComplex, WorkoutEquipment, WorkoutPlan } from '@/types';
-import { formatDate, fmt } from '@/utils/format';
+import { formatDate, formatScheduledAt, fmt } from '@/utils/format';
 import SendToClientButton from '@/components/shared/SendToClientButton.vue';
 import SendToTrainerButton from '@/components/shared/SendToTrainerButton.vue';
 
@@ -96,7 +96,7 @@ function planTitle(plan: WorkoutPlan) {
 function planHistoryMeta(plan: WorkoutPlan) {
   if (plan.status === 'canceled') return 'Тренировка отменена';
   const parts = [`${plan.items.length} упражнений`];
-  const duration = plan.items.reduce((total, item) => total + (item.duration_minutes || 0), 0);
+  const duration = plan.duration_minutes || plan.items.reduce((total, item) => total + (item.duration_minutes || 0), 0);
   if (duration) parts.push(`${duration} минут`);
   return parts.join(' · ');
 }
@@ -193,7 +193,7 @@ async function removeEquipment(id: number) {
         <article v-for="plan in plannedPlans" :key="plan.id" class="workout-tile planned-plan-tile" tabindex="0" @click="emit('openPlan', plan)" @keydown.enter.prevent="emit('openPlan', plan)" @keydown.space.prevent="emit('openPlan', plan)">
           <button type="button" class="primary complete-plan workout-complete-action" @click.stop="completePlan(plan.id)">Выполнено</button>
           <div class="workout-tile-head">
-            <span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span>
+            <span class="workout-date">{{ formatScheduledAt(plan.scheduled_at) }}</span>
             <span class="workout-group planned-badge">Запланирована</span>
           </div>
           <h3>Тренировка</h3>
@@ -338,7 +338,7 @@ async function removeEquipment(id: number) {
         <div class="archive-group-head"><div><p class="eyebrow">ЗАВЕРШЕНО</p><h3>Пройденные тренировки</h3></div><span class="subtle">{{ completedPlans.length }}</span></div>
         <div class="workout-grid archive-workout-grid">
         <article v-for="plan in completedPlans" :key="plan.id" class="workout-tile archive-plan-tile history-workout-card" tabindex="0" @click="emit('openPlan', plan)" @keydown.enter.prevent="emit('openPlan', plan)" @keydown.space.prevent="emit('openPlan', plan)">
-          <div class="workout-tile-head"><span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span><span class="workout-group" :class="plan.status === 'canceled' ? 'canceled-badge' : 'completed-badge'">{{ planStatus(plan) }}</span></div>
+          <div class="workout-tile-head"><span class="workout-date">{{ formatScheduledAt(plan.scheduled_at) }}</span><span class="workout-group" :class="plan.status === 'canceled' ? 'canceled-badge' : 'completed-badge'">{{ planStatus(plan) }}</span></div>
           <h3>{{ planTitle(plan) }}</h3>
           <p>{{ planHistoryMeta(plan) }}</p>
           <div class="history-card-summary"><b>{{ planHistoryPreview(plan) }}</b><small>{{ planHistorySummary(plan) }}</small></div>
@@ -354,7 +354,7 @@ async function removeEquipment(id: number) {
         <div class="archive-group-head"><div><p class="eyebrow">ОТМЕНЕНО</p><h3>Отменённые тренировки</h3></div><span class="subtle">{{ canceledPlans.length }}</span></div>
         <div class="workout-grid archive-workout-grid">
         <article v-for="plan in canceledPlans" :key="plan.id" class="workout-tile archive-plan-tile history-workout-card" tabindex="0" @click="emit('openPlan', plan)" @keydown.enter.prevent="emit('openPlan', plan)" @keydown.space.prevent="emit('openPlan', plan)">
-          <div class="workout-tile-head"><span class="workout-date">{{ formatDate(plan.scheduled_at) }}</span><span class="workout-group canceled-badge">Отменена</span></div>
+          <div class="workout-tile-head"><span class="workout-date">{{ formatScheduledAt(plan.scheduled_at) }}</span><span class="workout-group canceled-badge">Отменена</span></div>
           <h3>{{ planTitle(plan) }}</h3>
           <p>{{ planHistoryMeta(plan) }}</p>
           <div class="history-card-summary"><b>{{ planHistoryPreview(plan) }}</b><small>{{ planHistorySummary(plan) }}</small></div>

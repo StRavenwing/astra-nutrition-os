@@ -266,6 +266,7 @@ class WorkoutPlanItemInput(BaseModel):
 
 class WorkoutPlanInput(BaseModel):
     scheduled_at: str
+    duration_minutes: Any = None
     items: list[WorkoutPlanItemInput]
 
 

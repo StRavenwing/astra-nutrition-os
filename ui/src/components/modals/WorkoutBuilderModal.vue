@@ -29,8 +29,10 @@ const exercises = ref<Exercise[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const error = ref('');
-const form = reactive<{ scheduled_at: string; items: BuilderItem[] }>({
+const form = reactive<{ scheduled_at: string; scheduled_time: string; duration_minutes: number | ''; items: BuilderItem[] }>({
   scheduled_at: today(),
+  scheduled_time: '',
+  duration_minutes: '',
   items: []
 });
 
@@ -45,7 +47,10 @@ function today() {
 function resetForm() {
   const plan = sourcePlan();
   const complex = props.complex;
-  form.scheduled_at = props.editPlan?.scheduled_at || today();
+  const scheduledAt = props.editPlan?.scheduled_at || '';
+  form.scheduled_at = scheduledAt.slice(0, 10) || today();
+  form.scheduled_time = scheduledAt.includes('T') ? scheduledAt.slice(11, 16) : '';
+  form.duration_minutes = props.editPlan?.duration_minutes ?? props.repeatPlan?.duration_minutes ?? '';
   form.items = (plan?.items || complex?.items)?.map((item) => ({
     exercise_id: item.exercise_id,
     working_weight: item.working_weight ?? '',
@@ -131,7 +136,8 @@ async function save() {
   saving.value = true;
   try {
     const payload = {
-      scheduled_at: form.scheduled_at,
+      scheduled_at: form.scheduled_time ? `${form.scheduled_at}T${form.scheduled_time}` : form.scheduled_at,
+      duration_minutes: form.duration_minutes || null,
       items: form.items.map((item) => ({
         exercise_id: item.exercise_id,
         working_weight: item.working_weight || null,
@@ -157,11 +163,23 @@ async function save() {
     <form class="workout-builder" @submit.prevent="save">
       <div v-if="loading" class="panel">Загрузка…</div>
       <template v-else>
-        <div class="builder-date field">
-          <label for="planned-workout-date">Дата тренировки</label>
-          <input id="planned-workout-date" v-model="form.scheduled_at" type="date" required>
-          <small v-if="repeatPlan">По умолчанию выбрана текущая дата — её можно изменить.</small>
-          <small v-else-if="editPlan">Измените дату или состав запланированной тренировки.</small>
+        <div class="builder-schedule">
+          <div class="builder-date field">
+            <label for="planned-workout-date">Дата тренировки</label>
+            <input id="planned-workout-date" v-model="form.scheduled_at" type="date" required>
+            <small v-if="repeatPlan">По умолчанию выбрана текущая дата — её можно изменить.</small>
+            <small v-else-if="editPlan">Измените дату, время или состав тренировки.</small>
+          </div>
+          <div class="builder-time field">
+            <label for="planned-workout-time">Время тренировки <small>необязательно</small></label>
+            <input id="planned-workout-time" v-model="form.scheduled_time" type="time" step="60">
+            <small>Можно указать точное время начала.</small>
+          </div>
+          <div class="builder-duration field">
+            <label for="planned-workout-duration">Длительность, мин <small>необязательно</small></label>
+            <input id="planned-workout-duration" v-model="form.duration_minutes" type="number" min="1" step="1" placeholder="Например, 60">
+            <small>Общая длительность тренировки.</small>
+          </div>
         </div>
 
         <div class="builder-items-head">
@@ -208,13 +226,27 @@ async function save() {
 }
 
 .builder-date {
-  max-width: 260px;
+  max-width: none;
 
   small,
   > small {
     color: var(--muted);
     font-size: 11px;
   }
+}
+
+.builder-schedule {
+  display: grid;
+  grid-template-columns: minmax(210px, 1.2fr) minmax(145px, .75fr) minmax(145px, .75fr);
+  gap: 12px;
+  max-width: 680px;
+}
+
+.builder-time label small,
+.builder-duration label small {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
 }
 
 .builder-items-head,
@@ -320,6 +352,10 @@ async function save() {
 }
 
 @media (max-width: 700px) {
+  .builder-schedule {
+    grid-template-columns: 1fr;
+  }
+
   .builder-items-head {
     align-items: flex-start;
     flex-direction: column;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { WorkoutPlan } from '@/types';
-import { formatDate, fmt } from '@/utils/format';
+import { formatDate, formatScheduledAt, fmt } from '@/utils/format';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 
 const props = defineProps<{ plan: WorkoutPlan | null }>();
@@ -26,12 +26,13 @@ const statusLabel = computed(() => {
       <div class="workout-detail-topline">
         <div>
           <p class="eyebrow">{{ statusLabel }}</p>
-          <h3>{{ formatDate(plan.scheduled_at) }}</h3>
+          <h3>{{ formatScheduledAt(plan.scheduled_at) }}</h3>
         </div>
         <span class="workout-group" :class="plan.status === 'planned' ? 'planned-badge' : plan.status === 'canceled' ? 'canceled-badge' : 'completed-badge'">{{ statusLabel }}</span>
       </div>
       <div class="workout-detail-summary">
         <span><b>{{ plan.items.length }}</b><small>упражнений</small></span>
+        <span v-if="plan.duration_minutes"><b>{{ plan.duration_minutes }} мин</b><small>длительность</small></span>
         <span><b>{{ plan.completed_at ? formatDate(plan.completed_at) : '—' }}</b><small>{{ plan.status === 'planned' ? 'дата создания' : 'дата завершения' }}</small></span>
       </div>
       <div class="workout-detail-items">
@@ -59,7 +60,7 @@ const statusLabel = computed(() => {
 .workout-detail-modal { min-width: 0; }
 .workout-detail-topline { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; }
 .workout-detail-topline h3 { margin: 0; font-size: 24px; }
-.workout-detail-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 18px 0; }
+.workout-detail-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 9px; margin: 18px 0; }
 .workout-detail-summary span { padding: 12px; border-radius: 10px; background: #f5f2ff; text-align: center; }
 .workout-detail-summary b, .workout-detail-summary small { display: block; }
 .workout-detail-summary b { font-size: 18px; }

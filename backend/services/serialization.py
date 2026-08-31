@@ -327,6 +327,7 @@ def serialize_workout_plan(plan: WorkoutPlan) -> dict:
     return {
         "id": plan.id,
         "scheduled_at": plan.scheduled_at,
+        "duration_minutes": plan.duration_minutes,
         "status": plan.status,
         "completed_at": plan.completed_at,
         "items": [

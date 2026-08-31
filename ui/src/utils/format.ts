@@ -19,6 +19,11 @@ export function formatDateTime(value: string | null | undefined): string {
   return value ? new Date(value).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 }
 
+export function formatScheduledAt(value: string | null | undefined): string {
+  if (!value) return '—';
+  return value.includes('T') ? formatDateTime(value) : formatDate(value);
+}
+
 export function dayIso(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }

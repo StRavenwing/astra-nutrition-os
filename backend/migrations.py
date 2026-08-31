@@ -83,6 +83,12 @@ def _ensure_chat_columns(connection: sqlite3.Connection) -> None:
         )
 
 
+def _ensure_workout_plan_columns(connection: sqlite3.Connection) -> None:
+    columns = _columns(connection, "workout_plans")
+    if columns and "duration_minutes" not in columns:
+        connection.execute("ALTER TABLE workout_plans ADD COLUMN duration_minutes INTEGER")
+
+
 def _ensure_exercise_columns(connection: sqlite3.Connection) -> None:
     columns = _columns(connection, "exercises")
     additions = {
@@ -840,6 +846,7 @@ def migrate_v2_database(settings: Settings, backup_existing: bool) -> None:
     try:
         _ensure_user_columns(connection)
         _ensure_chat_columns(connection)
+        _ensure_workout_plan_columns(connection)
         connection.execute("PRAGMA foreign_keys=OFF")
         _create_users_table(connection)
         admin = _admin_row(connection, settings)
@@ -871,6 +878,7 @@ def migrate_v3_database(settings: Settings, backup_existing: bool) -> None:
     try:
         _ensure_user_columns(connection)
         _ensure_chat_columns(connection)
+        _ensure_workout_plan_columns(connection)
         _ensure_exercise_columns(connection)
         _ensure_progress_target_columns(connection)
         _ensure_recipe_option_columns(connection)
@@ -895,6 +903,7 @@ def migrate_v4_database(settings: Settings, backup_existing: bool) -> None:
     try:
         _ensure_user_columns(connection)
         _ensure_chat_columns(connection)
+        _ensure_workout_plan_columns(connection)
         _ensure_exercise_columns(connection)
         _ensure_progress_target_columns(connection)
         _ensure_recipe_option_columns(connection)
@@ -925,6 +934,7 @@ def ensure_database(settings: Settings) -> None:
         try:
             _ensure_user_columns(connection)
             _ensure_chat_columns(connection)
+            _ensure_workout_plan_columns(connection)
             _ensure_exercise_columns(connection)
             _ensure_workout_equipment_table(connection)
             _ensure_progress_target_columns(connection)
