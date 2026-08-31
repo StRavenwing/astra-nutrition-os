@@ -4624,6 +4624,23 @@ body main .theory-page .article-card .article-card-actions button {
   font-size: 14px;
   line-height: 1;
 }
+body main .theory-page .article-card .article-card-actions > .send-client-control,
+body main .theory-page .article-card .article-card-actions > .send-trainer-control {
+  display: flex;
+  flex: 0 0 28px;
+  width: 28px;
+  min-width: 28px;
+}
+body main .theory-page .article-card .article-card-actions > .send-client-control .send-client-button.compact,
+body main .theory-page .article-card .article-card-actions > .send-trainer-control .send-trainer-button.compact {
+  flex: 0 0 28px;
+  width: 28px !important;
+  min-width: 28px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  padding: 0 !important;
+  font-size: 14px !important;
+}
 body main .theory-page .article-card .article-pin-action { top: 30px; right: 16px; z-index: 4; width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; border: 1px solid #7bc8a4; border-radius: 10px; background: #e7f6ee; color: #216e4e; }
 body main .theory-page .article-card:hover,
 body main .theory-page .article-card:focus-visible { border-color: transparent; box-shadow: 0 0 0 2px #4b9db026, 0 12px 30px #15233d20; outline: none; transform: translateY(-2px); }
@@ -4804,12 +4821,30 @@ body main .theory-page .article-section-card {
   width: auto;
   min-width: 0;
 }
+body main .clients-page .clients-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 24px !important;
+}
+body main .clients-page .client-card:not(.ghost-card) {
+  width: 100% !important;
+  height: 300px !important;
+  min-height: 300px !important;
+  box-sizing: border-box;
+  border-radius: 18px !important;
+}
 @media (max-width: 1100px) {
   body main .theory-page .article-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
 }
 @media (max-width: 700px) {
   body main .theory-page .article-grid { grid-template-columns: 1fr !important; }
   body main .theory-page .article-sections { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 900px) {
+  body main .clients-page .clients-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+}
+@media (max-width: 600px) {
+  body main .clients-page .clients-grid { grid-template-columns: 1fr !important; }
 }
 
 /* Shared card actions: keep one readable primary action and compact icon actions beside it. */

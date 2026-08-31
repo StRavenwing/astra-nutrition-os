@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue';
 import { api } from '@/api/client';
-import type { ClientDetail, ClientSummary, ProgressEntry, TrainerChatMessage } from '@/types';
+import type { ClientDetail, ClientSummary, ProgressEntry, SharedItemDetail, TrainerChatMessage } from '@/types';
 import { formatDate, formatDateTime, fmt } from '@/utils/format';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 import DiaryEntryForm from '@/components/forms/DiaryEntryForm.vue';
 import WorkoutBuilderModal from '@/components/modals/WorkoutBuilderModal.vue';
+import SharedItemModal from '@/components/modals/SharedItemModal.vue';
 
 const props = defineProps<{ refreshKey: number; canAccess: boolean; isAdmin: boolean }>();
 const emit = defineEmits<{ changed: []; feedback: [] }>();
@@ -24,6 +25,7 @@ const historyOpen = ref(false);
 const chatOpen = ref(false);
 const chatClient = ref<ClientSummary | null>(null);
 const chatMessages = ref<TrainerChatMessage[]>([]);
+const sharedItem = ref<SharedItemDetail | null>(null);
 const chatText = ref('');
 const chatError = ref('');
 const targets = reactive({ kcal_target: '', protein_target_g: '', fat_target_g: '', carbs_target_g: '' });
@@ -94,6 +96,14 @@ async function sendChat() {
   } catch (err) { chatError.value = err instanceof Error ? err.message : String(err); }
 }
 
+async function openSharedItem(message: TrainerChatMessage) {
+  if (!message.shared_item || !chatClient.value) return;
+  chatError.value = '';
+  try {
+    sharedItem.value = await api.clientSharedItem(chatClient.value.id, message.shared_item.type, message.shared_item.id);
+  } catch (err) { chatError.value = err instanceof Error ? err.message : String(err); }
+}
+
 function scheduled(value: string | null | undefined) { return value ? formatDateTime(value) : 'Не запланирована'; }
 function remaining(value: number | null) { return value == null ? '—' : `${fmt(value)}`; }
 function entryCaption(item: { servings: number | null; quantity: number | null; measurement_name: string | null }) {
@@ -157,7 +167,8 @@ watch(() => [props.refreshKey, props.canAccess], () => { void load(); }, { immed
   <WorkoutBuilderModal :open="scheduleOpen" :target-user-id="selected?.id" @close="scheduleOpen = false" @saved="scheduleOpen = false; refreshSelected()" />
   <ModalDialog :open="targetsOpen" title="Нормы питания" eyebrow="ПАРАМЕТРЫ КЛИЕНТА" @close="targetsOpen = false"><form class="client-form" @submit.prevent="saveTargets"><p>Тренер может задать персональные суточные нормы.</p><div class="grid targets-grid"><div class="field"><label>Ккал</label><input v-model="targets.kcal_target" type="number" min="0" step="1"></div><div class="field"><label>Белки, г</label><input v-model="targets.protein_target_g" type="number" min="0" step="0.1"></div><div class="field"><label>Жиры, г</label><input v-model="targets.fat_target_g" type="number" min="0" step="0.1"></div><div class="field"><label>Углеводы, г</label><input v-model="targets.carbs_target_g" type="number" min="0" step="0.1"></div></div><div class="actions"><button type="button" @click="targetsOpen = false">Отмена</button><button type="submit" class="primary">Сохранить нормы</button></div></form></ModalDialog>
   <ModalDialog :open="historyOpen" title="История тренировок" eyebrow="ТРЕНИРОВКИ" wide @close="historyOpen = false"><div class="client-history"><h3>Запланированные</h3><div v-for="plan in selected?.workout_plans" :key="plan.id" class="history-row"><b>{{ formatDate(plan.scheduled_at) }}</b><span>{{ plan.items.length }} упражн. · {{ plan.status === 'planned' ? 'запланирована' : 'завершена' }}</span></div><p v-if="!selected?.workout_plans.length" class="subtle">Планов пока нет.</p><h3>Выполненные упражнения</h3><div v-for="item in selected?.workouts" :key="item.id" class="history-row"><b>{{ item.name }}</b><span>{{ formatDate(item.performed_at) }} · {{ fmt(item.working_weight) }} {{ item.default_unit || '' }}</span></div><p v-if="!selected?.workouts.length" class="subtle">История пока пуста.</p></div></ModalDialog>
-  <ModalDialog :open="chatOpen" :title="chatClient?.name ? `Чат · ${chatClient.name}` : 'Чат с клиентом'" eyebrow="СООБЩЕНИЯ" @close="chatOpen = false"><div class="chat-box"><div class="chat-messages"><p v-if="!chatMessages.length" class="subtle">Сообщений пока нет.</p><div v-for="message in chatMessages" :key="message.id" class="chat-message"><b>{{ message.sender_name }}</b><span v-if="!message.shared_item">{{ message.message }}</span><div v-else class="shared-chat-card"><span>ОТПРАВЛЕНО В ЧАТ</span><strong>{{ message.shared_item.name }}</strong><small>{{ message.shared_item.type === 'article' ? 'Статья' : message.shared_item.type === 'recipe' ? 'Блюдо' : message.shared_item.type === 'product' ? 'Продукт' : message.shared_item.type === 'progress' ? 'Показатели' : message.shared_item.type === 'exercise' ? 'Упражнение' : message.shared_item.type === 'workout_complex' ? 'Комплекс тренировки' : 'Тренажёр или инвентарь' }}</small></div><small>{{ formatDateTime(message.created_at) }}</small></div></div><p class="form-error">{{ chatError }}</p><form class="chat-compose" @submit.prevent="sendChat"><input v-model="chatText" maxlength="2000" placeholder="Написать сообщение…"><button type="submit" class="primary">Отправить</button></form></div></ModalDialog>
+  <ModalDialog :open="chatOpen" :title="chatClient?.name ? `Чат · ${chatClient.name}` : 'Чат с клиентом'" eyebrow="СООБЩЕНИЯ" @close="chatOpen = false"><div class="chat-box"><div class="chat-messages"><p v-if="!chatMessages.length" class="subtle">Сообщений пока нет.</p><div v-for="message in chatMessages" :key="message.id" class="chat-message"><b>{{ message.sender_name }}</b><span v-if="!message.shared_item">{{ message.message }}</span><button v-else type="button" class="shared-chat-card" @click="openSharedItem(message)"><span>ОТПРАВЛЕНО В ЧАТ</span><strong>{{ message.shared_item.name }}</strong><small>{{ message.shared_item.type === 'article' ? 'Статья' : message.shared_item.type === 'recipe' ? 'Блюдо' : message.shared_item.type === 'product' ? 'Продукт' : message.shared_item.type === 'progress' ? 'Показатели' : message.shared_item.type === 'exercise' ? 'Упражнение' : message.shared_item.type === 'workout_complex' ? 'Комплекс тренировки' : 'Тренажёр или инвентарь' }}</small></button><small>{{ formatDateTime(message.created_at) }}</small></div></div><p class="form-error">{{ chatError }}</p><form class="chat-compose" @submit.prevent="sendChat"><input v-model="chatText" maxlength="2000" placeholder="Написать сообщение…"><button type="submit" class="primary">Отправить</button></form></div></ModalDialog>
+  <SharedItemModal :item="sharedItem" @close="sharedItem = null" />
 </template>
 
 <style lang="scss">
@@ -181,7 +192,8 @@ watch(() => [props.refreshKey, props.canAccess], () => { void load(); }, { immed
 .client-detail-head, .section-heading, .client-detail-actions, .chat-compose { display: flex; align-items: center; justify-content: space-between; gap: 12px; }.client-detail-head { padding-bottom: 16px; border-bottom: 1px solid var(--line); }.client-detail-head p { margin: 0; font-weight: 750; }.client-detail-head small { color: var(--muted); }.client-detail-grid { display: grid; grid-template-columns: .8fr 1.2fr; gap: 16px; margin-top: 16px; }.client-detail-section { padding: 16px; border: 1px solid var(--line); border-radius: 14px; }.section-heading { align-items: flex-start; }.section-heading h3 { margin: 0; font-size: 16px; }.section-heading .eyebrow { margin-bottom: 5px; }.text-button { border: 0; background: transparent; color: var(--blue); cursor: pointer; font-weight: 750; }.measure-grid, .macro-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }.measure-grid div, .macro-summary div { display: grid; gap: 4px; padding: 10px; border-radius: 10px; background: #f6f8fb; }.measure-grid span, .macro-summary span { color: var(--muted); font-size: 10px; }.measure-grid b, .macro-summary b { font-size: 13px; }.client-diary-list { display: grid; gap: 8px; margin-top: 14px; max-height: 260px; overflow: auto; }.client-diary-row { display: flex; justify-content: space-between; gap: 12px; padding: 10px; border-bottom: 1px solid #edf0f5; }.client-diary-row b, .client-diary-row small { display: block; }.client-diary-row small, .client-diary-row > span { color: var(--muted); font-size: 11px; }.client-diary-row > span { text-align: right; }.client-detail-actions { justify-content: flex-start; flex-wrap: wrap; margin-top: 16px; }.small-button { padding: 8px 10px; font-size: 11px; }.client-form { min-width: min(450px, 100%); }.client-form > p:first-child { margin-top: 0; color: var(--muted); }.targets-grid { grid-template-columns: repeat(2, 1fr); }.client-history { min-width: min(600px, 100%); }.client-history h3 { margin: 18px 0 8px; }.history-row { display: flex; justify-content: space-between; gap: 15px; padding: 11px 0; border-bottom: 1px solid var(--line); }.history-row span { color: var(--muted); font-size: 12px; }.chat-box { min-width: min(520px, 100%); }.chat-messages { display: grid; gap: 8px; max-height: 330px; overflow-y: auto; margin-bottom: 12px; }.chat-message { display: grid; gap: 3px; padding: 10px 12px; border-radius: 10px; background: #f4f7fb; }.chat-message span { white-space: pre-wrap; }.chat-message small { color: var(--muted); font-size: 10px; }.chat-compose input { min-width: 0; flex: 1; }.clients-empty { text-align: center; }.clients-empty h2 { margin-top: 0; }.form-error { min-height: 18px; color: #ae2a19; }
 @media (max-width: 850px) { .clients-page { padding: 22px 16px 35px; }.clients-head { align-items: flex-start; flex-direction: column; }.client-detail-grid { grid-template-columns: 1fr; }.trainer-lock-background { grid-template-columns: 1fr; }.trainer-lock-background .ghost-card:not(:first-child) { display: none; } }
 @media (max-width: 560px) { .client-diary-row, .history-row { display: grid; }.client-diary-row > span { text-align: left; }.client-detail-head { align-items: flex-start; flex-direction: column; }.targets-grid { grid-template-columns: 1fr; } }
-  .shared-chat-card { display: grid; gap: 3px; margin: 4px 0; padding: 10px; border: 1px solid #b8d5ff; border-radius: 9px; background: #eaf3ff; }
+  .shared-chat-card { display: grid; gap: 3px; width: 100%; box-sizing: border-box; margin: 4px 0; padding: 10px; border: 1px solid #b8d5ff; border-radius: 9px; background: #eaf3ff; color: var(--ink); text-align: left; cursor: pointer; }
+  .shared-chat-card:hover { background: #dcecff; }
   .shared-chat-card span { color: var(--blue); font-size: 9px; font-weight: 850; letter-spacing: .6px; }
   .shared-chat-card strong { font-size: 13px; }
   .shared-chat-card small { color: var(--muted); font-size: 10px; }

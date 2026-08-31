@@ -131,6 +131,7 @@ export const api = {
   scheduleClientWorkout: (id: number, body: unknown) => write<WorkoutPlan>('POST', `clients/${id}/workout-plans`, body),
   updateClientTargets: (id: number, body: unknown) => write<ProgressEntry>('PUT', `clients/${id}/nutrition-targets`, body),
   clientChat: (id: number) => request<TrainerChatMessage[]>(`clients/${id}/chat`),
+  clientSharedItem: (clientId: number, itemType: ShareItemType, itemId: number) => request<SharedItemDetail>(`clients/${clientId}/shared-items/${itemType}/${itemId}`),
   sendClientChat: (id: number, message: string) => write<TrainerChatMessage>('POST', `clients/${id}/chat`, { message }),
   myTrainer: () => request<{ trainer: TrainerChatParticipant | null }>('clients/me/trainer'),
   myTrainerChat: () => request<TrainerChatResponse>('clients/me/chat'),

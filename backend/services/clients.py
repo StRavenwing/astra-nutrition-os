@@ -413,8 +413,8 @@ def send_my_trainer_chat(actor: User, data: dict) -> dict:
     return _chat_message_payload(item)
 
 
-def get_my_shared_item(actor: User, item_type: str, item_id: int) -> dict:
-    relation = _client_relationship(actor)
+def get_my_shared_item(actor: User, item_type: str, item_id: int, relation_override: TrainerClient | None = None) -> dict:
+    relation = relation_override or _client_relationship(actor)
     if relation is None:
         raise NotFoundError("Тренер пока не назначен")
     shared = TrainerSharedItem.get_or_none(
@@ -454,6 +454,11 @@ def get_my_shared_item(actor: User, item_type: str, item_id: int) -> dict:
         "name": _shared_item_name(item_type, item),
         "data": serializers[item_type](item),
     }
+
+
+def get_client_shared_item(client_id: int, item_type: str, item_id: int, actor: User) -> dict:
+    relation = _relationship(client_id, actor)
+    return get_my_shared_item(actor, item_type, item_id, relation)
 
 
 def _share_item_for_relation(item_type: str, item_id: int, relation: TrainerClient, actor: User) -> dict:

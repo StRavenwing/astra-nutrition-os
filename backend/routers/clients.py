@@ -18,6 +18,7 @@ from backend.services.clients import (
     add_client,
     add_client_diary_entry,
     delete_client_diary_entry,
+    get_client_shared_item,
     get_client_diary,
     get_client_detail,
     get_my_shared_item,
@@ -75,6 +76,11 @@ def get_my_shared_item_route(item_type: str, item_id: int, current_user: User = 
 @router.post("/me/shares", status_code=status.HTTP_201_CREATED)
 def post_shared_item_to_trainer(payload: ClientShareItemInput, current_user: User = Depends(get_current_user)) -> dict:
     return share_item_to_trainer(dump_model(payload), current_user)
+
+
+@router.get("/{client_id}/shared-items/{item_type}/{item_id}")
+def get_client_shared_item_route(client_id: int, item_type: str, item_id: int, current_user: User = Depends(require_trainer)) -> dict:
+    return get_client_shared_item(client_id, item_type, item_id, current_user)
 
 
 @router.get("/{client_id}")
