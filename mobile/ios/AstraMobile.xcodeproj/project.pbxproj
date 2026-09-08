@@ -13,6 +13,7 @@
 		A10000010000000000000004 /* SessionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000004 /* SessionStore.swift */; };
 		A10000010000000000000005 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000005 /* Theme.swift */; };
 		A10000010000000000000006 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000006 /* ContentView.swift */; };
+		A10000010000000000000009 /* MobileExperience.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000010000000000000009 /* MobileExperience.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +25,7 @@
 		A20000010000000000000006 /* ContentView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A20000010000000000000007 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A20000010000000000000008 /* AstraMobile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AstraMobile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000010000000000000009 /* MobileExperience.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MobileExperience.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -49,6 +51,7 @@
 				A20000010000000000000004 /* SessionStore.swift */,
 				A20000010000000000000005 /* Theme.swift */,
 				A20000010000000000000006 /* ContentView.swift */,
+				A20000010000000000000009 /* MobileExperience.swift */,
 				A20000010000000000000007 /* Info.plist */,
 			);
 			path = AstraMobile;
@@ -113,6 +116,7 @@
 			A10000010000000000000004 /* SessionStore.swift in Sources */,
 			A10000010000000000000005 /* Theme.swift in Sources */,
 			A10000010000000000000006 /* ContentView.swift in Sources */,
+			A10000010000000000000009 /* MobileExperience.swift in Sources */,
 		); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 

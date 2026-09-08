@@ -19,6 +19,7 @@ Thumbs.db
 .vscode/
 .env
 mobile/android/.gradle/
+mobile/android/.kotlin/
 mobile/android/build/
 mobile/android/app/build/
 mobile/ios/DerivedData/

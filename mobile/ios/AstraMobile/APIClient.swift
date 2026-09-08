@@ -5,9 +5,17 @@ final class APIClient {
     private let defaults = UserDefaults.standard
     private let baseURLKey = "astra_api_base_url"
     private let tokenKey = "astra_access_token"
+    private let defaultBaseURL = "http://204.168.255.69:8787/api/v1"
+    private let legacyLocalBaseURLs = [
+        "http://127.0.0.1:8787/api/v1",
+        "http://10.0.2.2:8787/api/v1"
+    ]
 
     var baseURL: String {
-        get { defaults.string(forKey: baseURLKey) ?? "http://127.0.0.1:8787/api/v1" }
+        get {
+            let stored = defaults.string(forKey: baseURLKey)
+            return stored == nil || legacyLocalBaseURLs.contains(stored ?? "") ? defaultBaseURL : stored!
+        }
         set { defaults.set(newValue.trimmingCharacters(in: .whitespacesAndNewlines).trimmingCharacters(in: CharacterSet(charactersIn: "/")), forKey: baseURLKey) }
     }
 
@@ -90,6 +98,17 @@ final class APIClient {
     func workouts() async throws -> [WorkoutEntry] { try await request("workouts") }
     func workoutPlans() async throws -> [WorkoutPlan] { try await request("workout-plans") }
     func exercises() async throws -> [Exercise] { try await request("exercises") }
+    func workoutEquipment() async throws -> [WorkoutEquipment] { try await request("workout-equipment") }
+    func workoutComplexes() async throws -> [WorkoutComplex] { try await request("workout-complexes") }
+    func categories(kind: String) async throws -> [ContentCategory] { try await request("categories?kind=\(kind.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? kind)") }
+    func articleSections() async throws -> [ArticleSection] { try await request("article-sections") }
+    func articles() async throws -> [Article] { try await request("articles") }
+    func myTrainer() async throws -> TrainerInfoResponse { try await request("clients/me/trainer") }
+    func myTrainerChat() async throws -> TrainerChatResponse { try await request("clients/me/chat") }
+    func sendMyTrainerChat(message: String) async throws -> TrainerChatMessage { try await request("clients/me/chat", method: "POST", body: TrainerChatPayload(message: message)) }
+    func clients() async throws -> [ClientSummary] { try await request("clients") }
+    func clientChat(id: Int) async throws -> [TrainerChatMessage] { try await request("clients/\(id)/chat") }
+    func sendClientChat(id: Int, message: String) async throws -> TrainerChatMessage { try await request("clients/\(id)/chat", method: "POST", body: TrainerChatPayload(message: message)) }
     func createDiary(_ payload: DiaryPayload) async throws -> [DiaryEntry] { try await request("diary", method: "POST", body: payload) }
     func deleteDiary(id: Int) async throws -> DeleteResponse { try await request("diary/\(id)", method: "DELETE") }
     func createProgress(_ payload: ProgressPayload) async throws -> ProgressEntry { try await request("progress", method: "POST", body: payload) }
@@ -104,6 +123,7 @@ final class APIClient {
 private struct AuthBody: Encodable { let email: String; let password: String }
 struct DeleteResponse: Decodable { let deleted: Bool; let id: Int }
 struct EmptyResponse: Decodable { let ok: Bool }
+struct TrainerInfoResponse: Codable { let trainer: TrainerInfo? }
 
 private struct AnyEncodable: Encodable {
     private let encodeClosure: (Encoder) throws -> Void

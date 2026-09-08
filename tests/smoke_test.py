@@ -125,6 +125,7 @@ def main() -> None:
             admin_headers = {"Authorization": f"Bearer {admin_auth['access_token']}"}
             assert admin_auth["user"]["email"] == "admin@example.com"
             assert admin_auth["user"]["is_admin"] is True
+            assert admin_auth["user"]["is_trainer"] is True
 
             response = client.get("/api/v1/auth/me", headers=admin_headers)
             assert response.status_code == 200
@@ -137,6 +138,9 @@ def main() -> None:
             assert dashboard["recipes"] > 0
             assert dashboard["latest"] is None or "weight_kg" in dashboard["latest"]
             assert all("id" in recipe and "code" in recipe for recipe in dashboard["top"])
+
+            response = client.get("/api/v1/clients", headers=admin_headers)
+            assert response.status_code == 200
             assert len(client.get("/api/v1/diary", headers=admin_headers).json()) > 0
 
             response = client.post(

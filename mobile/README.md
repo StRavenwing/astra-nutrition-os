@@ -11,10 +11,11 @@
 
 По умолчанию:
 
-- iOS Simulator: `http://127.0.0.1:8787/api/v1`
-- Android Emulator: `http://10.0.2.2:8787/api/v1`
+- Production/server API: `http://204.168.255.69:8787/api/v1`
+- iOS Simulator/local development: `http://127.0.0.1:8787/api/v1`
+- Android Emulator/local development: `http://10.0.2.2:8787/api/v1`
 
-Для физического устройства укажите LAN-адрес компьютера, например `http://192.168.1.20:8787/api/v1`, и запустите backend с `ASTRA_HOST=0.0.0.0`. В production используйте HTTPS.
+Текущий сервер использует HTTP, поэтому Android разрешает cleartext-трафик, а iOS — HTTP через ATS-настройку. Для production обязательно переведите API на HTTPS.
 
 ## iOS
 

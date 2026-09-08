@@ -1,17 +1,19 @@
 import SwiftUI
 
-enum AppTab: Hashable { case overview, diary, products, recipes, progress, workouts, settings }
+enum AppTab: Hashable { case overview, diary, products, recipes, progress, workouts, trainer, information, catalog, settings }
 
 struct RootView: View {
     @EnvironmentObject private var session: SessionStore
+    @AppStorage("astra_theme") private var theme = "light"
 
     var body: some View {
         Group {
             if session.isRestoring { ProgressView("Загрузка Astra…") }
-            else if session.isAuthenticated { MainTabView() }
+            else if session.isAuthenticated { MobileMainView() }
             else { AuthView() }
         }
         .tint(AstraTheme.blue)
+        .preferredColorScheme(theme == "dark" ? .dark : .light)
     }
 }
 
@@ -52,9 +54,10 @@ struct AuthView: View {
                 }
             }
             .padding(22)
-            .background(.white)
+            .background(AstraTheme.surface)
             .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-            .shadow(color: .black.opacity(0.08), radius: 24, y: 10)
+            .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).stroke(AstraTheme.line, lineWidth: 1))
+            .shadow(color: AstraTheme.ink.opacity(0.08), radius: 24, y: 10)
             .padding(22)
         }
     }
@@ -80,6 +83,7 @@ struct MainTabView: View {
 
 struct DashboardView: View {
     @EnvironmentObject private var session: SessionStore
+    let onNavigate: (AppTab) -> Void = { _ in }
     @State private var dashboard: Dashboard?
     @State private var isLoading = true
     @State private var error: String?

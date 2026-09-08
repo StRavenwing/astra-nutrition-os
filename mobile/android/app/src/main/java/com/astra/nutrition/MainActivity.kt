@@ -88,16 +88,26 @@ import java.util.Locale
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { AstraTheme { AstraRoot(remember { AstraState(applicationContext) }) } }
+        setContent {
+            val state = remember { AstraState(applicationContext) }
+            AstraTheme(darkTheme = state.darkTheme) { AstraRoot(state) }
+        }
     }
 }
 
 class AstraState(context: android.content.Context) {
+    private val preferences = context.getSharedPreferences("astra_preferences", android.content.Context.MODE_PRIVATE)
     val api = ApiClient(context)
     var user by mutableStateOf<AuthUser?>(null)
     var restoring by mutableStateOf(true)
     var busy by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
+    var darkTheme by mutableStateOf(preferences.getBoolean("dark_theme", false))
+
+    fun toggleTheme(value: Boolean) {
+        darkTheme = value
+        preferences.edit().putBoolean("dark_theme", value).apply()
+    }
 
     suspend fun restore() {
         if (api.token != null) suspendResult { user = api.me() }.onFailure { api.token = null }
@@ -113,13 +123,13 @@ class AstraState(context: android.content.Context) {
     }
 }
 
-private suspend fun <T> suspendResult(block: suspend () -> T): Result<T> = try {
+suspend fun <T> suspendResult(block: suspend () -> T): Result<T> = try {
     Result.success(block())
 } catch (error: Throwable) {
     Result.failure(error)
 }
 
-enum class Screen { Overview, Diary, Products, Recipes, More, Progress, Workouts }
+enum class Screen { Overview, Diary, Products, Recipes, More, Progress, Workouts, Trainer, Information, Catalog }
 
 @Composable
 fun AstraRoot(state: AstraState) {
@@ -127,7 +137,7 @@ fun AstraRoot(state: AstraState) {
     when {
         state.restoring -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
         state.user == null -> LoginScreen(state)
-        else -> MainScaffold(state)
+        else -> MobileScaffold(state)
     }
 }
 
@@ -137,8 +147,8 @@ fun LoginScreen(state: AstraState) {
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     val scope = rememberCoroutineScope()
-    Box(Modifier.fillMaxSize().background(AstraTheme.canvas), contentAlignment = Alignment.Center) {
-        Card(Modifier.fillMaxWidth().padding(20.dp), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(Color.White)) {
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), contentAlignment = Alignment.Center) {
+        Card(Modifier.fillMaxWidth().padding(20.dp), shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
             Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Restaurant, null, tint = AstraTheme.green, modifier = Modifier.size(40.dp))
@@ -186,17 +196,18 @@ fun MainScaffold(state: AstraState) {
                 Screen.Progress -> ProgressScreen(state)
                 Screen.Workouts -> WorkoutsScreen(state)
                 Screen.More -> MoreScreen(state) { screen = it }
+                else -> MoreScreen(state) { screen = it }
             }
         }
     }
 }
 
-private fun Screen.title() = when (this) { Screen.Overview -> "Обзор"; Screen.Diary -> "Дневник"; Screen.Products -> "Продукты"; Screen.Recipes -> "Рецепты"; Screen.More -> "Ещё"; Screen.Progress -> "Прогресс"; Screen.Workouts -> "Тренировки" }
-private fun Screen.icon() = when (this) { Screen.Overview -> Icons.Default.Home; Screen.Diary -> Icons.Default.Restaurant; Screen.Products -> Icons.Default.LocalGroceryStore; Screen.Recipes -> Icons.Default.Book; Screen.More -> Icons.Default.MoreHoriz; Screen.Progress -> Icons.Default.TrendingUp; Screen.Workouts -> Icons.Default.FitnessCenter }
+private fun Screen.title() = when (this) { Screen.Overview -> "Обзор"; Screen.Diary -> "Дневник"; Screen.Products -> "Продукты"; Screen.Recipes -> "Рецепты"; Screen.More -> "Ещё"; Screen.Progress -> "Прогресс"; Screen.Workouts -> "Тренировки"; else -> "Раздел" }
+private fun Screen.icon() = when (this) { Screen.Overview -> Icons.Default.Home; Screen.Diary -> Icons.Default.Restaurant; Screen.Products -> Icons.Default.LocalGroceryStore; Screen.Recipes -> Icons.Default.Book; Screen.More -> Icons.Default.MoreHoriz; Screen.Progress -> Icons.Default.TrendingUp; Screen.Workouts -> Icons.Default.FitnessCenter; else -> Icons.Default.MoreHoriz }
 
 @Composable
 private fun Page(title: String, subtitle: String? = null, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxSize().background(AstraTheme.canvas)) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) { Text(title, fontSize = 28.sp, fontWeight = FontWeight.Bold); subtitle?.let { Text(it, color = AstraTheme.muted) } }
         content()
     }
@@ -204,7 +215,7 @@ private fun Page(title: String, subtitle: String? = null, content: @Composable (
 
 @Composable
 private fun AstraCard(content: @Composable () -> Unit) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(Color.White), elevation = CardDefaults.cardElevation(2.dp)) { content() }
+    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(2.dp)) { content() }
 }
 
 @Composable
@@ -283,7 +294,7 @@ fun AddDiaryDialog(products: List<Product>, recipes: List<Recipe>, onSave: (Stri
 }
 
 @Composable
-private fun Picker(label: String, options: List<String>, onSelect: (String) -> Unit) {
+fun Picker(label: String, options: List<String>, onSelect: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         OutlinedButton({ expanded = true }, Modifier.fillMaxWidth()) { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(label, Modifier.weight(1f)); Text("⌄") } }
@@ -393,9 +404,9 @@ private fun AddWorkoutDialog(exercises: List<Exercise>, onSave: (String, Exercis
 
 @Composable
 private fun NumberField(label: String, value: String, onValueChange: (String) -> Unit) = OutlinedTextField(value, onValueChange, label = { Text(label) }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), modifier = Modifier.fillMaxWidth())
-private fun String.toNumber(): Double? = replace(',', '.').toDoubleOrNull()
+fun String.toNumber(): Double? = replace(',', '.').toDoubleOrNull()
 private fun today() = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-private fun todayTime() = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(Date())
+fun todayTime() = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(Date())
 
 @Composable
-private fun EmptyMessage(title: String, body: String) { Box(Modifier.fillMaxWidth().padding(42.dp), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.CalendarMonth, null, tint = AstraTheme.blue, modifier = Modifier.size(40.dp)); Text(title, fontWeight = FontWeight.Bold); Text(body, color = AstraTheme.muted, fontSize = 12.sp) } } }
+fun EmptyMessage(title: String, body: String) { Box(Modifier.fillMaxWidth().padding(42.dp), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.CalendarMonth, null, tint = AstraTheme.blue, modifier = Modifier.size(40.dp)); Text(title, fontWeight = FontWeight.Bold); Text(body, color = AstraTheme.muted, fontSize = 12.sp) } } }

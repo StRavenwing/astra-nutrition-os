@@ -145,6 +145,36 @@ struct Exercise: Codable, Identifiable, Hashable {
     let defaultReps: Double?
 }
 
+struct WorkoutEquipment: Codable, Identifiable, Hashable {
+    let id: Int
+    let kind: String
+    let name: String
+    let description: String?
+    let photo: String?
+}
+
+struct WorkoutComplexItem: Codable, Identifiable, Hashable {
+    let id: Int
+    let exerciseId: Int
+    let exerciseCode: String?
+    let name: String
+    let muscleGroup: String?
+    let defaultUnit: String?
+    let workingWeight: Double?
+    let sets: Double?
+    let durationMinutes: Double?
+    let speedKmh: Double?
+}
+
+struct WorkoutComplex: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let comment: String?
+    let photos: [String]
+    let video: String?
+    let items: [WorkoutComplexItem]
+}
+
 struct RecipePayload: Encodable {
     let recipeId: Int?
     let productId: Int?
@@ -177,6 +207,87 @@ struct WorkoutPayload: Encodable {
     let reps: Double?
     let rir: String?
     let comment: String?
+}
+
+struct ContentCategory: Codable, Identifiable, Hashable {
+    let id: Int
+    let kind: String
+    let name: String
+    let collection: String
+    let ownerId: Int?
+}
+
+struct ArticleSection: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let description: String?
+    let articleCount: Int
+}
+
+struct ArticleLink: Codable, Hashable {
+    let title: String
+    let url: String
+}
+
+struct Article: Codable, Identifiable, Hashable {
+    let id: Int
+    let sectionId: Int
+    let sectionName: String
+    let title: String
+    let body: String
+    let tags: String?
+    let links: [ArticleLink]
+    let photos: [String]
+    let video: String?
+    let isPinned: Bool
+    let isHidden: Bool
+    let createdAt: String
+    let updatedAt: String?
+}
+
+struct TrainerInfo: Codable, Hashable {
+    let id: Int
+    let name: String
+    let email: String
+}
+
+struct SharedChatItem: Codable, Hashable {
+    let type: String
+    let id: Int
+    let name: String
+}
+
+struct TrainerChatMessage: Codable, Identifiable, Hashable {
+    let id: Int
+    let senderId: Int?
+    let senderName: String
+    let message: String
+    let sharedItem: SharedChatItem?
+    let createdAt: String
+}
+
+struct TrainerChatResponse: Codable {
+    let trainer: TrainerInfo?
+    var messages: [TrainerChatMessage]
+    let unreadCount: Int
+}
+
+struct TrainerChatPayload: Encodable {
+    let message: String
+}
+
+struct ClientNextWorkout: Codable, Hashable {
+    let id: Int
+    let scheduledAt: String
+    let status: String
+}
+
+struct ClientSummary: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let email: String
+    let nextWorkout: ClientNextWorkout?
+    let unreadMessages: Int
 }
 
 enum APIError: LocalizedError {

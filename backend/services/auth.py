@@ -74,7 +74,8 @@ def serialize_user(user: User) -> dict[str, Any]:
         "email": user.email,
         "name": user.display_name or user.email.split("@", 1)[0],
         "is_admin": bool(user.is_admin),
-        "is_trainer": bool(user.is_trainer),
+        # Администратор обладает всеми доступами, включая режим тренера.
+        "is_trainer": bool(user.is_trainer or user.is_admin),
     }
 
 
@@ -84,7 +85,8 @@ def create_access_token(user: User, settings: Settings) -> str:
         "sub": str(user.id),
         "email": user.email,
         "is_admin": bool(user.is_admin),
-        "is_trainer": bool(user.is_trainer),
+        # Дублируем право в JWT, чтобы клиенты могли сразу открыть trainer workspace.
+        "is_trainer": bool(user.is_trainer or user.is_admin),
         "exp": expires_at,
     }
     return jwt.encode(payload, settings.auth_secret, algorithm=JWT_ALGORITHM)
@@ -112,11 +114,13 @@ def ensure_admin_user(settings: Settings) -> User:
             defaults={
                 "password_hash": password_hash,
                 "is_admin": True,
+                "is_trainer": True,
                 "created_at": utc_now(),
             },
         )
         user.password_hash = password_hash
         user.is_admin = True
+        user.is_trainer = True
         user.save()
         return user
 
