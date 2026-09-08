@@ -18,3 +18,9 @@ Thumbs.db
 .idea/
 .vscode/
 .env
+mobile/android/.gradle/
+mobile/android/build/
+mobile/android/app/build/
+mobile/ios/DerivedData/
+mobile/ios/build/
+*.xcuserstate
