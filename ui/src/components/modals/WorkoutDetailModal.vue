@@ -21,7 +21,7 @@ const statusLabel = computed(() => {
 </script>
 
 <template>
-  <ModalDialog :open="Boolean(plan)" title="Тренировка" eyebrow="WORKOUT DETAILS" wide @close="$emit('close')">
+  <ModalDialog :open="Boolean(plan)" :title="plan?.name?.trim() || 'Тренировка'" eyebrow="WORKOUT DETAILS" wide @close="$emit('close')">
     <div v-if="plan" class="workout-detail-modal">
       <div class="workout-detail-topline">
         <div>

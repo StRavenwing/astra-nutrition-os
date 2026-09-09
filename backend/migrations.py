@@ -856,6 +856,9 @@ def migrate_v2_database(settings: Settings, backup_existing: bool) -> None:
     try:
         _ensure_user_columns(connection)
         _ensure_chat_columns(connection)
+        # Create the referenced exercise_variants table before adding the
+        # workout_plan_items.variant_id foreign key on older databases.
+        _ensure_exercise_columns(connection)
         _ensure_workout_plan_columns(connection)
         connection.execute("PRAGMA foreign_keys=OFF")
         _create_users_table(connection)
@@ -867,7 +870,6 @@ def migrate_v2_database(settings: Settings, backup_existing: bool) -> None:
         _rebuild_workout_logs(connection, admin["id"])
         _create_oauth_tables(connection)
         _add_recipe_ownership(connection)
-        _ensure_exercise_columns(connection)
         _ensure_feedback_columns(connection)
         _ensure_article_columns(connection)
         connection.execute("INSERT OR REPLACE INTO app_meta (key, value) VALUES ('schema_version', ?)", (SCHEMA_VERSION,))

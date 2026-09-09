@@ -88,19 +88,7 @@ function planSummary(plan: WorkoutPlan) {
 }
 
 function planTitle(plan: WorkoutPlan) {
-    if (plan.name?.trim()) return plan.name;
-            <h3>{{ planTitle(plan) }}</h3>
-        <aside class="history-statistics-card">
-          <p class="eyebrow">СТАТИСТИКА ИСТОРИИ</p>
-          <h3>{{ historyStats.total }} тренировок</h3>
-          <p class="history-statistics-period">за {{ historyStats.month }}</p>
-          <div class="history-statistics-metrics">
-            <div><b>{{ historyStats.completed }}</b><span>ПРОЙДЕНО</span></div>
-            <div><b>{{ historyStats.canceled }}</b><span>ОТМЕНЕНО</span></div>
-            <div><b>{{ historyStats.exercises }}</b><span>УПРАЖНЕНИЙ</span></div>
-          </div>
-        </aside>
-        <div class="archive-history-groups">
+  if (plan.name?.trim()) return plan.name;
   const muscleGroups = [...new Set(plan.items.map((item) => item.muscle_group).filter((group): group is string => Boolean(group?.trim())))];
   if (muscleGroups.length) return muscleGroups.slice(0, 3).join(' · ');
   return plan.items.map((item) => item.name).filter(Boolean).slice(0, 2).join(' · ') || 'Тренировка';
@@ -209,7 +197,7 @@ async function removeEquipment(id: number) {
             <span class="workout-date">{{ formatScheduledAt(plan.scheduled_at) }}</span>
             <span class="workout-group planned-badge">Запланирована</span>
           </div>
-          <h3>Тренировка</h3>
+          <h3>{{ planTitle(plan) }}</h3>
           <p>{{ planSummary(plan) }}</p>
           <div class="planned-plan-items">
             <div v-for="item in plan.items" :key="item.id || item.exercise_id">
@@ -346,6 +334,16 @@ async function removeEquipment(id: number) {
     <section v-else-if="section === 'archive'" class="workout-subsection">
       <div class="subsection-heading"><p class="eyebrow">ИСТОРИЯ</p><h2>История тренировок</h2></div>
       <div class="archive-history-layout">
+      <aside class="history-statistics-card">
+        <p class="eyebrow">СТАТИСТИКА ИСТОРИИ</p>
+        <h3>{{ historyStats.total }} тренировок</h3>
+        <p class="history-statistics-period">за {{ historyStats.month }}</p>
+        <div class="history-statistics-metrics">
+          <div><b>{{ historyStats.completed }}</b><span>ПРОЙДЕНО</span></div>
+          <div><b>{{ historyStats.canceled }}</b><span>ОТМЕНЕНО</span></div>
+          <div><b>{{ historyStats.exercises }}</b><span>УПРАЖНЕНИЙ</span></div>
+        </div>
+      </aside>
       <div class="archive-history-groups">
       <div class="archive-group">
         <div class="archive-group-head"><div><p class="eyebrow">ЗАВЕРШЕНО</p><h3>Пройденные тренировки</h3></div><span class="subtle">{{ completedPlans.length }}</span></div>
@@ -380,7 +378,6 @@ async function removeEquipment(id: number) {
         </div>
       </div>
       </div>
-      <aside class="history-statistics-card">
       </div>
     </section>
   </template>

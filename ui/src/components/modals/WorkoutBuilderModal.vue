@@ -7,8 +7,6 @@ import ModalDialog from '@/components/shared/ModalDialog.vue';
 type BuilderItem = {
   exercise_id: number;
   variant_id: number | null;
-  const form = reactive<{ name: string; scheduled_at: string; scheduled_time: string; duration_minutes: number | ''; items: BuilderItem[] }>({
-    name: '',
   working_weight: number | '';
   sets: number | '';
   duration_minutes: number | '';
@@ -53,7 +51,7 @@ function resetForm() {
   const complex = props.complex;
   const scheduledAt = props.editPlan?.scheduled_at || '';
   form.scheduled_at = scheduledAt.slice(0, 10) || today();
-  form.name = props.editPlan?.name || '';
+  form.name = (props.editPlan || props.repeatPlan)?.name || '';
   form.scheduled_time = scheduledAt.includes('T') ? scheduledAt.slice(11, 16) : '';
   form.duration_minutes = props.editPlan?.duration_minutes ?? props.repeatPlan?.duration_minutes ?? '';
   form.items = (plan?.items || complex?.items)?.map((item) => ({

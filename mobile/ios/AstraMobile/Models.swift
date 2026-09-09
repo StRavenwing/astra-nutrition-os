@@ -147,6 +147,7 @@ struct WorkoutPlan: Codable, Identifiable, Hashable {
     let status: String
     let completedAt: String?
     let items: [WorkoutPlanItem]
+    let name: String? = nil
 }
 
 struct WorkoutEntry: Codable, Identifiable, Hashable {
@@ -183,6 +184,7 @@ struct ExerciseVariant: Codable, Hashable {
     let description: String?
     let technique: String?
     let tips: String?
+    let name: String?
 }
 
 struct WorkoutEquipment: Codable, Identifiable, Hashable {

@@ -586,7 +586,7 @@ struct WorkoutsView: View {
 struct WorkoutPlanRow: View {
     let plan: WorkoutPlan
     let onComplete: () -> Void
-    var body: some View { HStack { VStack(alignment: .leading) { Text(plan.scheduledAt).font(.headline); Text("\(plan.items.count) упражнений · \(plan.status)").font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); if plan.status == "planned" { Button("Готово", action: onComplete).buttonStyle(.bordered).controlSize(.small) } } }
+    var body: some View { HStack { VStack(alignment: .leading) { Text(plan.name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? plan.name! : "Тренировка").font(.headline); Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted); Text("\(plan.items.count) упражнений · \(plan.status)").font(.caption2).foregroundStyle(AstraTheme.muted) }; Spacer(); if plan.status == "planned" { Button("Готово", action: onComplete).buttonStyle(.bordered).controlSize(.small) } } }
 }
 
 struct AddWorkoutView: View {
