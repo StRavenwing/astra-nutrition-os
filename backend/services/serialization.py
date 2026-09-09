@@ -317,6 +317,13 @@ def serialize_workout(log: WorkoutLog) -> dict:
     }
 
 
+def _workout_plan_item_name(item: WorkoutPlanItem) -> str:
+    if item.variant is None:
+        return item.exercise.name
+    variant_name = (item.variant.name or "").strip() or f"Вариант {item.variant.position}"
+    return f"{item.exercise.name} ({variant_name})"
+
+
 def serialize_workout_plan(plan: WorkoutPlan) -> dict:
     items = (
         WorkoutPlanItem
@@ -337,7 +344,7 @@ def serialize_workout_plan(plan: WorkoutPlan) -> dict:
                 "id": item.id,
                 "exercise_id": item.exercise.id,
                 "exercise_code": item.exercise.code,
-                "name": item.exercise.name + (f" ({item.variant.name})" if item.variant and item.variant.name else ""),
+                "name": _workout_plan_item_name(item),
                 "exercise_name": item.exercise.name,
                 "variant_id": item.variant.id if item.variant else None,
                 "variant_name": item.variant.name if item.variant else None,

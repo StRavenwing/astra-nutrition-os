@@ -765,7 +765,7 @@ fun ClientTrainerScreen(state: AstraState) {
 
 @Composable
 fun TrainerScreen(state: AstraState) {
-    if (state.user?.isAdmin == true || state.user?.isTrainer == true) TrainerClientsScreen(state) else ClientTrainerScreen(state)
+    if (state.user?.isAdmin == true || state.user?.isTrainer == true) TrainerWorkspaceFullScreen(state) else ClientTrainerScreen(state)
 }
 
 @Composable
@@ -1258,7 +1258,7 @@ private fun MobileWorkoutsDashboardScreen(state: AstraState) {
 
     if (selectedPlan != null) {
         val plan = selectedPlan!!
-        TrainerPlanDetailScreen(plan, onBack = { selectedPlan = null }, onEdit = { selectedPlan = null; editingPlan = plan; planFromComplex = null; showPlanEditor = true }, onRepeat = { selectedPlan = null; editingPlan = plan; planFromComplex = null; showPlanEditor = true }, onCancel = { scope.launch { suspendResult { state.api.cancelPlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }, onDelete = { scope.launch { suspendResult { state.api.deletePlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } })
+        TrainerPlanDetailScreen(plan, onBack = { selectedPlan = null }, onEdit = { selectedPlan = null; editingPlan = plan; planFromComplex = null; showPlanEditor = true }, onRepeat = { selectedPlan = null; editingPlan = plan.copy(id = 0, scheduledAt = todayTime()); planFromComplex = null; showPlanEditor = true }, onCancel = { scope.launch { suspendResult { state.api.cancelPlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }, onDelete = { scope.launch { suspendResult { state.api.deletePlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } })
         return
     }
     if (selectedWorkout != null) {
@@ -1284,10 +1284,14 @@ private fun MobileWorkoutsDashboardScreen(state: AstraState) {
                 }
                 TextButton(onClick = { showAdd = true }) { Text("Записать") }
             }
-            TextButton(onClick = { editingComplex = null; showComplexEditor = true }) { Text("+ complex") }
-            TextButton(onClick = { editingExercise = null; showExerciseEditor = true }) { Text("+ exercise") }
-            TextButton(onClick = { editingEquipment = null; showEquipmentEditor = true }) { Text("+ equipment") }
-            TextButton(onClick = { showWorkoutManage = true }) { Text("manage") }
+            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { showWorkoutManage = true }) { Text("Управление") }
+                OutlinedButton(onClick = { editingComplex = null; showComplexEditor = true }) { Text("Новый комплекс") }
+            }
+            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(onClick = { editingExercise = null; showExerciseEditor = true }) { Text("Новое упражнение") }
+                OutlinedButton(onClick = { editingEquipment = null; showEquipmentEditor = true }) { Text("Новый инвентарь") }
+            }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
             val planned = plans.filter { it.status == "planned" }
             LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

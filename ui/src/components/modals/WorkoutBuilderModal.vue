@@ -213,7 +213,7 @@ async function save() {
               </select>
               <select v-if="selectedExercise(item)?.variants?.length" v-model="item.variant_id" aria-label="Вариант упражнения">
                 <option :value="null">Без варианта</option>
-                <option v-for="(variant, variantIndex) in selectedExercise(item)?.variants" :key="variant.id || variantIndex" :value="variant.id">{{ variant.name || `Вариант ${variantIndex + 1}` }}</option>
+                <option v-for="(variant, variantIndex) in selectedExercise(item)?.variants" :key="variant.id || variantIndex" :value="variant.id">{{ variant.name?.trim() || `Вариант ${variantIndex + 1}` }}</option>
               </select>
               <button type="button" class="remove-builder-item" aria-label="Удалить упражнение" @click="removeExercise(index)">×</button>
             </div>

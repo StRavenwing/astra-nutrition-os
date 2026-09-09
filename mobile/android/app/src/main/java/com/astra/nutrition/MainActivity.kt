@@ -105,7 +105,7 @@ class AstraState(context: android.content.Context) {
     var restoring by mutableStateOf(true)
     var busy by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
-    var darkTheme by mutableStateOf(preferences.getBoolean("dark_theme", false))
+    var darkTheme by mutableStateOf(preferences.getBoolean("dark_theme", true))
 
     fun toggleTheme(value: Boolean) {
         darkTheme = value

@@ -138,6 +138,7 @@ struct WorkoutPlanItem: Codable, Identifiable, Hashable {
     let sets: Double?
     let durationMinutes: Double?
     let speedKmh: Double?
+    let variantId: Int? = nil
 }
 
 struct WorkoutPlan: Codable, Identifiable, Hashable {
@@ -148,6 +149,12 @@ struct WorkoutPlan: Codable, Identifiable, Hashable {
     let completedAt: String?
     let items: [WorkoutPlanItem]
     let name: String? = nil
+}
+
+extension WorkoutPlan {
+    var displayName: String {
+        name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? name! : "Тренировка"
+    }
 }
 
 struct WorkoutEntry: Codable, Identifiable, Hashable {
@@ -185,6 +192,7 @@ struct ExerciseVariant: Codable, Hashable {
     let technique: String?
     let tips: String?
     let name: String?
+    let id: Int? = nil
 }
 
 struct WorkoutEquipment: Codable, Identifiable, Hashable {

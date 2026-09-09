@@ -2532,6 +2532,241 @@ dialog {
     grid-template-columns: 1fr 90px 110px 36px;
   }
 }
+/* Final card pass: four-column desktop rhythm and consistent action alignment. */
+body main .scheduled-grid,
+body main .workout-complex-grid,
+body main .archive-history-groups .archive-workout-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  width: 100% !important;
+  gap: 20px !important;
+}
+
+/* Planned workouts use the same compact card language as equipment cards. */
+body main .scheduled-grid .planned-plan-tile,
+body main .scheduled-grid .planned-plan-tile:first-child {
+  display: flex !important;
+  flex-direction: column !important;
+  width: auto !important;
+  min-width: 0;
+  min-height: 300px !important;
+  height: 300px;
+  padding: 60px 18px 18px !important;
+  border: 1px solid #e5eaf2;
+  border-radius: 18px !important;
+  background: #fff !important;
+  color: var(--v2-ink);
+  box-shadow: 0 8px 24px #15233d14;
+}
+body main .scheduled-grid .planned-plan-tile .workout-tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 24px;
+}
+body main .scheduled-grid .planned-plan-tile h3 {
+  display: -webkit-box;
+  min-height: 46px;
+  margin: 12px 0 5px;
+  overflow: hidden;
+  font-size: 19px;
+  line-height: 1.22;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+body main .scheduled-grid .planned-plan-tile > p {
+  min-height: 35px;
+  margin: 0;
+  overflow: hidden;
+  color: var(--v2-muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+body main .scheduled-grid .planned-plan-tile .planned-plan-items {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 78px;
+  margin: 12px 0;
+  overflow: hidden;
+}
+body main .scheduled-grid .planned-plan-tile .planned-plan-items div:nth-child(n + 3) { display: none; }
+body main .scheduled-grid .planned-plan-tile .workout-complete-action {
+  top: 16px;
+  right: 18px;
+  min-width: 94px;
+  min-height: 32px;
+  height: 32px;
+  border-radius: 9px;
+  padding: 0 10px;
+  font-size: 10px;
+}
+body main .scheduled-grid .planned-plan-tile .planned-tile-actions {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-height: 36px;
+  margin-top: auto;
+}
+body main .scheduled-grid .planned-plan-tile .planned-tile-actions .icon-action {
+  flex: 0 0 36px;
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  min-height: 36px;
+}
+
+/* Workout complexes and add cards share the same card size; four fit on desktop. */
+body main .workout-complex-grid > .workout-complex-card,
+body main .workout-complex-grid > .workout-create-card.workout-complex-card {
+  width: auto !important;
+  min-width: 0;
+  min-height: 300px !important;
+  height: 300px;
+}
+body main .workout-complex-grid > .workout-create-card.workout-complex-card,
+body main .exercise-grid > .workout-create-card.exercise-card,
+body main .equipment-grid > .workout-create-card.equipment-card {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column !important;
+  gap: 0;
+  padding: 20px !important;
+  border: 1px dashed #d6dde8;
+  border-radius: 18px !important;
+  background: #f8fafd;
+  text-align: center;
+}
+body main .workout-complex-grid > .workout-create-card.workout-complex-card { grid-column: span 1 !important; }
+body main .workout-create-card .workout-create-icon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #fff;
+  color: #8a95a7;
+  font-size: 34px;
+}
+body main .workout-create-card .workout-create-copy { padding: 0; text-align: center; }
+body main .workout-create-card .workout-create-copy h3 { margin: 18px 0 5px; font-size: 16px; }
+body main .workout-create-card .workout-create-copy p:not(.eyebrow) { margin: 0; color: #7d879b; font-size: 11px; }
+body main .workout-create-card .workout-create-copy .eyebrow { margin: 14px 0 0; }
+body main .workout-create-card > .primary { min-height: 32px; height: 32px; margin-top: 18px; border-radius: 9px; padding: 0 14px; font-size: 11px; }
+
+/* History: the statistics card is a banner under the section title. */
+body main .archive-history-layout {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 18px;
+  width: 100% !important;
+}
+body main .archive-history-layout .history-statistics-card {
+  order: -1;
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  flex-direction: row;
+  align-items: center;
+  gap: 24px;
+  padding: 18px 24px;
+}
+body main .archive-history-layout .history-statistics-card .eyebrow,
+body main .archive-history-layout .history-statistics-card h3,
+body main .archive-history-layout .history-statistics-card .history-statistics-period { margin: 0; }
+body main .archive-history-layout .history-statistics-card .history-statistics-metrics { flex: 1; margin-top: 0; }
+body main .archive-history-groups { width: 100% !important; max-width: none !important; }
+body main .archive-history-groups .archive-workout-grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; width: 100% !important; }
+body main .archive-history-groups .history-workout-card {
+  width: auto !important;
+  min-width: 0;
+  min-height: 300px !important;
+  height: 300px;
+  padding: 18px !important;
+}
+body main .history-card-actions { display: flex !important; align-items: center; justify-content: flex-start !important; gap: 8px; }
+body main .history-card-actions .history-repeat-action { order: 0; margin-right: auto; }
+body main .history-card-actions .history-details-action,
+body main .history-card-actions .history-delete-action { order: 1; }
+body main .history-card-actions:not(:has(.history-repeat-action)) { justify-content: flex-end !important; }
+
+/* Every card keeps its main CTA left and compact edit/delete/share controls right. */
+body main .product-tile .product-tile-actions,
+body main .workout-card-actions,
+body main .recipe-card-footer,
+body main .workout-complex-actions,
+body main .article-card .article-card-actions {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+body main .product-tile-actions > .primary,
+body main .workout-card-actions > .primary,
+body main .recipe-card-footer > .primary,
+body main .workout-complex-actions > .primary,
+body main .article-card .article-card-actions > .primary { margin-right: auto; }
+body main .workout-card-actions > .send-client-control,
+body main .workout-card-actions > .send-trainer-control,
+body main .workout-complex-actions > .send-client-control,
+body main .workout-complex-actions > .send-trainer-control,
+body main .recipe-card-footer > .send-client-control,
+body main .recipe-card-footer > .send-trainer-control,
+body main .product-tile-actions > .send-client-control,
+body main .product-tile-actions > .send-trainer-control {
+  flex: 0 0 36px;
+  width: 36px;
+}
+body main .workout-card-actions > .send-client-control .send-client-button.compact,
+body main .workout-card-actions > .send-trainer-control .send-trainer-button.compact,
+body main .workout-complex-actions > .send-client-control .send-client-button.compact,
+body main .workout-complex-actions > .send-trainer-control .send-trainer-button.compact,
+body main .recipe-card-footer > .send-client-control .send-client-button.compact,
+body main .recipe-card-footer > .send-trainer-control .send-trainer-button.compact { width: 36px; min-width: 36px; height: 36px; min-height: 36px; }
+body main .workout-complex-actions:not(:has(> .primary)),
+body main .workout-card-actions:not(:has(> .primary)) { justify-content: flex-end; }
+
+body main .product-catalog-layout > .product-grid > .product-add-card.recipe-add-card {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  grid-column: auto !important;
+  min-height: 272px;
+  height: auto;
+  padding: 14px !important;
+  border: 1px dashed #d6dde8;
+  border-radius: 18px;
+  background: #f8fafd;
+  text-align: center;
+}
+body main .product-add-card.recipe-add-card h3 { margin: 18px 0 5px; font-size: 16px; }
+body main .product-add-card.recipe-add-card p { margin: 0; color: #7d879b; font-size: 11px; }
+body main .product-add-card.recipe-add-card .primary { min-height: 32px; height: 32px; margin-top: 18px; border-radius: 9px; padding: 0 14px; font-size: 11px; }
+
+@media (max-width: 1100px) {
+  body main .scheduled-grid,
+  body main .workout-complex-grid,
+  body main .archive-history-groups .archive-workout-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  body main .archive-history-layout .history-statistics-card { align-items: flex-start; flex-wrap: wrap; }
+  body main .archive-history-layout .history-statistics-card .history-statistics-metrics { flex-basis: 100%; }
+}
+@media (max-width: 600px) {
+  body main .scheduled-grid,
+  body main .workout-complex-grid,
+  body main .archive-history-groups .archive-workout-grid { grid-template-columns: 1fr !important; }
+  body main .scheduled-grid .planned-plan-tile,
+  body main .scheduled-grid .planned-plan-tile:first-child,
+  body main .workout-complex-grid > .workout-complex-card,
+  body main .workout-complex-grid > .workout-create-card.workout-complex-card,
+  body main .archive-history-groups .history-workout-card { height: auto; min-height: 280px !important; }
+  body main .archive-history-layout .history-statistics-card { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  body main .archive-history-layout .history-statistics-card .history-statistics-metrics { flex-basis: auto; }
+}
 </style>
 
 <style lang="scss">
@@ -4910,5 +5145,244 @@ body main .product-catalog-layout .product-tile .product-tile-actions.trainer-on
 }
 body main .progress-tile-actions {
   grid-template-columns: minmax(0, 1fr) 36px 36px 36px !important;
+}
+
+/* Final workout component alignment: four cards on desktop, compact actions, and the history banner. */
+body main .scheduled-grid,
+body main .workout-complex-grid,
+body main .exercise-grid,
+body main .archive-history-groups .archive-workout-grid {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  width: 100% !important;
+  gap: 20px !important;
+}
+
+body main .scheduled-grid > .planned-plan-tile,
+body main .workout-complex-grid > .workout-complex-card,
+body main .exercise-grid > .exercise-card,
+body main .archive-history-groups .archive-workout-grid > .history-workout-card {
+  box-sizing: border-box;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+body main .scheduled-grid > .planned-plan-tile {
+  position: relative;
+  display: flex !important;
+  min-height: 300px !important;
+  height: 300px !important;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 18px !important;
+  overflow: hidden;
+  border-radius: 18px !important;
+}
+body main .scheduled-grid > .planned-plan-tile:first-child {
+  min-height: 300px !important;
+  height: 300px !important;
+  padding: 18px !important;
+}
+body main .scheduled-grid > .planned-plan-tile .workout-complete-action {
+  top: 18px !important;
+  right: 18px !important;
+  min-width: 0;
+  min-height: 30px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 10px;
+}
+body main .scheduled-grid > .planned-plan-tile .workout-tile-head { padding-right: 76px; }
+body main .scheduled-grid > .planned-plan-tile h3 { margin: 12px 0 5px; }
+body main .scheduled-grid > .planned-plan-tile > p { min-height: 34px; margin: 0; overflow: hidden; }
+body main .scheduled-grid > .planned-plan-tile .planned-plan-items {
+  display: grid !important;
+  gap: 7px;
+  min-height: 0;
+  max-height: 92px;
+  margin: 12px 0 0;
+  overflow: hidden;
+}
+body main .scheduled-grid > .planned-plan-tile .planned-plan-items > div {
+  min-width: 0;
+  overflow: hidden;
+  padding: 7px 0;
+  border-top: 1px solid #e5eaf2;
+}
+body main .scheduled-grid > .planned-plan-tile .planned-plan-items b,
+body main .scheduled-grid > .planned-plan-tile .planned-plan-items small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body main .scheduled-grid > .planned-plan-tile .planned-tile-actions { margin-top: auto; }
+
+body main .workout-complex-grid > .workout-complex-card:not(.workout-create-card) {
+  min-height: 300px !important;
+  height: 300px !important;
+}
+body main .workout-complex-grid > .workout-create-card.workout-complex-card,
+body main .exercise-grid > .workout-create-card.add-exercise-card,
+body main .exercise-grid > .workout-create-card.add-equipment-card {
+  display: flex !important;
+  box-sizing: border-box;
+  width: auto !important;
+  min-height: 300px !important;
+  height: 300px !important;
+  flex-direction: column !important;
+  align-items: center;
+  justify-content: flex-start;
+  grid-column: auto !important;
+  padding: 22px !important;
+  text-align: center;
+}
+body main .workout-complex-grid > .workout-create-card.workout-complex-card .workout-create-icon,
+body main .exercise-grid > .workout-create-card.add-exercise-card .workout-create-icon,
+body main .exercise-grid > .workout-create-card.add-equipment-card .workout-create-icon {
+  flex: 0 0 60px;
+  width: 60px;
+  height: 60px;
+  margin: 0;
+}
+body main .workout-complex-grid > .workout-create-card.workout-complex-card .workout-create-copy,
+body main .exercise-grid > .workout-create-card.add-exercise-card .workout-create-copy,
+body main .exercise-grid > .workout-create-card.add-equipment-card .workout-create-copy { padding: 0; }
+body main .workout-complex-grid > .workout-create-card.workout-complex-card .workout-create-copy h3,
+body main .exercise-grid > .workout-create-card.add-exercise-card .workout-create-copy h3,
+body main .exercise-grid > .workout-create-card.add-equipment-card .workout-create-copy h3 { margin: 18px 0 5px; }
+body main .workout-complex-grid > .workout-create-card.workout-complex-card > .primary,
+body main .exercise-grid > .workout-create-card.add-exercise-card > .primary,
+body main .exercise-grid > .workout-create-card.add-equipment-card > .primary {
+  width: auto;
+  min-height: 34px;
+  height: 34px;
+  margin: 18px 0 0;
+}
+
+body main .archive-history-layout {
+  display: flex !important;
+  width: 100% !important;
+  flex-direction: column !important;
+  gap: 18px;
+}
+body main .archive-history-layout > .history-statistics-card {
+  order: -1;
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: 24px;
+  box-sizing: border-box;
+  padding: 18px 24px;
+}
+body main .archive-history-layout > .history-statistics-card .eyebrow,
+body main .archive-history-layout > .history-statistics-card h3,
+body main .archive-history-layout > .history-statistics-card .history-statistics-period { margin: 0; }
+body main .archive-history-layout > .history-statistics-card .history-statistics-metrics { flex: 1; margin: 0; }
+body main .archive-history-groups { width: 100% !important; max-width: none !important; }
+body main .archive-history-groups .archive-workout-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+body main .archive-history-groups .history-workout-card {
+  min-height: 264px !important;
+  height: 264px !important;
+  padding: 24px !important;
+}
+
+/* Every card action row keeps the full-width primary action on the left and icon actions on the right. */
+body main .workout-card-actions,
+body main .workout-complex-actions,
+body main .product-tile-actions,
+body main .recipe-card-footer,
+body main .article-card-actions,
+body main .progress-tile-actions,
+body main .equipment-card-actions {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+body main .workout-card-actions:has(> .primary),
+body main .workout-complex-actions:has(> .primary),
+body main .product-tile-actions:has(> .primary),
+body main .recipe-card-footer:has(> .primary),
+body main .article-card-actions:has(> .primary),
+body main .progress-tile-actions:has(> .primary),
+body main .equipment-card-actions:has(> .primary) { justify-content: flex-start; }
+body main .workout-card-actions > .primary,
+body main .workout-complex-actions > .primary,
+body main .product-tile-actions > .primary,
+body main .recipe-card-footer > .primary,
+body main .article-card-actions > .primary,
+body main .progress-tile-actions > .primary,
+body main .equipment-card-actions > .primary { margin-right: auto; }
+body main .workout-card-actions .send-client-control.compact,
+body main .workout-card-actions .send-trainer-control.compact,
+body main .workout-complex-actions .send-client-control.compact,
+body main .workout-complex-actions .send-trainer-control.compact,
+body main .product-tile-actions .send-client-control.compact,
+body main .product-tile-actions .send-trainer-control.compact,
+body main .recipe-card-footer .send-client-control.compact,
+body main .recipe-card-footer .send-trainer-control.compact,
+body main .article-card-actions .send-client-control.compact,
+body main .article-card-actions .send-trainer-control.compact,
+body main .equipment-card-actions .send-client-control.compact,
+body main .equipment-card-actions .send-trainer-control.compact {
+  flex: 0 0 32px;
+  width: 32px !important;
+  min-width: 32px !important;
+}
+body main .workout-card-actions .send-client-button.compact,
+body main .workout-card-actions .send-trainer-button.compact,
+body main .workout-complex-actions .send-client-button.compact,
+body main .workout-complex-actions .send-trainer-button.compact,
+body main .product-tile-actions .send-client-button.compact,
+body main .product-tile-actions .send-trainer-button.compact,
+body main .recipe-card-footer .send-client-button.compact,
+body main .recipe-card-footer .send-trainer-button.compact,
+body main .article-card-actions .send-client-button.compact,
+body main .article-card-actions .send-trainer-button.compact,
+body main .equipment-card-actions .send-client-button.compact,
+body main .equipment-card-actions .send-trainer-button.compact {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+}
+
+body main .product-catalog-layout > .product-grid > .product-add-card.recipe-add-card {
+  grid-column: auto !important;
+  display: flex !important;
+  width: 242px !important;
+  min-width: 242px !important;
+  max-width: 242px !important;
+  min-height: 312px !important;
+  height: 312px !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding: 22px !important;
+  text-align: center;
+}
+body main .product-catalog-layout > .product-grid > .product-add-card.recipe-add-card .recipe-add-icon { margin: 0; }
+body main .product-catalog-layout > .product-grid > .product-add-card.recipe-add-card h3 { margin: 18px 0 5px; }
+body main .product-catalog-layout > .product-grid > .product-add-card.recipe-add-card p { margin: 0; }
+body main .product-catalog-layout > .product-grid > .product-add-card.recipe-add-card .primary { margin-top: 18px; }
+
+@media (max-width: 1100px) {
+  body main .scheduled-grid,
+  body main .workout-complex-grid,
+  body main .exercise-grid,
+  body main .archive-history-groups .archive-workout-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  body main .archive-history-layout > .history-statistics-card { align-items: flex-start; flex-wrap: wrap; }
+  body main .archive-history-layout > .history-statistics-card .history-statistics-metrics { flex-basis: 100%; }
+}
+@media (max-width: 600px) {
+  body main .scheduled-grid,
+  body main .workout-complex-grid,
+  body main .exercise-grid,
+  body main .archive-history-groups .archive-workout-grid { grid-template-columns: 1fr !important; }
+  body main .archive-history-layout > .history-statistics-card { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  body main .product-catalog-layout > .product-grid > .product-add-card.recipe-add-card { width: 100% !important; min-width: 0 !important; max-width: none !important; }
 }
 </style>

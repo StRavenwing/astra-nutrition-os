@@ -22,19 +22,19 @@ private extension Color {
 
 enum AstraTheme {
     // Native tokens mapped to the supplied 390x771 mobile reference.
-    static let ink = Color(light: UIColor(hex: 0x1A1A1A), dark: UIColor(hex: 0xF7F4F0))
-    static let muted = Color(light: UIColor(hex: 0xA09E9B), dark: UIColor(hex: 0xB8B0A9))
-    static let blue = Color(light: UIColor(hex: 0xE8732A), dark: UIColor(hex: 0xFF9A5F))
-    static let green = Color(light: UIColor(hex: 0xE8732A), dark: UIColor(hex: 0xFF9A5F))
+    static let ink = Color(light: UIColor(hex: 0x1A1A1A), dark: UIColor(hex: 0xFAFAF8))
+    static let muted = Color(light: UIColor(hex: 0xA09E9B), dark: UIColor(hex: 0xA0A0A0))
+    static let blue = Color(light: UIColor(hex: 0xE8732A), dark: UIColor(hex: 0xFF9153))
+    static let green = Color(light: UIColor(hex: 0xE8732A), dark: UIColor(hex: 0xFF9153))
     static let mint = Color(light: UIColor(hex: 0xFFF1E8), dark: UIColor(hex: 0x3A251B))
     static let softBlue = Color(light: UIColor(hex: 0xFFF1E8), dark: UIColor(hex: 0x3A251B))
-    static let canvas = Color(light: UIColor(hex: 0xFFFFFF), dark: UIColor(hex: 0x121110))
-    static let surface = Color(light: UIColor(hex: 0xFFFFFF), dark: UIColor(hex: 0x1C1A18))
-    static let surfaceElevated = Color(light: UIColor(hex: 0xFFFFFF), dark: UIColor(hex: 0x25221F))
+    static let canvas = Color(light: UIColor(hex: 0xFFFFFF), dark: UIColor(hex: 0x0A0908))
+    static let surface = Color(light: UIColor(hex: 0xFFFFFF), dark: UIColor(hex: 0x161513))
+    static let surfaceElevated = Color(light: UIColor(hex: 0xFFFFFF), dark: UIColor(hex: 0x1A1A1A))
     static let line = Color(light: UIColor(hex: 0xF0EEEA), dark: UIColor(hex: 0x3A332E))
     static let sidebar = Color(light: UIColor(hex: 0x1A1A1A), dark: UIColor(hex: 0x0D0C0B))
     static let sidebarActive = Color(light: UIColor(hex: 0x3A332E), dark: UIColor(hex: 0x3A332E))
-    static let amber = Color(light: UIColor(hex: 0xE8732A), dark: UIColor(hex: 0xFF9A5F))
+    static let amber = Color(light: UIColor(hex: 0xE8732A), dark: UIColor(hex: 0xFF9153))
     static let danger = Color(light: UIColor(hex: 0xFF3B30), dark: UIColor(hex: 0xFF7B73))
 }
 

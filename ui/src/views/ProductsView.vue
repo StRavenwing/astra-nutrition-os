@@ -213,7 +213,10 @@ function productCategoryTone(categoryName: string) {
         </div>
       </article>
       <article v-if="!props.readOnly" class="product-add-card recipe-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">
-        <span class="recipe-add-icon">＋</span><span><h3>Добавить продукт</h3><p>Создайте продукт с КБЖУ и стоимостью упаковки</p></span><button type="button" class="primary" @click.stop="emit('add')">＋ Новый продукт</button>
+        <span class="recipe-add-icon">＋</span>
+        <h3>Добавить продукт</h3>
+        <p>Создайте продукт с КБЖУ и стоимостью упаковки</p>
+        <button type="button" class="primary" @click.stop="emit('add')">＋ Новый продукт</button>
       </article>
       <div v-if="!shown.length" class="panel empty">Ничего не найдено</div>
     </div>

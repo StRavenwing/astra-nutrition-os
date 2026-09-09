@@ -9,19 +9,19 @@ import androidx.compose.ui.graphics.Color
 
 object AstraTheme {
     val blue = Color(0xFFE8732A)
-    val blueDark = Color(0xFFFF9A5F)
+    val blueDark = Color(0xFFFF9153)
     val green = Color(0xFFE8732A)
-    val greenDark = Color(0xFFFF9A5F)
+    val greenDark = Color(0xFFFF9153)
     val amber = Color(0xFFE8732A)
     val ink = Color(0xFF1A1A1A)
-    val inkDark = Color(0xFFF7F4F0)
+    val inkDark = Color(0xFFFAFAF8)
     val muted = Color(0xFFA09E9B)
-    val mutedDark = Color(0xFFB8B0A9)
+    val mutedDark = Color(0xFFA0A0A0)
     val canvas = Color(0xFFFFFFFF)
-    val canvasDark = Color(0xFF121110)
+    val canvasDark = Color(0xFF0A0908)
     val surface = Color(0xFFFFFFFF)
-    val surfaceDark = Color(0xFF1C1A18)
-    val surfaceElevatedDark = Color(0xFF25221F)
+    val surfaceDark = Color(0xFF161513)
+    val surfaceElevatedDark = Color(0xFF1A1A1A)
     val line = Color(0xFFF0EEEA)
     val lineDark = Color(0xFF3A332E)
     val danger = Color(0xFFFF3B30)
@@ -52,7 +52,7 @@ private val darkColors = darkColorScheme(
 )
 
 @Composable
-fun AstraTheme(darkTheme: Boolean = false, content: @Composable () -> Unit) {
+fun AstraTheme(darkTheme: Boolean = true, content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = if (darkTheme) darkColors else lightColors,
         typography = Typography(),

@@ -4,7 +4,7 @@ enum AppTab: Hashable { case overview, diary, products, recipes, progress, worko
 
 struct RootView: View {
     @EnvironmentObject private var session: SessionStore
-    @AppStorage("astra_theme") private var theme = "light"
+    @AppStorage("astra_theme") private var theme = "dark"
 
     var body: some View {
         Group {
@@ -26,7 +26,7 @@ struct AuthView: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [AstraTheme.canvas, Color(red: 0.91, green: 0.95, blue: 1), Color(red: 0.91, green: 0.98, blue: 0.94)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
+            LinearGradient(colors: [AstraTheme.canvas, AstraTheme.surfaceElevated, AstraTheme.blue.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
             VStack(alignment: .leading, spacing: 22) {
                 HStack(spacing: 12) {
                     Image(systemName: "leaf.circle.fill").font(.system(size: 42)).foregroundStyle(AstraTheme.green)
@@ -586,7 +586,7 @@ struct WorkoutsView: View {
 struct WorkoutPlanRow: View {
     let plan: WorkoutPlan
     let onComplete: () -> Void
-    var body: some View { HStack { VStack(alignment: .leading) { Text(plan.name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? plan.name! : "Тренировка").font(.headline); Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted); Text("\(plan.items.count) упражнений · \(plan.status)").font(.caption2).foregroundStyle(AstraTheme.muted) }; Spacer(); if plan.status == "planned" { Button("Готово", action: onComplete).buttonStyle(.bordered).controlSize(.small) } } }
+    var body: some View { HStack { VStack(alignment: .leading) { Text(plan.displayName).font(.headline); Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted); Text("\(plan.items.count) упражнений · \(plan.status)").font(.caption2).foregroundStyle(AstraTheme.muted) }; Spacer(); if plan.status == "planned" { Button("Готово", action: onComplete).buttonStyle(.bordered).controlSize(.small) } } }
 }
 
 struct AddWorkoutView: View {

@@ -152,7 +152,7 @@ fun ExerciseEditorDialog(existing: Exercise?, onSave: (JSONObject) -> Unit, onDe
     AlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новое упражнение" else "Редактировать упражнение") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         EditField("Название", name) { name = it }; EditField("Мышечная группа", muscle) { muscle = it }; EditField("Единица", unit) { unit = it }; EditField("Подходы по умолчанию", sets) { sets = it }; EditField("Повторения по умолчанию", reps) { reps = it }; EditField("Целевой RIR", rir) { rir = it }; EditField("Заметка", note) { note = it }; EditField("Описание", description) { description = it }; EditField("Фото (URL через запятую)", photos) { photos = it }; EditField("Видео (URL)", video) { video = it }
         Text("Варианты выполнения", fontWeight = FontWeight.Bold)
-        variants.forEachIndexed { index, variant -> Column(verticalArrangement = Arrangement.spacedBy(5.dp)) { EditField("Название варианта", variant.name) { value -> updateVariant(index) { draft -> draft.name = value } }; EditField("Тренажёр", variant.machine) { value -> updateVariant(index) { draft -> draft.machine = value } }; EditField("Инвентарь", variant.equipment) { value -> updateVariant(index) { draft -> draft.equipment = value } }; EditField("Описание варианта", variant.description) { value -> updateVariant(index) { draft -> draft.description = value } }; EditField("Техника", variant.technique) { value -> updateVariant(index) { draft -> draft.technique = value } }; EditField("Советы", variant.tips) { value -> updateVariant(index) { draft -> draft.tips = value } }; TextButton({ variants.removeAt(index) }) { Text("Удалить вариант") } } }
+        variants.forEachIndexed { index, variant -> Column(verticalArrangement = Arrangement.spacedBy(5.dp)) { EditField(label = "Введите название", value = variant.name, onValueChange = { value -> updateVariant(index) { draft -> draft.name = value } }, placeholder = "Вариант ${index + 1}"); EditField("Тренажёр", variant.machine) { value -> updateVariant(index) { draft -> draft.machine = value } }; EditField("Инвентарь", variant.equipment) { value -> updateVariant(index) { draft -> draft.equipment = value } }; EditField("Описание варианта", variant.description) { value -> updateVariant(index) { draft -> draft.description = value } }; EditField("Техника", variant.technique) { value -> updateVariant(index) { draft -> draft.technique = value } }; EditField("Советы", variant.tips) { value -> updateVariant(index) { draft -> draft.tips = value } }; TextButton({ variants.removeAt(index) }) { Text("Удалить вариант") } } }
         TextButton({ variants.add(VariantDraft()) }) { Text("+ Добавить вариант") }
     } }, confirmButton = { Button({ val variantArray = JSONArray(); variants.forEach { variantArray.put(JSONObject().putOptional("name", variant.name.takeIf { it.isNotBlank() }).putOptional("machine", variant.machine.takeIf { it.isNotBlank() }).putOptional("equipment", variant.equipment.takeIf { it.isNotBlank() }).putOptional("description", variant.description.takeIf { it.isNotBlank() }).putOptional("technique", variant.technique.takeIf { it.isNotBlank() }).putOptional("tips", variant.tips.takeIf { it.isNotBlank() })) }; if (name.isNotBlank()) onSave(JSONObject().put("name", name).putOptional("muscle_group", muscle.takeIf { it.isNotBlank() }).put("default_unit", unit).put("default_sets", sets.numberOrNull() ?: 3).put("default_reps", reps.numberOrNull() ?: 12).putOptional("target_rir", rir.takeIf { it.isNotBlank() }).putOptional("note", note.takeIf { it.isNotBlank() }).putOptional("description", description.takeIf { it.isNotBlank() }).put("photos", JSONArray(photos.split(',').map { it.trim() }.filter { it.isNotBlank() })).putOptional("video", video.takeIf { it.isNotBlank() }).put("variants", variantArray)) }) { Text("Сохранить") } }, dismissButton = { Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { onDelete?.let { TextButton(onClick = it) { Text("Удалить") } }; TextButton(onClick = onDismiss) { Text("Отмена") } } })
 }
@@ -163,15 +163,66 @@ fun EquipmentEditorDialog(existing: WorkoutEquipment?, onSave: (JSONObject) -> U
     AlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новый тренажёр / инвентарь" else "Редактировать оборудование") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) { Picker("Тип: ${if (kind == "machine") "Тренажёр" else "Инвентарь"}", listOf("Тренажёр", "Инвентарь")) { kind = if (it == "Тренажёр") "machine" else "equipment" }; EditField("Название", name) { name = it }; EditField("Описание", description) { description = it }; EditField("Фото (URL)", photo) { photo = it } } }, confirmButton = { Button({ if (name.isNotBlank()) onSave(JSONObject().put("kind", kind).put("name", name).putOptional("description", description.takeIf { it.isNotBlank() }).putOptional("photo", photo.takeIf { it.isNotBlank() })) }) { Text("Сохранить") } }, dismissButton = { Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { onDelete?.let { TextButton(onClick = it) { Text("Удалить") } }; TextButton(onClick = onDismiss) { Text("Отмена") } } })
 }
 
-private data class PlanDraft(var exerciseId: Int?, var weight: String = "", var sets: String = "", var duration: String = "", var speed: String = "")
+private data class PlanDraft(var exerciseId: Int?, var weight: String = "", var sets: String = "", var duration: String = "", var speed: String = "", var variantId: Int? = null)
 
 @Composable
 fun WorkoutPlanEditorDialog(plan: WorkoutPlan?, complex: WorkoutComplex?, exercises: List<Exercise>, onSave: (JSONObject) -> Unit, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf(plan?.name.orEmpty()) }; var scheduledAt by remember { mutableStateOf(plan?.scheduledAt ?: todayTime()) }; var duration by remember { mutableStateOf(plan?.duration?.toString().orEmpty()) }
     val sourceItems: List<WorkoutPlanItem> = plan?.items ?: complex?.items?.map { WorkoutPlanItem(it.id, it.exerciseId, it.name, it.muscleGroup, it.workingWeight, it.sets, it.durationMinutes, it.speedKmh) } ?: emptyList()
-    val items = remember { mutableStateListOf<PlanDraft>().also { list -> sourceItems.forEach { item -> list.add(PlanDraft(item.exerciseId, item.weight?.toString().orEmpty(), item.sets?.toString().orEmpty(), item.duration?.toString().orEmpty(), item.speed?.toString().orEmpty())) }; if (list.isEmpty()) list.add(PlanDraft(exercises.firstOrNull()?.id)) } }
+    val items = remember { mutableStateListOf<PlanDraft>().also { list -> sourceItems.forEach { item -> list.add(PlanDraft(item.exerciseId, item.weight?.toString().orEmpty(), item.sets?.toString().orEmpty(), item.duration?.toString().orEmpty(), item.speed?.toString().orEmpty(), item.variantId)) }; if (list.isEmpty()) list.add(PlanDraft(exercises.firstOrNull()?.id)) } }
     fun updateItem(index: Int, update: (PlanDraft) -> Unit) { val item = items[index].copy(); update(item); items[index] = item }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (plan == null) "Включить тренировку в план" else "Редактировать план") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) { EditField("Название тренировки", name) { name = it }; EditField("Дата и время", scheduledAt) { scheduledAt = it }; EditField("Длительность, мин", duration) { duration = it }; Text("Упражнения", fontWeight = FontWeight.Bold); items.forEachIndexed { index, item -> Column(verticalArrangement = Arrangement.spacedBy(5.dp)) { if (exercises.isNotEmpty()) Picker("Упражнение: ${exercises.firstOrNull { it.id == item.exerciseId }?.name ?: "—"}", exercises.map { it.name }) { selected -> updateItem(index) { draft -> draft.exerciseId = exercises.firstOrNull { exercise -> exercise.name == selected }?.id } }; EditField("Вес", item.weight) { value -> updateItem(index) { draft -> draft.weight = value } }; EditField("Подходы", item.sets) { value -> updateItem(index) { draft -> draft.sets = value } }; EditField("Длительность, мин", item.duration) { value -> updateItem(index) { draft -> draft.duration = value } }; EditField("Скорость, км/ч", item.speed) { value -> updateItem(index) { draft -> draft.speed = value } }; if (items.size > 1) TextButton({ items.removeAt(index) }) { Text("Удалить упражнение") } } }; TextButton({ items.add(PlanDraft(exercises.firstOrNull()?.id)) }) { Text("+ Добавить упражнение") } } }, confirmButton = { Button({ val array = JSONArray(); items.filter { it.exerciseId != null }.forEach { item -> array.put(JSONObject().put("exercise_id", item.exerciseId).putOptional("working_weight", item.weight.numberOrNull()).putOptional("sets", item.sets.numberOrNull()).putOptional("duration_minutes", item.duration.numberOrNull()).putOptional("speed_kmh", item.speed.numberOrNull())) }; if (scheduledAt.isNotBlank()) onSave(JSONObject().putOptional("name", name.takeIf { it.isNotBlank() }).put("scheduled_at", scheduledAt).putOptional("duration_minutes", duration.numberOrNull()).put("items", array)) }) { Text("Сохранить план") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (plan == null) "Включить тренировку в план" else if (plan.id == 0) "Повторить тренировку" else "Редактировать план") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                EditField("Название тренировки", name) { name = it }
+                EditField("Дата и время", scheduledAt) { scheduledAt = it }
+                EditField("Длительность, мин", duration) { duration = it }
+                Text("Упражнения", fontWeight = FontWeight.Bold)
+                items.forEachIndexed { index, item ->
+                    val selectedExercise = exercises.firstOrNull { it.id == item.exerciseId }
+                    val variantOptions = selectedExercise?.variants.orEmpty()
+                    val variantLabels = variantOptions.mapIndexed { variantIndex, variant ->
+                        variant.name?.trim()?.takeIf { it.isNotEmpty() } ?: "Вариант ${variantIndex + 1}"
+                    }
+                    val selectedVariantIndex = item.variantId?.let { variantId -> variantOptions.indexOfFirst { it.id == variantId } } ?: -1
+                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        if (exercises.isNotEmpty()) {
+                            Picker("Упражнение: ${selectedExercise?.name ?: "—"}", exercises.map { it.name }) { selected ->
+                                updateItem(index) { draft ->
+                                    draft.exerciseId = exercises.firstOrNull { exercise -> exercise.name == selected }?.id
+                                    draft.variantId = null
+                                }
+                            }
+                        }
+                        if (variantOptions.isNotEmpty()) {
+                            Picker("Вариант: ${if (selectedVariantIndex >= 0) variantLabels[selectedVariantIndex] else "Без варианта"}", listOf("Без варианта") + variantLabels) { selected ->
+                                val selectedIndex = variantLabels.indexOf(selected)
+                                updateItem(index) { draft -> draft.variantId = variantOptions.getOrNull(selectedIndex)?.id }
+                            }
+                        }
+                        EditField("Вес", item.weight) { value -> updateItem(index) { draft -> draft.weight = value } }
+                        EditField("Подходы", item.sets) { value -> updateItem(index) { draft -> draft.sets = value } }
+                        EditField("Длительность, мин", item.duration) { value -> updateItem(index) { draft -> draft.duration = value } }
+                        EditField("Скорость, км/ч", item.speed) { value -> updateItem(index) { draft -> draft.speed = value } }
+                        if (items.size > 1) TextButton({ items.removeAt(index) }) { Text("Удалить упражнение") }
+                    }
+                }
+                TextButton({ items.add(PlanDraft(exercises.firstOrNull()?.id)) }) { Text("+ Добавить упражнение") }
+            }
+        },
+        confirmButton = {
+            Button({
+                val array = JSONArray()
+                items.filter { it.exerciseId != null }.forEach { item ->
+                    array.put(JSONObject().put("exercise_id", item.exerciseId).putOptional("variant_id", item.variantId).putOptional("working_weight", item.weight.numberOrNull()).putOptional("sets", item.sets.numberOrNull()).putOptional("duration_minutes", item.duration.numberOrNull()).putOptional("speed_kmh", item.speed.numberOrNull()))
+                }
+                if (scheduledAt.isNotBlank()) onSave(JSONObject().putOptional("name", name.takeIf { it.isNotBlank() }).put("scheduled_at", scheduledAt).putOptional("duration_minutes", duration.numberOrNull()).put("items", array))
+            }) { Text("Сохранить план") }
+        },
+        dismissButton = { TextButton(onDismiss) { Text("Отмена") } }
+    )
 }
 
 @Composable
@@ -189,4 +240,4 @@ fun WorkoutEntryEditorDialog(existing: WorkoutEntry?, exercises: List<Exercise>,
 }
 
 @Composable
-fun EditField(label: String, value: String, onValueChange: (String) -> Unit) { OutlinedTextField(value, onValueChange, label = { Text(label) }, singleLine = false, modifier = Modifier.fillMaxWidth()) }
+fun EditField(label: String, value: String, onValueChange: (String) -> Unit, placeholder: String? = null) { OutlinedTextField(value, onValueChange, label = { Text(label) }, placeholder = { placeholder?.let { Text(it) } }, singleLine = false, modifier = Modifier.fillMaxWidth()) }

@@ -59,7 +59,10 @@ async function load() {
 onMounted(load);
 watch(() => props.refreshKey, load);
 
-const plannedPlans = computed(() => plans.value.filter((plan) => plan.status === 'planned'));
+const plannedPlans = computed(() => plans.value
+  .filter((plan) => plan.status === 'planned')
+  .slice()
+  .sort((left, right) => left.scheduled_at.localeCompare(right.scheduled_at)));
 const archivedPlans = computed(() => plans.value.filter((plan) => plan.status === 'archived' || plan.status === 'canceled'));
 const completedPlans = computed(() => plans.value.filter((plan) => plan.status === 'archived'));
 const canceledPlans = computed(() => plans.value.filter((plan) => plan.status === 'canceled'));
@@ -88,10 +91,7 @@ function planSummary(plan: WorkoutPlan) {
 }
 
 function planTitle(plan: WorkoutPlan) {
-  if (plan.name?.trim()) return plan.name;
-  const muscleGroups = [...new Set(plan.items.map((item) => item.muscle_group).filter((group): group is string => Boolean(group?.trim())))];
-  if (muscleGroups.length) return muscleGroups.slice(0, 3).join(' · ');
-  return plan.items.map((item) => item.name).filter(Boolean).slice(0, 2).join(' · ') || 'Тренировка';
+  return plan.name?.trim() || 'Тренировка';
 }
 
 function planHistoryMeta(plan: WorkoutPlan) {
