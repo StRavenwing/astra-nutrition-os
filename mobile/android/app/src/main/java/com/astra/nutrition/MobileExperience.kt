@@ -1,25 +1,35 @@
 package com.astra.nutrition
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
@@ -28,12 +38,16 @@ import androidx.compose.material.icons.filled.LocalGroceryStore
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Person2
+import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -65,37 +79,55 @@ import kotlinx.coroutines.launch
 @Composable
 fun MobileScaffold(state: AstraState) {
     var screen by rememberSaveable { mutableStateOf(Screen.Overview) }
-    val bottom = listOf(Screen.Overview, Screen.Diary, Screen.Workouts, Screen.Trainer, Screen.Information, Screen.More)
+    val canManage = state.user?.isAdmin == true || state.user?.isTrainer == true
+    val bottom = buildList {
+        add(Screen.Overview)
+        if (canManage) add(Screen.Trainer)
+        add(Screen.Diary)
+        add(Screen.Workouts)
+        add(Screen.Products)
+        add(Screen.Recipes)
+        add(Screen.Information)
+        add(Screen.More)
+    }
     Scaffold(bottomBar = {
-        NavigationBar { bottom.forEach { item -> NavigationBarItem(selected = screen == item, onClick = { screen = item }, icon = { Icon(item.mobileIcon(), null) }, label = { Text(item.mobileTitle()) }) } }
+        Row(Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surface).horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            bottom.forEach { item ->
+                val selected = screen == item
+                Column(Modifier.width(78.dp).clip(RoundedCornerShape(12.dp)).clickable { screen = item }.background(if (selected) AstraTheme.blue.copy(alpha = .12f) else Color.Transparent).padding(horizontal = 6.dp, vertical = 5.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Icon(item.mobileIcon(), null, tint = if (selected) AstraTheme.blue else AstraTheme.muted, modifier = Modifier.size(19.dp))
+                    Text(item.mobileTitle(), color = if (selected) AstraTheme.blue else AstraTheme.muted, fontSize = 10.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal, maxLines = 1)
+                }
+            }
+        }
     }) { padding ->
         Box(Modifier.padding(padding).fillMaxSize()) {
             when (screen) {
                 Screen.Overview -> MobileDashboard(state) { screen = it }
-                Screen.Diary -> DiaryScreen(state)
-                Screen.Workouts -> MobileWorkoutsScreen(state)
+                Screen.Diary -> DiaryCalendarScreen(state)
+                Screen.Workouts -> MobileWorkoutsDashboardScreen(state)
                 Screen.Trainer -> TrainerScreen(state)
                 Screen.Information -> InformationScreen(state)
                 Screen.Catalog -> CatalogScreen(state)
                 Screen.Progress -> ProgressScreen(state)
                 Screen.Products -> ProductsScreen(state)
                 Screen.Recipes -> RecipesScreen(state)
-                Screen.More -> MobileMoreScreen(state) { screen = it }
+                Screen.More -> MobileProfileReferenceScreen(state) { screen = it }
             }
         }
     }
 }
 
 private fun Screen.mobileTitle() = when (this) {
-    Screen.Overview -> "Обзор"; Screen.Diary -> "Дневник"; Screen.Workouts -> "Тренировки"; Screen.Trainer -> "Тренер"; Screen.Information -> "Инфо"; Screen.More -> "Ещё"; else -> "Раздел"
+    Screen.Overview -> "Обзор"; Screen.Diary -> "Дневник"; Screen.Workouts -> "Тренировки"; Screen.Trainer -> "Клиенты"; Screen.Products -> "Продукты"; Screen.Recipes -> "Рецепты"; Screen.Information -> "Инфо"; Screen.More -> "Профиль"; else -> "Раздел"
 }
 private fun Screen.mobileIcon() = when (this) {
-    Screen.Overview -> Icons.Default.Home; Screen.Diary -> Icons.Default.LocalGroceryStore; Screen.Workouts -> Icons.Default.FitnessCenter; Screen.Trainer -> Icons.Default.Person; Screen.Information -> Icons.Default.Info; else -> Icons.Default.MoreHoriz
+    Screen.Overview -> Icons.Default.Home; Screen.Diary -> Icons.Default.Restaurant; Screen.Workouts -> Icons.Default.FitnessCenter; Screen.Trainer -> Icons.Default.Person; Screen.Products -> Icons.Default.LocalGroceryStore; Screen.Recipes -> Icons.Default.Book; Screen.Information -> Icons.Default.Info; Screen.More -> Icons.Default.Person; else -> Icons.Default.MoreHoriz
 }
 
 @Composable
 private fun MobileCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Card(modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(2.dp)) { content() }
+    Card(modifier.fillMaxWidth().border(1.dp, AstraTheme.line, RoundedCornerShape(16.dp)), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(1.dp)) { content() }
 }
 
 @Composable
@@ -117,7 +149,7 @@ fun MobileDashboard(state: AstraState, onNavigate: (Screen) -> Unit) {
         data?.let { dashboard ->
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Box(Modifier.weight(1f)) { MobileMetric("Продукты", dashboard.products.toString(), AstraTheme.blue) { onNavigate(Screen.Catalog) } }; Box(Modifier.weight(1f)) { MobileMetric("Рецепты", dashboard.recipes.toString(), AstraTheme.green) { onNavigate(Screen.Catalog) } } }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Box(Modifier.weight(1f)) { MobileMetric("Одобренные рецепты", dashboard.approved.toString(), Color(0xFFFFA726)) { onNavigate(Screen.Catalog) } }; Box(Modifier.weight(1f)) { MobileMetric("Вес", dashboard.latest?.weight.shown(" кг"), Color(0xFF8E7CFF)) { onNavigate(Screen.Progress) } } }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Box(Modifier.weight(1f)) { MobileMetric("Одобренные рецепты", dashboard.approved.toString(), AstraTheme.blue) { onNavigate(Screen.Catalog) } }; Box(Modifier.weight(1f)) { MobileMetric("Вес", dashboard.latest?.weight.shown(" кг"), AstraTheme.blue) { onNavigate(Screen.Progress) } } }
                 Text("«Одобренные рецепты» — рецепты, прошедшие модерацию и доступные для дневника питания.", fontSize = 12.sp, color = AstraTheme.muted)
                 dashboard.latest?.let { latest -> MobileCard(Modifier.clickable { onNavigate(Screen.Progress) }) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) { Text("Последний замер", fontWeight = FontWeight.Bold); Text("${latest.date} · Вес ${latest.weight.shown(" кг")} · Талия ${latest.waist.shown(" см")}", color = AstraTheme.muted) } } }
                 Row(verticalAlignment = Alignment.CenterVertically) { Text("Рецепты с высоким белком", fontSize = 18.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.weight(1f)); TextButton({ onNavigate(Screen.Catalog) }) { Text("Каталог") } }
@@ -131,6 +163,325 @@ fun MobileDashboard(state: AstraState, onNavigate: (Screen) -> Unit) {
 @Composable
 private fun MobileRecipeRow(recipe: Recipe, onClick: () -> Unit) {
     MobileCard(Modifier.clickable(onClick = onClick)) { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Book, null, tint = AstraTheme.green); Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text(recipe.name, fontWeight = FontWeight.Bold); Text("${recipe.category} · ${recipe.protein.shown(" г белка")}", color = AstraTheme.muted, fontSize = 12.sp) }; Text(recipe.kcal.shown(" ккал"), color = AstraTheme.blue, fontSize = 12.sp, fontWeight = FontWeight.Bold) } }
+}
+
+@Composable
+private fun CatalogFoodCard(name: String, category: String, kcal: Double?, protein: Double?, fat: Double?, carbs: Double?, onClick: (() -> Unit)? = null) {
+    val cardModifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick)
+    MobileCard(cardModifier.heightIn(min = 168.dp)) {
+        Column(Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(category, color = AstraTheme.muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            Text(name, fontSize = 18.sp, lineHeight = 21.sp, fontWeight = FontWeight.Bold, maxLines = 3)
+            Spacer(Modifier.weight(1f))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                CatalogMacro("ККАЛ", kcal.shown())
+                CatalogMacro("Б", protein.shown(" г"))
+                CatalogMacro("Ж", fat.shown(" г"))
+                CatalogMacro("У", carbs.shown(" г"))
+            }
+        }
+    }
+}
+
+@Composable
+private fun RowScope.CatalogMacro(label: String, value: String) {
+    Column(Modifier.weight(1f)) {
+        Text(label, color = AstraTheme.muted, fontSize = 9.sp, fontWeight = FontWeight.SemiBold)
+        Text(value, fontSize = 11.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
+}
+
+@Composable
+private fun LegacyMobileProfileReferenceScreen(state: AstraState, onNavigate: (Screen) -> Unit) {
+    var progress by remember { mutableStateOf<List<ProgressEntry>>(emptyList()) }
+    var plans by remember { mutableStateOf<List<WorkoutPlan>>(emptyList()) }
+    var showSettings by remember { mutableStateOf(false) }
+    var showApi by remember { mutableStateOf(false) }
+    var apiUrl by remember { mutableStateOf(state.api.baseUrl) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val user = state.user
+    val initial = (user?.name ?: "A").firstOrNull()?.uppercase() ?: "A"
+    val latest = progress.firstOrNull()
+
+    suspend fun load() {
+        suspendResult { Pair(state.api.progress(), state.api.plans()) }
+            .onSuccess { progress = it.first; plans = it.second; error = null }
+            .onFailure { error = it.message }
+    }
+
+    LaunchedEffect(Unit) { load() }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        LazyColumn(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            item {
+                Column(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(77.dp).background(AstraTheme.blue, RoundedCornerShape(50.dp)).border(3.dp, AstraTheme.blue, RoundedCornerShape(50.dp)), contentAlignment = Alignment.Center) {
+                        Text(initial, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Text(user?.name ?: "Пользователь", fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                    Text(user?.email ?: "—", color = AstraTheme.muted, fontSize = 13.sp)
+                }
+            }
+            item {
+                MobileCard {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        Text("Замеры и цели", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        MobileProfileMetric("Вес", latest?.weight.shown(" кг"))
+                        MobileProfileMetric("Калории", latest?.kcalTarget.shown(" ккал в день"))
+                        MobileProfileMetric("Тренировки", if (plans.isEmpty()) "Нет планов" else "${plans.size} запланировано")
+                    }
+                }
+            }
+            item { MobileProfileReferenceRow("Замеры и цели") { onNavigate(Screen.Progress) } }
+            item { MobileProfileReferenceRow("Журнал тренировок") { onNavigate(Screen.Workouts) } }
+            item { MobileProfileReferenceRow("Чат с тренером") { onNavigate(Screen.Trainer) } }
+            item { MobileProfileReferenceRow("Продукты и рецепты") { onNavigate(Screen.Catalog) } }
+            item { MobileProfileReferenceRow("Статьи и информация") { onNavigate(Screen.Information) } }
+            item { MobileProfileReferenceRow("Настройки") { showSettings = true } }
+            item {
+                MobileProfileReferenceRow("Выйти", danger = true) {
+                    scope.launch { state.api.logout(); state.user = null }
+                }
+            }
+            error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error, fontSize = 12.sp) } }
+            item { Spacer(Modifier.height(12.dp)) }
+        }
+    }
+    if (showSettings) AlertDialog(
+        onDismissRequest = { showSettings = false },
+        title = { Text("Настройки") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Тёмная тема", Modifier.weight(1f))
+                    androidx.compose.material3.Switch(checked = state.darkTheme, onCheckedChange = state::toggleTheme)
+                }
+                OutlinedButton(onClick = { apiUrl = state.api.baseUrl; showApi = true }) { Text("Адрес API") }
+            }
+        },
+        confirmButton = { TextButton({ showSettings = false }) { Text("Закрыть") } }
+    )
+    if (showApi) AlertDialog(
+        onDismissRequest = { showApi = false },
+        title = { Text("Адрес API") },
+        text = { OutlinedTextField(apiUrl, { apiUrl = it }, label = { Text("https://astra.example.com/api/v1") }, singleLine = true) },
+        confirmButton = { Button({ state.api.baseUrl = apiUrl; showApi = false }) { Text("Сохранить") } },
+        dismissButton = { TextButton({ showApi = false }) { Text("Отмена") } }
+    )
+}
+
+@Composable
+private fun MobileProfileReferenceScreen(state: AstraState, onNavigate: (Screen) -> Unit) {
+    var progress by remember { mutableStateOf<List<ProgressEntry>>(emptyList()) }
+    var plans by remember { mutableStateOf<List<WorkoutPlan>>(emptyList()) }
+    var goalsExpanded by rememberSaveable { mutableStateOf(true) }
+    var showSettings by remember { mutableStateOf(false) }
+    var apiUrl by remember { mutableStateOf(state.api.baseUrl) }
+    val scope = rememberCoroutineScope()
+    val user = state.user
+    val canManage = user?.isAdmin == true || user?.isTrainer == true
+    val initial = (user?.name ?: "A").firstOrNull()?.uppercase() ?: "A"
+    val latest = progress.firstOrNull()
+
+    LaunchedEffect(Unit) {
+        suspendResult { Pair(state.api.progress(), state.api.plans()) }.onSuccess { progress = it.first; plans = it.second }
+    }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        LazyColumn(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            item {
+                Column(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(Modifier.size(77.dp).background(AstraTheme.blue, RoundedCornerShape(50.dp)), contentAlignment = Alignment.Center) { Text(initial, color = Color.White, fontSize = 30.sp, fontWeight = FontWeight.Bold) }
+                    Spacer(Modifier.height(10.dp)); Text(user?.name ?: "Пользователь", fontSize = 21.sp, fontWeight = FontWeight.Bold); Text(user?.email ?: "—", color = AstraTheme.muted, fontSize = 13.sp)
+                }
+            }
+            item {
+                MobileCard {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Person, null, tint = AstraTheme.blue); Spacer(Modifier.width(10.dp)); Text("Имя", fontSize = 17.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.weight(1f)); Text("Профиль", color = AstraTheme.muted, fontSize = 11.sp) }
+                        Text(user?.name ?: "Пользователь", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text(user?.email ?: "—", color = AstraTheme.muted, fontSize = 12.sp)
+                    }
+                }
+            }
+            item {
+                MobileCard(Modifier.clickable { goalsExpanded = !goalsExpanded }) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.TrendingUp, null, tint = AstraTheme.blue); Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text("Цели и предпочтения", fontSize = 17.sp, fontWeight = FontWeight.Bold); Text(if (goalsExpanded) "Развернуто" else "Свернуто", color = AstraTheme.muted, fontSize = 12.sp) }; Text(if (goalsExpanded) "⌃" else "⌄", color = AstraTheme.muted, fontSize = 22.sp) }
+                }
+            }
+            if (goalsExpanded) {
+                item {
+                    MobileCard {
+                        Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            MobileProfileMetric("Вес", latest?.weight.shown(" кг")); MobileProfileMetric("Желаемый вес", latest?.desiredWeight.shown(" кг")); MobileProfileMetric("Калории", latest?.kcalTarget.shown(" ккал в день")); MobileProfileMetric("Тренировки", if (plans.isEmpty()) "Нет планов" else "${plans.size} запланировано")
+                            Button({ onNavigate(Screen.Progress) }, modifier = Modifier.fillMaxWidth()) { Text("Открыть прогресс") }
+                        }
+                    }
+                }
+            }
+            item {
+                MobileCard {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Restaurant, null, tint = AstraTheme.muted); Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text("Пищевые привычки", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AstraTheme.muted); Text("В разработке", color = AstraTheme.muted, fontSize = 12.sp) }; Text("⌁", color = AstraTheme.muted, fontSize = 20.sp) }
+                }
+            }
+            item { MobileProfileReferenceRow("Обратная связь", onClick = { onNavigate(Screen.Trainer) }) }
+            if (!canManage) {
+                item { OutlinedButton(onClick = { }, enabled = false, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.FitnessCenter, null); Spacer(Modifier.width(6.dp)); Text("Стать тренером · В разработке") } }
+            }
+            item {
+                MobileCard {
+                    Column(Modifier.padding(horizontal = 14.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Settings, null, tint = AstraTheme.blue); Spacer(Modifier.width(10.dp)); Text("Настройки", Modifier.weight(1f), fontWeight = FontWeight.SemiBold); TextButton({ showSettings = true }) { Text("Открыть") } }
+                    }
+                }
+            }
+            item { OutlinedButton(onClick = { scope.launch { state.api.logout(); state.user = null } }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = AstraTheme.danger)) { Icon(Icons.Default.ArrowBack, null); Spacer(Modifier.width(6.dp)); Text("Выйти") } }
+            item { Spacer(Modifier.height(12.dp)) }
+        }
+    }
+    if (showSettings) AlertDialog(onDismissRequest = { showSettings = false }, title = { Text("Настройки") }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Text("Тёмная тема", Modifier.weight(1f)); androidx.compose.material3.Switch(checked = state.darkTheme, onCheckedChange = state::toggleTheme) }; OutlinedButton({ apiUrl = state.api.baseUrl }) { Text("API: $apiUrl") } } }, confirmButton = { TextButton({ showSettings = false }) { Text("Закрыть") } })
+}
+
+@Composable
+private fun MobileProfileMetric(title: String, value: String) {
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, color = AstraTheme.muted)
+            Spacer(Modifier.weight(1f))
+            Text(value, color = AstraTheme.blue, fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.fillMaxWidth().height(1.dp).background(AstraTheme.line))
+    }
+}
+
+@Composable
+private fun MobileProfileReferenceRow(title: String, danger: Boolean = false, onClick: () -> Unit) {
+    Card(Modifier.fillMaxWidth().border(1.dp, AstraTheme.line, RoundedCornerShape(12.dp)).clickable(onClick = onClick), shape = RoundedCornerShape(12.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(1.dp)) {
+        Row(Modifier.padding(horizontal = 16.dp).height(45.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(title, color = if (danger) AstraTheme.danger else MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+            Spacer(Modifier.weight(1f))
+            if (!danger) Text("›", color = AstraTheme.muted, fontSize = 24.sp)
+        }
+    }
+}
+
+@Composable
+private fun MobileProfileScreen(state: AstraState, onNavigate: (Screen) -> Unit) {
+    var showApi by remember { mutableStateOf(false) }
+    var apiUrl by remember { mutableStateOf(state.api.baseUrl) }
+    val scope = rememberCoroutineScope()
+    val user = state.user
+    val initial = (user?.name ?: "A").firstOrNull()?.uppercase() ?: "A"
+    val role = when {
+        user?.isAdmin == true -> "Администратор"
+        user?.isTrainer == true -> "Тренер"
+        else -> "Пользователь"
+    }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
+            Text("Профиль", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("Аккаунт, настройки и разделы Astra", color = AstraTheme.muted)
+        }
+        LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item {
+                MobileCard {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(58.dp).background(AstraTheme.blue, RoundedCornerShape(50.dp)), contentAlignment = Alignment.Center) {
+                            Text(initial, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(user?.name ?: "Пользователь", fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                            Text(user?.email ?: "—", color = AstraTheme.muted, fontSize = 13.sp)
+                            Text(role, color = AstraTheme.blue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+            item { Text("Моя активность", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.weight(1f)) { MobileProfileTile("Замеры и цели", "Прогресс", Icons.Default.TrendingUp, AstraTheme.blue) { onNavigate(Screen.Progress) } }
+                    Box(Modifier.weight(1f)) { MobileProfileTile("Журнал", "Тренировки", Icons.Default.FitnessCenter, AstraTheme.green) { onNavigate(Screen.Workouts) } }
+                }
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.weight(1f)) { MobileProfileTile("Обратная связь", "Тренер", Icons.Default.Person, AstraTheme.amber) { onNavigate(Screen.Trainer) } }
+                    Box(Modifier.weight(1f)) { MobileProfileTile("Материалы", "Информация", Icons.Default.Info, AstraTheme.blue) { onNavigate(Screen.Information) } }
+                }
+            }
+            item { Text("Настройки", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp)) }
+            item {
+                MobileCard {
+                    Column(Modifier.padding(horizontal = 14.dp, vertical = 5.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Settings, null, tint = AstraTheme.blue)
+                            Spacer(Modifier.width(10.dp))
+                            Text("Тёмная тема", Modifier.weight(1f), fontWeight = FontWeight.SemiBold)
+                            androidx.compose.material3.Switch(checked = state.darkTheme, onCheckedChange = state::toggleTheme)
+                        }
+                        TextButton(onClick = { apiUrl = state.api.baseUrl; showApi = true }) {
+                            Icon(Icons.Default.Settings, null)
+                            Spacer(Modifier.width(6.dp))
+                            Column(horizontalAlignment = Alignment.Start) {
+                                Text("Адрес API")
+                                Text(state.api.baseUrl, color = AstraTheme.muted, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                }
+            }
+            item { Text("Разделы", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp)) }
+            item {
+                MobileCard {
+                    Column(Modifier.padding(horizontal = 14.dp, vertical = 5.dp)) {
+                        MobileProfileAction("Продукты и рецепты", "Каталог веб-версии", Icons.Default.Book) { onNavigate(Screen.Catalog) }
+                        MobileProfileAction("Статьи и информация", "Полезные материалы", Icons.Default.Info) { onNavigate(Screen.Information) }
+                    }
+                }
+            }
+            item {
+                OutlinedButton(onClick = { scope.launch { state.api.logout(); state.user = null } }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.ArrowBack, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Выйти из аккаунта")
+                }
+            }
+            item { Spacer(Modifier.height(12.dp)) }
+        }
+    }
+    if (showApi) AlertDialog(
+        onDismissRequest = { showApi = false },
+        title = { Text("Адрес API") },
+        text = { OutlinedTextField(apiUrl, { apiUrl = it }, label = { Text("https://astra.example.com/api/v1") }, singleLine = true) },
+        confirmButton = { Button({ state.api.baseUrl = apiUrl; showApi = false }) { Text("Сохранить") } },
+        dismissButton = { TextButton({ showApi = false }) { Text("Отмена") } }
+    )
+}
+
+@Composable
+private fun MobileProfileTile(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, onClick: () -> Unit) {
+    MobileCard(Modifier.clickable(onClick = onClick)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Icon(icon, null, tint = tint, modifier = Modifier.size(23.dp))
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            Text(subtitle, color = AstraTheme.muted, fontSize = 11.sp)
+        }
+    }
+}
+
+@Composable
+private fun MobileProfileAction(title: String, subtitle: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = AstraTheme.blue)
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = AstraTheme.muted, fontSize = 11.sp)
+        }
+        Text("›", fontSize = 22.sp, color = AstraTheme.muted)
+    }
 }
 
 @Composable
@@ -153,24 +504,251 @@ fun MobileMoreScreen(state: AstraState, onNavigate: (Screen) -> Unit) {
 @Composable
 fun CatalogScreen(state: AstraState) {
     var mode by rememberSaveable { mutableStateOf(0) }; var search by rememberSaveable { mutableStateOf("") }; var category by rememberSaveable { mutableStateOf("Все") }
-    var products by remember { mutableStateOf<List<Product>>(emptyList()) }; var recipes by remember { mutableStateOf<List<Recipe>>(emptyList()) }; var productCategories by remember { mutableStateOf<List<ContentCategory>>(emptyList()) }; var recipeCategories by remember { mutableStateOf<List<ContentCategory>>(emptyList()) }; var selected by remember { mutableStateOf<Recipe?>(null) }
+    var products by remember { mutableStateOf<List<Product>>(emptyList()) }; var recipes by remember { mutableStateOf<List<Recipe>>(emptyList()) }; var productCategories by remember { mutableStateOf<List<ContentCategory>>(emptyList()) }; var recipeCategories by remember { mutableStateOf<List<ContentCategory>>(emptyList()) }; var selected by remember { mutableStateOf<Recipe?>(null) }; var selectedProduct by remember { mutableStateOf<Product?>(null) }
+    var editingProduct by remember { mutableStateOf<Product?>(null) }
+    var editingRecipe by remember { mutableStateOf<Recipe?>(null) }
+    var showProductEditor by remember { mutableStateOf(false) }
+    var showRecipeEditor by remember { mutableStateOf(false) }
+    var showCatalogManage by remember { mutableStateOf(false) }
+    var shareType by remember { mutableStateOf<String?>(null) }
+    var shareId by remember { mutableStateOf<Int?>(null) }
+    var clients by remember { mutableStateOf<List<ClientSummary>>(emptyList()) }
+    var catalogError by remember { mutableStateOf<String?>(null) }
+    val catalogScope = rememberCoroutineScope()
+    val canManageProducts = state.user?.isAdmin == true
+    suspend fun reloadCatalog() {
+        products = suspendResult { state.api.products() }.getOrDefault(emptyList())
+        recipes = suspendResult { state.api.recipes() }.getOrDefault(emptyList())
+        productCategories = suspendResult { state.api.categories("product") }.getOrDefault(emptyList())
+        recipeCategories = suspendResult { state.api.categories("recipe") }.getOrDefault(emptyList())
+    }
     LaunchedEffect(Unit) { products = suspendResult { state.api.products() }.getOrDefault(emptyList()); recipes = suspendResult { state.api.recipes() }.getOrDefault(emptyList()); productCategories = suspendResult { state.api.categories("product") }.getOrDefault(emptyList()); recipeCategories = suspendResult { state.api.categories("recipe") }.getOrDefault(emptyList()) }
+    LaunchedEffect(Unit) { reloadCatalog() }
+    LaunchedEffect(shareType) { if (shareType != null && clients.isEmpty()) clients = suspendResult { state.api.clients() }.getOrDefault(emptyList()) }
+    if (selectedProduct != null) {
+        val product = selectedProduct!!
+        val canManageProducts = state.user?.isAdmin == true || state.user?.isTrainer == true
+        MobileProductDetailScreen(product, { selectedProduct = null }, { editingProduct = product; showProductEditor = true }, { selectedProduct = null; catalogScope.launch { suspendResult { state.api.deleteProduct(product.id) }.onSuccess { reloadCatalog() }.onFailure { catalogError = it.message } } }, { catalogScope.launch { suspendResult { state.api.shareToTrainer("product", product.id) }.onFailure { catalogError = it.message } } }, onShareClient = { shareType = "product"; shareId = product.id }, canEdit = state.user?.isAdmin == true, canShareToTrainer = !canManageProducts, canShareToClient = canManageProducts)
+        if (shareType != null && shareId != null) ShareToClientDialog(clients, { clientId -> val type = shareType!!; val id = shareId!!; catalogScope.launch { suspendResult { state.api.shareToClient(clientId, type, id) }.onFailure { catalogError = it.message }; shareType = null; shareId = null } }, { shareType = null; shareId = null })
+        return
+    }
+    if (selected != null) {
+        val recipe = selected!!
+        val canManageRecipes = state.user?.isAdmin == true || state.user?.isTrainer == true
+        val canEditRecipe = state.user?.isAdmin == true || recipe.collection == "local"
+        MobileRecipeDetailScreen(state, recipe, { selected = null }, { selected = null; editingRecipe = recipe; showRecipeEditor = true }, { selected = null; catalogScope.launch { suspendResult { state.api.deleteRecipe(recipe.id) }.onSuccess { reloadCatalog() }.onFailure { catalogError = it.message } } }, { catalogScope.launch { suspendResult { state.api.shareToTrainer("recipe", recipe.id) }.onFailure { catalogError = it.message } } }, onShareClient = { shareType = "recipe"; shareId = recipe.id }, canEdit = canEditRecipe, canShareToTrainer = !canManageRecipes, canShareToClient = canManageRecipes, onSubmit = { catalogScope.launch { suspendResult { state.api.requestRecipeSubmission(recipe.id) }.onSuccess { reloadCatalog() }.onFailure { catalogError = it.message } } }, onCancelSubmission = { catalogScope.launch { suspendResult { state.api.cancelRecipeSubmission(recipe.id) }.onSuccess { reloadCatalog() }.onFailure { catalogError = it.message } } })
+        if (shareType != null && shareId != null) ShareToClientDialog(clients, { clientId -> val type = shareType!!; val id = shareId!!; catalogScope.launch { suspendResult { state.api.shareToClient(clientId, type, id) }.onFailure { catalogError = it.message }; shareType = null; shareId = null } }, { shareType = null; shareId = null })
+        return
+    }
     val categories = if (mode == 0) productCategories.map { it.name } else recipeCategories.map { it.name }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        TextButton({ showCatalogManage = true }, modifier = Modifier.padding(horizontal = 16.dp)) { Text("manage catalog") }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp), horizontalArrangement = Arrangement.End) {
+            if (mode == 0 && canManageProducts) TextButton({ editingProduct = null; showProductEditor = true }) { Text("+ продукт") }
+            TextButton({ editingRecipe = null; showRecipeEditor = true }) { Text("+ блюдо") }
+        }
         Column(Modifier.padding(16.dp)) { Text("Каталог", fontSize = 28.sp, fontWeight = FontWeight.Bold); Text("Структура разделов веб-версии", color = AstraTheme.muted) }
-        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { if (mode == 0) Button({ mode = 0 }) { Text("Продукты") } else OutlinedButton({ mode = 0; category = "Все" }) { Text("Продукты") }; if (mode == 1) Button({ mode = 1 }) { Text("Рецепты") } else OutlinedButton({ mode = 1; category = "Все" }) { Text("Рецепты") } }
+        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { if (mode == 0) OutlinedButton({ mode = 0 }, colors = ButtonDefaults.outlinedButtonColors(containerColor = AstraTheme.blue.copy(alpha = .12f), contentColor = AstraTheme.blue)) { Text("Продукты") } else OutlinedButton({ mode = 0; category = "Все" }) { Text("Продукты") }; if (mode == 1) OutlinedButton({ mode = 1 }, colors = ButtonDefaults.outlinedButtonColors(containerColor = AstraTheme.blue.copy(alpha = .12f), contentColor = AstraTheme.blue)) { Text("Рецепты") } else OutlinedButton({ mode = 1; category = "Все" }) { Text("Рецепты") } }
         OutlinedTextField(search, { search = it }, label = { Text("Поиск") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(16.dp))
-        Picker("Категория: $category", listOf("Все") + categories) { category = it }
-        if (mode == 0) LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(products.filter { (search.isBlank() || it.name.contains(search, true)) && (category == "Все" || it.category == category) }, key = { it.id }) { product -> MobileCard { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.LocalGroceryStore, null, tint = AstraTheme.green); Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text(product.name, fontWeight = FontWeight.Bold); Text("${product.category ?: "Без категории"} · ${product.kcal.shown(" ккал")}", color = AstraTheme.muted, fontSize = 12.sp) }; Text("Б ${product.protein.shown(" г")}", fontSize = 12.sp, fontWeight = FontWeight.Bold) } } } }
-        else LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(recipes.filter { (search.isBlank() || it.name.contains(search, true)) && (category == "Все" || it.category == category) }, key = { it.id }) { recipe -> MobileRecipeRow(recipe) { selected = recipe } } }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            (listOf("Все") + categories.distinct()).forEach { name ->
+                CatalogCategoryTile(name, category == name) { category = name }
+            }
+        }
+        val visibleProducts = products.filter { (search.isBlank() || it.name.contains(search, true)) && (category == "Все" || it.category == category) }
+        val visibleRecipes = recipes.filter { (search.isBlank() || it.name.contains(search, true)) && (category == "Все" || it.category == category) }
+        if (mode == 0) {
+            LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
+                items(visibleProducts.size, key = { visibleProducts[it].id }) { index ->
+                    val product = visibleProducts[index]
+                    CatalogFoodCard(product.name, product.category ?: "Без категории", product.kcal, product.protein, product.fat, product.carbs) { selectedProduct = product }
+                }
+            }
+        } else {
+            LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
+                items(visibleRecipes.size, key = { visibleRecipes[it].id }) { index ->
+                    val recipe = visibleRecipes[index]
+                    CatalogFoodCard(recipe.name, recipe.category, recipe.kcal, recipe.protein, recipe.fat, recipe.carbs) { selected = recipe }
+                }
+            }
+        }
     }
-    selected?.let { MobileRecipeDialog(state, it) { selected = null } }
+    catalogError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp)) }
+    if (showProductEditor) ProductEditorDialog(editingProduct, { body -> catalogScope.launch { suspendResult { if (editingProduct == null) state.api.createProduct(body) else state.api.updateProduct(editingProduct!!.id, body) }.onSuccess { reloadCatalog(); showProductEditor = false }.onFailure { catalogError = it.message } } }, if (editingProduct != null) ({ catalogScope.launch { suspendResult { state.api.deleteProduct(editingProduct!!.id) }.onSuccess { reloadCatalog(); showProductEditor = false }.onFailure { catalogError = it.message } } }) else null) { showProductEditor = false }
+    if (showRecipeEditor) RecipeEditorDialog(editingRecipe, products, { body -> catalogScope.launch { suspendResult { if (editingRecipe == null) state.api.createRecipe(body) else state.api.updateRecipe(editingRecipe!!.id, body) }.onSuccess { reloadCatalog(); showRecipeEditor = false }.onFailure { catalogError = it.message } } }, if (editingRecipe != null) ({ catalogScope.launch { suspendResult { state.api.deleteRecipe(editingRecipe!!.id) }.onSuccess { reloadCatalog(); showRecipeEditor = false }.onFailure { catalogError = it.message } } }) else null) { showRecipeEditor = false }
+    if (showCatalogManage) CatalogEntityManageDialog(products, recipes, { item -> editingProduct = item; showProductEditor = true; showCatalogManage = false }, { item -> catalogScope.launch { suspendResult { state.api.deleteProduct(item.id) }.onSuccess { reloadCatalog(); showCatalogManage = false }.onFailure { catalogError = it.message } } }, { item -> editingRecipe = item; showRecipeEditor = true; showCatalogManage = false }, { item -> catalogScope.launch { suspendResult { state.api.deleteRecipe(item.id) }.onSuccess { reloadCatalog(); showCatalogManage = false }.onFailure { catalogError = it.message } } }, { type, id -> catalogScope.launch { suspendResult { state.api.shareToTrainer(type, id) }.onFailure { catalogError = it.message } }; shareType = type; shareId = id; showCatalogManage = false }, { showCatalogManage = false })
+    if (shareType != null && shareId != null) ShareToClientDialog(clients, { clientId -> val type = shareType!!; val id = shareId!!; catalogScope.launch { suspendResult { state.api.shareToClient(clientId, type, id) }.onFailure { catalogError = it.message }; shareType = null; shareId = null } }, { shareType = null; shareId = null })
 }
 
 @Composable
-private fun MobileRecipeDialog(state: AstraState, recipe: Recipe, onDismiss: () -> Unit) {
-    var detail by remember { mutableStateOf<RecipeDetail?>(null) }; LaunchedEffect(recipe.id) { detail = suspendResult { state.api.recipe(recipe.id) }.getOrNull() }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(recipe.name) }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) { Text("${recipe.kcal.shown(" ккал")} · Б ${recipe.protein.shown(" г")} · Ж ${recipe.fat.shown(" г")} · У ${recipe.carbs.shown(" г")}", color = AstraTheme.muted); Text("Ингредиенты", fontWeight = FontWeight.Bold); detail?.ingredients?.forEach { Text("${it.name} — ${it.quantity.shown()} ${it.unit ?: ""}") } } }, confirmButton = { TextButton(onDismiss) { Text("Закрыть") } })
+private fun MobileProductDetailScreen(product: Product, onBack: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit, onShare: () -> Unit, onShareClient: () -> Unit, canEdit: Boolean, canShareToTrainer: Boolean, canShareToClient: Boolean) {
+    var confirmDelete by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }
+            Text("Продукт", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(bottom = 20.dp)) {
+            item {
+                MobileCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.LocalGroceryStore, null, tint = AstraTheme.green, modifier = Modifier.size(34.dp))
+                        Text(product.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Text(product.category ?: "Без категории", color = AstraTheme.muted)
+                        Text("${product.code} · ${product.unit ?: "г"}", color = AstraTheme.muted, fontSize = 12.sp)
+                    }
+                }
+            }
+            item {
+                MobileCard {
+                    Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        RecipeMetric("Ккал", product.kcal.shown(), AstraTheme.blue, Modifier.weight(1f))
+                        RecipeMetric("Белки", product.protein.shown(), AstraTheme.ink, Modifier.weight(1f))
+                        RecipeMetric("Жиры", product.fat.shown(), AstraTheme.ink, Modifier.weight(1f))
+                        RecipeMetric("Угл.", product.carbs.shown(), AstraTheme.ink, Modifier.weight(1f))
+                    }
+                }
+            }
+            item {
+                MobileCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Параметры продукта", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Цена за 100 г/ед.: ${product.pricePer100.shown(" RSD")}", color = AstraTheme.muted)
+                        Text("Упаковка: ${product.packageSize.shown()} ${product.unit ?: "г"} · ${product.packagePrice.shown(" RSD")}", color = AstraTheme.muted)
+                        product.note?.takeIf { it.isNotBlank() }?.let { Text(it, color = AstraTheme.muted, fontSize = 13.sp) }
+                    }
+                }
+            }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (canEdit) Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("Редактировать") }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (canShareToTrainer) OutlinedButton(onClick = onShare, modifier = Modifier.weight(1f)) { Text("Тренеру") }
+                        if (canShareToClient) OutlinedButton(onClick = onShareClient, modifier = Modifier.weight(1f)) { Text("Клиенту") }
+                    }
+                    if (canEdit) TextButton(onClick = { confirmDelete = true }, colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Удалить") }
+                }
+            }
+        }
+    }
+    if (confirmDelete) AlertDialog(onDismissRequest = { confirmDelete = false }, title = { Text("Удалить продукт?") }, text = { Text("Это действие нельзя отменить.") }, confirmButton = { Button(onClick = { confirmDelete = false; onDelete() }, colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Удалить") } }, dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Отмена") } })
+}
+
+@Composable
+private fun MobileRecipeDetailScreen(state: AstraState, recipe: Recipe, onBack: () -> Unit, onEdit: () -> Unit = {}, onDelete: () -> Unit = {}, onShare: () -> Unit = {}, onShareClient: () -> Unit = {}, canEdit: Boolean = true, canShareToTrainer: Boolean = true, canShareToClient: Boolean = false, onSubmit: (() -> Unit)? = null, onCancelSubmission: (() -> Unit)? = null) {
+    var detail by remember { mutableStateOf<RecipeDetail?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var confirmDelete by remember { mutableStateOf(false) }
+    LaunchedEffect(recipe.id) {
+        suspendResult { state.api.recipe(recipe.id) }
+            .onSuccess { detail = it; error = null }
+            .onFailure { error = it.message }
+    }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }
+            Text("Блюдо", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            item {
+                MobileCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Default.Restaurant, null, tint = AstraTheme.blue, modifier = Modifier.size(34.dp))
+                        Text(recipe.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Text(recipe.category, color = AstraTheme.muted)
+                    }
+                }
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    RecipeInfoPill(recipe.category)
+                    recipe.servings?.let { RecipeInfoPill("${it.shown(" порц.")}") }
+                    recipe.status?.takeIf { it.isNotBlank() }?.let { RecipeInfoPill(it) }
+                }
+            }
+            item {
+                MobileCard {
+                    Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        RecipeMetric("Ккал", recipe.kcal.shown(), AstraTheme.blue, Modifier.weight(1f))
+                        RecipeMetric("Белки", recipe.protein.shown(), AstraTheme.ink, Modifier.weight(1f))
+                        RecipeMetric("Жиры", recipe.fat.shown(), AstraTheme.ink, Modifier.weight(1f))
+                        RecipeMetric("Угл.", recipe.carbs.shown(), AstraTheme.ink, Modifier.weight(1f))
+                    }
+                }
+            }
+            item { Text("Ингредиенты", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+            if (error != null) {
+                item { Text(error!!, color = MaterialTheme.colorScheme.error) }
+            } else if (detail == null) {
+                item { CircularProgressIndicator(Modifier.padding(12.dp)) }
+            } else {
+                items(detail!!.ingredients, key = { it.id }) { ingredient ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(ingredient.name, Modifier.weight(1f))
+                        Text("${ingredient.quantity.shown()} ${ingredient.unit ?: ""}", color = AstraTheme.muted, fontSize = 13.sp)
+                    }
+                }
+            }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (canEdit) Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("Редактировать") }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (canShareToTrainer) OutlinedButton(onClick = onShare, modifier = Modifier.weight(1f)) { Text("Тренеру") }
+                        if (canShareToClient) OutlinedButton(onClick = onShareClient, modifier = Modifier.weight(1f)) { Text("Клиенту") }
+                    }
+                    if (recipe.moderationStatus == "revision" && recipe.isSubmitter) {
+                        onSubmit?.let { Button(onClick = it, modifier = Modifier.fillMaxWidth()) { Text("Отправить повторно") } }
+                        onCancelSubmission?.let { OutlinedButton(onClick = it, modifier = Modifier.fillMaxWidth()) { Text("Отменить отправку") } }
+                    } else if (!recipe.submissionRequested && recipe.collection == "local") {
+                        onSubmit?.let { OutlinedButton(onClick = it, modifier = Modifier.fillMaxWidth()) { Text("Отправить на проверку") } }
+                    } else if (recipe.submissionRequested) {
+                        onCancelSubmission?.let { OutlinedButton(onClick = it, modifier = Modifier.fillMaxWidth()) { Text("Отменить отправку") } }
+                    }
+                    if (canEdit) TextButton(onClick = { confirmDelete = true }, colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Удалить") }
+                }
+            }
+            item { Spacer(Modifier.height(16.dp)) }
+        }
+    }
+    if (confirmDelete) AlertDialog(onDismissRequest = { confirmDelete = false }, title = { Text("Удалить рецепт?") }, text = { Text("Это действие нельзя отменить.") }, confirmButton = { Button(onClick = { confirmDelete = false; onDelete() }, colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Удалить") } }, dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Отмена") } })
+}
+
+@Composable
+private fun RecipeInfoPill(title: String) {
+    Text(title, color = AstraTheme.blue, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier
+        .background(AstraTheme.blue.copy(alpha = .08f), RoundedCornerShape(50.dp))
+        .border(1.dp, AstraTheme.blue, RoundedCornerShape(50.dp))
+        .padding(horizontal = 11.dp, vertical = 6.dp))
+}
+
+@Composable
+private fun RecipeMetric(label: String, value: String, tint: Color, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(value, color = tint, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(label, color = AstraTheme.muted, fontSize = 11.sp)
+    }
+}
+
+@Composable
+private fun CatalogCategoryTile(name: String, selected: Boolean, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(12.dp)
+    Box(
+        Modifier
+            .clip(shape)
+            .clickable(onClick = onClick)
+            .background(if (selected) AstraTheme.blue.copy(alpha = .12f) else MaterialTheme.colorScheme.surface)
+            .border(1.dp, if (selected) AstraTheme.blue else AstraTheme.line, shape)
+            .padding(horizontal = 16.dp, vertical = 9.dp)
+    ) {
+        Text(name, color = if (selected) AstraTheme.blue else AstraTheme.ink, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+    }
 }
 
 @Composable
@@ -187,7 +765,150 @@ fun ClientTrainerScreen(state: AstraState) {
 
 @Composable
 fun TrainerScreen(state: AstraState) {
-    if (state.user?.isAdmin == true || state.user?.isTrainer == true) TrainerWorkspaceFullScreen(state) else ClientTrainerScreen(state)
+    if (state.user?.isAdmin == true || state.user?.isTrainer == true) TrainerClientsScreen(state) else ClientTrainerScreen(state)
+}
+
+@Composable
+fun TrainerClientsScreen(state: AstraState) {
+    var clients by remember { mutableStateOf<List<ClientSummary>>(emptyList()) }
+    var selected by remember { mutableStateOf<ClientSummary?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) { suspendResult { state.api.clients() }.onSuccess { clients = it }.onFailure { error = it.message } }
+    if (selected != null) {
+        TrainerClientDetailScreen(state, selected!!) { selected = null }
+        return
+    }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Клиенты", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("Выберите клиента, чтобы открыть его данные и историю", color = AstraTheme.muted)
+        }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp)) }
+        if (clients.isEmpty() && error == null) EmptyMessage("Клиентов пока нет", "Добавьте клиента в веб-версии или назначьте ему этого тренера.")
+        else LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(clients, key = { it.id }) { client ->
+                MobileCard(Modifier.clickable { selected = client }) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Person, null, tint = AstraTheme.blue)
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(client.name, fontWeight = FontWeight.Bold)
+                            Text(client.email, color = AstraTheme.muted, fontSize = 12.sp)
+                            client.nextWorkout?.let { Text("Ближайшая тренировка: ${it.scheduledAt}", color = AstraTheme.green, fontSize = 11.sp) }
+                        }
+                        if (client.unreadMessages > 0) Text(client.unreadMessages.toString(), color = AstraTheme.amber, fontWeight = FontWeight.Bold)
+                        Text("›", fontSize = 22.sp, color = AstraTheme.muted)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrainerClientDetailScreen(state: AstraState, client: ClientSummary, onBack: () -> Unit) {
+    var detail by remember { mutableStateOf<ClientDetail?>(null) }
+    var selectedWorkout by remember { mutableStateOf<WorkoutEntry?>(null) }
+    var selectedPlan by remember { mutableStateOf<WorkoutPlan?>(null) }
+    var showChat by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(client.id) { suspendResult { state.api.client(client.id) }.onSuccess { detail = it }.onFailure { error = it.message } }
+    if (selectedPlan != null) {
+        val plan = selectedPlan!!
+        TrainerPlanDetailScreen(selectedPlan!!, onBack = { selectedPlan = null })
+        return
+    }
+    if (selectedWorkout != null) {
+        val workout = selectedWorkout!!
+        TrainerWorkoutDetailScreen(selectedWorkout!!, onBack = { selectedWorkout = null })
+        return
+    }
+    if (showChat) {
+        TrainerClientChatPage(state, client) { showChat = false }
+        return
+    }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }
+            Text(client.name, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+            IconButton(onClick = { showChat = true }) { Icon(Icons.Default.Chat, contentDescription = "Чат") }
+        }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp)) }
+        val loaded = detail
+        if (loaded == null && error == null) CircularProgressIndicator(Modifier.padding(20.dp))
+        else if (loaded != null) LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            item {
+                MobileCard {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text(loaded.name, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Text(loaded.email, color = AstraTheme.muted)
+                        loaded.nextWorkout?.let { Text("Следующая тренировка: ${it.scheduledAt}", color = AstraTheme.green, fontSize = 12.sp) }
+                    }
+                }
+            }
+            item {
+                MobileCard {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Последние замеры", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        val latest = loaded.progress.firstOrNull()
+                        if (latest == null) Text("Замеры ещё не добавлены.", color = AstraTheme.muted)
+                        else {
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Box(Modifier.weight(1f)) { MobileMetric("Вес", latest.weight.shown(" кг"), AstraTheme.blue) {} }
+                                Box(Modifier.weight(1f)) { MobileMetric("Рост", latest.height.shown(" см"), AstraTheme.green) {} }
+                            }
+                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Box(Modifier.weight(1f)) { MobileMetric("Жир", latest.bodyFat.shown("%"), AstraTheme.amber) {} }
+                                Box(Modifier.weight(1f)) { MobileMetric("Дата", latest.date, AstraTheme.blue) {} }
+                            }
+                        }
+                    }
+                }
+            }
+            item {
+                MobileCard {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Питание за сегодня", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text(loaded.today.date, color = AstraTheme.muted, fontSize = 12.sp)
+                        if (loaded.today.entries.isEmpty()) Text("Сегодня блюд и продуктов пока нет.", color = AstraTheme.muted)
+                        loaded.today.entries.forEach { entry ->
+                            Row(verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Restaurant, null, tint = AstraTheme.green); Spacer(Modifier.width(8.dp)); Column(Modifier.weight(1f)) { Text(entry.name ?: "Блюдо", fontWeight = FontWeight.SemiBold); Text(entry.meal ?: "Приём пищи", color = AstraTheme.muted, fontSize = 12.sp) }; Text(entry.kcal.shown(" ккал"), color = AstraTheme.blue, fontSize = 12.sp) }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Box(Modifier.weight(1f)) { MobileMetric("Съедено", loaded.today.totals.kcal.shown(" ккал"), AstraTheme.blue) {} }
+                            Box(Modifier.weight(1f)) { MobileMetric("Осталось", loaded.today.remaining.kcal.shown(" ккал"), AstraTheme.green) {} }
+                        }
+                        Text("Б / Ж / У: ${loaded.today.totals.protein.shown()} / ${loaded.today.totals.fat.shown()} / ${loaded.today.totals.carbs.shown()} г", color = AstraTheme.muted, fontSize = 12.sp)
+                    }
+                }
+            }
+            item { Text("Запланированные тренировки", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+            items(loaded.workoutPlans.filter { it.status == "planned" }, key = { "plan-${it.id}" }) { plan ->
+                MobileCard(Modifier.clickable { selectedPlan = plan }) { Column(Modifier.padding(14.dp)) { Text(plan.scheduledAt, fontWeight = FontWeight.Bold); Text(plan.items.joinToString(" · ") { it.name ?: "Упражнение" }, color = AstraTheme.muted, fontSize = 12.sp) } }
+            }
+            if (loaded.workoutPlans.none { it.status == "planned" }) item { Text("Планов пока нет.", color = AstraTheme.muted, fontSize = 12.sp) }
+            item { Text("История тренировок", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+            items(loaded.workouts, key = { "workout-${it.id}" }) { workout ->
+                MobileCard(Modifier.clickable { selectedWorkout = workout }) { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(workout.name, fontWeight = FontWeight.Bold); Text("${workout.date} · ${workout.sets.shown(" подходов")} × ${workout.reps.shown(" повторений")}", color = AstraTheme.muted, fontSize = 12.sp) }; Text("›", fontSize = 22.sp, color = AstraTheme.muted) } }
+            }
+            if (loaded.workouts.isEmpty()) item { Text("История пока пуста.", color = AstraTheme.muted, fontSize = 12.sp) }
+        }
+    }
+}
+
+@Composable
+private fun TrainerClientChatPage(state: AstraState, client: ClientSummary, onBack: () -> Unit) {
+    var messages by remember { mutableStateOf<List<TrainerChatMessage>>(emptyList()) }
+    var draft by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(client.id) { suspendResult { state.api.clientChat(client.id) }.onSuccess { messages = it }.onFailure { error = it.message } }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }; Text("Чат · ${client.name}", fontSize = 20.sp, fontWeight = FontWeight.Bold) }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp)) }
+        LazyColumn(Modifier.weight(1f).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(messages, key = { it.id }) { message -> Text("${message.senderName}: ${message.message}", Modifier.background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)).padding(10.dp)) } }
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.Bottom) { OutlinedTextField(draft, { draft = it }, label = { Text("Сообщение клиенту") }, modifier = Modifier.weight(1f)); IconButton({ val text = draft.trim(); if (text.isNotEmpty()) { draft = ""; scope.launch { suspendResult { state.api.sendClientChat(client.id, text) }.onSuccess { messages = messages + it }.onFailure { error = it.message } } } }) { Icon(Icons.Default.Send, contentDescription = "Отправить") } }
+    }
 }
 
 @Composable
@@ -198,6 +919,24 @@ fun TrainerWorkspaceFullScreen(state: AstraState) {
     val planned = plans.filter { it.status == "planned" }; val machines = equipment.filter { it.kind == "machine" }; val freeEquipment = equipment.filter { it.kind != "machine" }
     suspend fun load() { suspendResult { state.api.clients() }.onSuccess { clients = it }; suspendResult { state.api.plans() }.onSuccess { plans = it }; suspendResult { state.api.workouts() }.onSuccess { history = it }; suspendResult { state.api.exercises() }.onSuccess { exercises = it }; suspendResult { state.api.workoutComplexes() }.onSuccess { complexes = it }; suspendResult { state.api.workoutEquipment() }.onSuccess { equipment = it }.onFailure { error = it.message } }
     LaunchedEffect(Unit) { load() }
+    if (selectedPlan != null) {
+        val plan = selectedPlan!!
+        TrainerPlanDetailScreen(selectedPlan!!, onBack = { selectedPlan = null })
+        return
+    }
+    if (selectedWorkout != null) {
+        val workout = selectedWorkout!!
+        TrainerWorkoutDetailScreen(selectedWorkout!!, onBack = { selectedWorkout = null })
+        return
+    }
+    if (selectedExercise != null) {
+        MobileExerciseDetailScreen(selectedExercise!!, onBack = { selectedExercise = null })
+        return
+    }
+    if (selectedEquipment != null) {
+        MobileEquipmentDetailScreen(selectedEquipment!!, onBack = { selectedEquipment = null })
+        return
+    }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         if (section == 0) Column(Modifier.padding(16.dp)) { Text("Тренерский workspace", fontSize = 28.sp, fontWeight = FontWeight.Bold); Text(if (state.user?.isAdmin == true) "Администратор: полный доступ к инструментам тренера" else "Клиенты, тренировки и справочники", color = AstraTheme.muted) }
         else Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { TextButton({ section = 0 }) { Text("‹ Разделы") }; Spacer(Modifier.weight(1f)); Text(listOf("", "Клиенты", "Планы тренировок", "История тренировок", "Упражнения", "Комплексы", "Тренажёры", "Инвентарь")[section], fontWeight = FontWeight.Bold) }
@@ -205,7 +944,7 @@ fun TrainerWorkspaceFullScreen(state: AstraState) {
         if (section == 0) {
             LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Box(Modifier.weight(1f)) { MobileTrainerTile("Клиенты", clients.size, AstraTheme.blue) { section = 1 } }; Box(Modifier.weight(1f)) { MobileTrainerTile("Планы", planned.size, AstraTheme.green) { section = 2 } } } }
-                item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Box(Modifier.weight(1f)) { MobileTrainerTile("История", history.size, Color(0xFF8E7CFF)) { section = 3 } }; Box(Modifier.weight(1f)) { MobileTrainerTile("Упражнения", exercises.size, Color(0xFFFFA726)) { section = 4 } } } }
+                item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Box(Modifier.weight(1f)) { MobileTrainerTile("История", history.size, AstraTheme.blue) { section = 3 } }; Box(Modifier.weight(1f)) { MobileTrainerTile("Упражнения", exercises.size, AstraTheme.blue) { section = 4 } } } }
                 item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Box(Modifier.weight(1f)) { MobileTrainerTile("Комплексы", complexes.size, AstraTheme.blue) { section = 5 } }; Box(Modifier.weight(1f)) { MobileTrainerTile("Тренажёры", machines.size, AstraTheme.green) { section = 6 } } } }
                 item { MobileTrainerTile("Инвентарь", freeEquipment.size, Color(0xFFB56A16)) { section = 7 } }
                 item { Text("Все плитки открывают соответствующие разделы, а карточки элементов — подробности.", color = AstraTheme.muted, fontSize = 12.sp) }
@@ -224,8 +963,6 @@ fun TrainerWorkspaceFullScreen(state: AstraState) {
     selectedExercise?.let { exercise -> AlertDialog(onDismissRequest = { selectedExercise = null }, title = { Text(exercise.name) }, text = { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(exercise.muscleGroup ?: "Другое", color = AstraTheme.muted); Text("Единица: ${exercise.unit ?: "—"}"); Text("Подходы: ${exercise.defaultSets.shown()}"); Text("Повторения: ${exercise.defaultReps.shown()}") } }, confirmButton = { TextButton({ selectedExercise = null }) { Text("Закрыть") } }) }
     selectedComplex?.let { complex -> AlertDialog(onDismissRequest = { selectedComplex = null }, title = { Text(complex.name) }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(5.dp)) { complex.comment?.let { Text(it) }; Text("Упражнения", fontWeight = FontWeight.Bold); complex.items.forEach { Text("${it.name} · ${it.sets.shown(" подхода")} · ${it.durationMinutes.shown(" мин")}") } } }, confirmButton = { TextButton({ selectedComplex = null }) { Text("Закрыть") } }) }
     selectedEquipment?.let { item -> AlertDialog(onDismissRequest = { selectedEquipment = null }, title = { Text(item.name) }, text = { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(if (item.kind == "machine") "Тренажёр" else "Инвентарь", color = AstraTheme.muted); item.description?.let { Text(it) } } }, confirmButton = { TextButton({ selectedEquipment = null }) { Text("Закрыть") } }) }
-    selectedPlan?.let { plan -> AlertDialog(onDismissRequest = { selectedPlan = null }, title = { Text("План ${plan.scheduledAt}") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(5.dp)) { Text(plan.status, color = AstraTheme.muted); plan.items.forEach { Text("${it.name ?: "Упражнение"} · ${it.sets.shown(" подхода")} · ${it.duration.shown(" мин")}") } } }, confirmButton = { TextButton({ selectedPlan = null }) { Text("Закрыть") } }) }
-    selectedWorkout?.let { workout -> AlertDialog(onDismissRequest = { selectedWorkout = null }, title = { Text(workout.name) }, text = { Column(verticalArrangement = Arrangement.spacedBy(5.dp)) { Text(workout.date); Text("Подходы: ${workout.sets.shown()}"); Text("Повторения: ${workout.reps.shown()}"); Text("Вес: ${workout.weight.shown(" кг")}"); workout.comment?.let { Text(it) } } }, confirmButton = { TextButton({ selectedWorkout = null }) { Text("Закрыть") } }) }
 }
 
 @Composable
@@ -256,43 +993,669 @@ private fun TrainerClientChatScreen(state: AstraState, client: ClientSummary, on
 
 @Composable
 fun InformationScreen(state: AstraState) {
-    var sections by remember { mutableStateOf<List<ArticleSection>>(emptyList()) }; var articles by remember { mutableStateOf<List<Article>>(emptyList()) }; var selectedSection by remember { mutableStateOf<Int?>(null) }; var search by rememberSaveable { mutableStateOf("") }; var selected by remember { mutableStateOf<Article?>(null) }; var error by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(Unit) { suspendResult { Pair(state.api.articleSections(), state.api.articles()) }.onSuccess { sections = it.first; articles = it.second }.onFailure { error = it.message } }
-    val filtered = articles.filter { (selectedSection == null || it.sectionId == selectedSection) && (search.isBlank() || it.title.contains(search, true) || it.body.stripHtml().contains(search, true) || (it.tags ?: "").contains(search, true)) }
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(Modifier.padding(16.dp)) { Text("Информация", fontSize = 28.sp, fontWeight = FontWeight.Bold); Text("Питание, тренировки и полезные материалы", color = AstraTheme.muted) }
-        OutlinedTextField(search, { search = it }, label = { Text("Найти статью") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
-        Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) { OutlinedButton({ selectedSection = null }) { Text("Все") }; sections.forEach { section -> OutlinedButton({ selectedSection = section.id }) { Text(section.name) } } }
-        error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp)) }
-        LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(filtered, key = { it.id }) { article -> MobileCard(Modifier.clickable { selected = article }) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(article.sectionName, color = AstraTheme.blue, fontSize = 12.sp, fontWeight = FontWeight.Bold); Text(article.title, fontWeight = FontWeight.Bold); Text(article.body.stripHtml(), color = AstraTheme.muted, maxLines = 3) } } } }
+    var sections by remember { mutableStateOf<List<ArticleSection>>(emptyList()) }
+    var articles by remember { mutableStateOf<List<Article>>(emptyList()) }
+    var selectedSection by remember { mutableStateOf<Int?>(null) }
+    var search by rememberSaveable { mutableStateOf("") }
+    var selected by remember { mutableStateOf<Article?>(null) }
+    var editing by remember { mutableStateOf<Article?>(null) }
+    var showEditor by remember { mutableStateOf(false) }
+    var shareType by remember { mutableStateOf<String?>(null) }
+    var shareId by remember { mutableStateOf<Int?>(null) }
+    var clients by remember { mutableStateOf<List<ClientSummary>>(emptyList()) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val isAdmin = state.user?.isAdmin == true
+    val canManage = isAdmin || state.user?.isTrainer == true
+    var hasTrainer by remember { mutableStateOf(false) }
+
+    fun replaceArticle(updated: Article) {
+        articles = articles.map { if (it.id == updated.id) updated else it }
+        if (selected?.id == updated.id) selected = updated
     }
-    selected?.let { ArticleDialog(it) { selected = null } }
+    fun shareToTrainer(article: Article) {
+        scope.launch { suspendResult { state.api.shareToTrainer("article", article.id) }.onFailure { error = it.message } }
+    }
+    fun shareToClient(article: Article) {
+        shareType = "article"; shareId = article.id
+        scope.launch { clients = suspendResult { state.api.clients() }.getOrDefault(emptyList()) }
+    }
+    fun toggleFlag(article: Article, flag: String) {
+        if (!isAdmin) return
+        val value = when (flag) { "is_pinned" -> !article.isPinned; else -> !article.isHidden }
+        scope.launch { suspendResult { state.api.updateArticleFlags(article.id, org.json.JSONObject().put(flag, value)) }.onSuccess { replaceArticle(it) }.onFailure { error = it.message } }
+    }
+    fun deleteArticle(article: Article) {
+        scope.launch { suspendResult { state.api.deleteArticle(article.id) }.onSuccess { articles = articles.filterNot { it.id == article.id }; selected = null; showEditor = false }.onFailure { error = it.message } }
+    }
+
+    LaunchedEffect(Unit) {
+        suspendResult { Pair(state.api.articleSections(), state.api.articles()) }
+            .onSuccess { sections = it.first; articles = it.second }
+            .onFailure { error = it.message }
+        if (!canManage) hasTrainer = suspendResult { state.api.myTrainerChat() }.getOrNull()?.trainer != null
+    }
+    if (selected != null) {
+        ArticleDetailScreen(
+            state = state,
+            article = selected!!,
+            sections = sections,
+            isAdmin = isAdmin,
+            canManage = canManage,
+            hasTrainer = hasTrainer,
+            onBack = { selected = null },
+            onChanged = ::replaceArticle,
+            onEdit = { editing = it; showEditor = true },
+            onDelete = ::deleteArticle,
+            onToggleFlag = ::toggleFlag,
+            onShareClient = ::shareToClient,
+            onShareTrainer = ::shareToTrainer
+        )
+        if (showEditor) ArticleEditorDialog(editing, sections, { body ->
+            scope.launch { suspendResult { if (editing == null) state.api.createArticle(body) else state.api.updateArticle(editing!!.id, body) }.onSuccess { replaceArticle(it); selected = it; showEditor = false }.onFailure { error = it.message } }
+        }, if (editing != null) ({ deleteArticle(editing!!) }) else null) { showEditor = false }
+        if (shareType != null && shareId != null) ShareToClientDialog(clients, { clientId ->
+            val id = shareId!!
+            scope.launch { suspendResult { state.api.shareToClient(clientId, "article", id) }.onFailure { error = it.message }; shareType = null; shareId = null }
+        }, { shareType = null; shareId = null })
+        return
+    }
+
+    val filtered = articles.filter { (selectedSection == null || it.sectionId == selectedSection) && (search.isBlank() || it.title.contains(search, true) || it.body.stripHtml().contains(search, true) || (it.tags ?: "").contains(search, true)) }
+    val pinned = articles.filter { it.isPinned && (search.isBlank() || it.title.contains(search, true) || it.body.stripHtml().contains(search, true) || (it.tags ?: "").contains(search, true)) }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(Modifier.fillMaxWidth().padding(start = 16.dp, top = 16.dp, end = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) { Text("Информация", fontSize = 28.sp, fontWeight = FontWeight.Bold); Text("Питание, тренировки и полезные материалы", color = AstraTheme.muted) }
+            if (isAdmin) OutlinedButton({ editing = null; showEditor = true }) { Text("＋ Статья") }
+        }
+        OutlinedTextField(search, { search = it }, label = { Text("Найти статью") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(16.dp))
+        if (pinned.isNotEmpty()) {
+            Text("Закреплённые статьи", modifier = Modifier.padding(horizontal = 16.dp), fontWeight = FontWeight.Bold)
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                pinned.forEach { article -> ArticleCarouselCard(article) { selected = article } }
+            }
+        }
+        Text("Разделы статей", modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp), fontWeight = FontWeight.Bold)
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            val sectionTiles = listOf("Все" to articles.size) + sections.map { it.name to it.articleCount }
+            sectionTiles.chunked(2).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    row.forEach { (name, count) ->
+                        Box(Modifier.weight(1f)) { ArticleSectionTile(name, count, selected = if (name == "Все") selectedSection == null else sections.firstOrNull { it.name == name }?.id == selectedSection) { selectedSection = if (name == "Все") null else sections.firstOrNull { it.name == name }?.id } }
+                    }
+                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+            }
+        }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp)) }
+        if (filtered.isEmpty()) EmptyMessage("Статей пока нет", "Материалы появятся здесь после публикации в веб-версии.")
+        else LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(filtered.size, key = { filtered[it].id }) { index ->
+                val article = filtered[index]
+                ArticleTile(article, isAdmin, canManage, hasTrainer, onOpen = { selected = article }, onPin = { toggleFlag(article, "is_pinned") }, onHide = { toggleFlag(article, "is_hidden") }, onEdit = { editing = article; showEditor = true }, onShareClient = { shareToClient(article) }, onShareTrainer = { shareToTrainer(article) })
+            }
+        }
+    }
+    if (showEditor) ArticleEditorDialog(editing, sections, { body ->
+        scope.launch { suspendResult { if (editing == null) state.api.createArticle(body) else state.api.updateArticle(editing!!.id, body) }.onSuccess { updated -> if (editing == null) articles = articles + updated else replaceArticle(updated); showEditor = false }.onFailure { error = it.message } }
+    }, if (editing != null) ({ deleteArticle(editing!!) }) else null) { showEditor = false }
+    if (shareType != null && shareId != null) ShareToClientDialog(clients, { clientId ->
+        val id = shareId!!
+        scope.launch { suspendResult { state.api.shareToClient(clientId, "article", id) }.onFailure { error = it.message }; shareType = null; shareId = null }
+    }, { shareType = null; shareId = null })
 }
 
 @Composable
-private fun ArticleDialog(article: Article, onDismiss: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(article.title) }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text(article.sectionName, color = AstraTheme.blue, fontWeight = FontWeight.Bold); Text(article.body.stripHtml()); article.tags?.let { Text(it, color = AstraTheme.muted, fontSize = 12.sp) } } }, confirmButton = { TextButton(onDismiss) { Text("Закрыть") } })
+private fun ArticleSectionTile(title: String, count: Int, selected: Boolean, onClick: () -> Unit) {
+    MobileCard(Modifier.heightIn(min = 102.dp).clickable(onClick = onClick)) {
+        Row(Modifier.fillMaxWidth().padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(articleSectionIcon(title), null, tint = if (selected) AstraTheme.blue else AstraTheme.green, modifier = Modifier.size(30.dp))
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, color = if (selected) AstraTheme.blue else AstraTheme.ink, fontWeight = FontWeight.Bold, maxLines = 2)
+                Text("$count статей", color = AstraTheme.muted, fontSize = 11.sp)
+            }
+        }
+    }
+}
+
+private fun articleSectionIcon(title: String) = when {
+    title.contains("трен", ignoreCase = true) || title.contains("упраж", ignoreCase = true) -> Icons.Default.FitnessCenter
+    title.contains("питан", ignoreCase = true) || title.contains("рецеп", ignoreCase = true) -> Icons.Default.Restaurant
+    else -> Icons.Default.Book
+}
+
+@Composable
+private fun ArticleCarouselCard(article: Article, onOpen: () -> Unit) {
+    MobileCard(Modifier.width(252.dp).height(142.dp).clickable(onClick = onOpen)) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(article.sectionName.uppercase(), color = AstraTheme.blue, fontSize = 10.sp, fontWeight = FontWeight.Bold); Text(article.title, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 2); Text(article.body.stripHtml(), color = AstraTheme.muted, fontSize = 12.sp, maxLines = 2); Text("Читать статью →", color = AstraTheme.blue, fontSize = 11.sp, fontWeight = FontWeight.Bold) } }
+}
+
+@Composable
+private fun ArticleTile(article: Article, isAdmin: Boolean, canManage: Boolean, hasTrainer: Boolean, onOpen: () -> Unit, onPin: () -> Unit, onHide: () -> Unit, onEdit: () -> Unit, onShareClient: () -> Unit, onShareTrainer: () -> Unit) {
+    MobileCard(Modifier.fillMaxWidth().heightIn(min = 275.dp).clickable(onClick = onOpen)) {
+        Column(Modifier.padding(12.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) { Text(article.sectionName.uppercase(), color = AstraTheme.blue, fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f)); if (isAdmin) IconButton(onClick = onPin, modifier = Modifier.size(30.dp)) { Text(if (article.isPinned) "★" else "☆", color = AstraTheme.blue, fontSize = 18.sp) } }
+            Text(article.title, color = AstraTheme.ink, fontSize = 17.sp, fontWeight = FontWeight.Bold, maxLines = 3)
+            Text(article.body.stripHtml(), color = AstraTheme.muted, fontSize = 12.sp, maxLines = 3)
+            Spacer(Modifier.weight(1f))
+            Button(onClick = onOpen, modifier = Modifier.fillMaxWidth().height(38.dp), contentPadding = PaddingValues(horizontal = 8.dp)) { Text("Читать статью", fontSize = 12.sp) }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                if (isAdmin) { TextButton(onClick = onHide, modifier = Modifier.weight(1f)) { Text(if (article.isHidden) "Вернуть" else "Скрыть", fontSize = 10.sp) }; TextButton(onClick = onEdit, modifier = Modifier.weight(1f)) { Text("Изм.", fontSize = 10.sp) } }
+                if (canManage) TextButton(onClick = onShareClient, modifier = Modifier.weight(1f)) { Text("Клиенту", fontSize = 10.sp) }
+                if (hasTrainer && !canManage) TextButton(onClick = onShareTrainer, modifier = Modifier.weight(1f)) { Text("Тренеру", fontSize = 10.sp) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArticleDetailScreen(state: AstraState, article: Article, sections: List<ArticleSection>, isAdmin: Boolean, canManage: Boolean, hasTrainer: Boolean, onBack: () -> Unit, onChanged: (Article) -> Unit, onEdit: (Article) -> Unit, onDelete: (Article) -> Unit, onToggleFlag: (Article, String) -> Unit, onShareClient: (Article) -> Unit, onShareTrainer: (Article) -> Unit) {
+    var confirmDelete by remember { mutableStateOf(false) }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(Modifier.fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Назад") }; Text("Статья", fontSize = 20.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.weight(1f)) }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(article.sectionName.uppercase(), color = AstraTheme.blue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            Text(article.title, color = AstraTheme.ink, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            MobileCard { Text(article.body.stripHtml(), Modifier.padding(14.dp), color = AstraTheme.ink, lineHeight = 24.sp) }
+            article.tags?.takeIf { it.isNotBlank() }?.let { Text(it, color = AstraTheme.muted, fontSize = 12.sp) }
+            if (article.links.isNotEmpty() || article.video != null) MobileCard { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) { Text("Ссылки", fontWeight = FontWeight.Bold); article.links.forEach { Text("${it.title}: ${it.url}", color = AstraTheme.blue, fontSize = 12.sp) }; article.video?.let { Text("Видео: $it", color = AstraTheme.blue, fontSize = 12.sp) } } }
+            Button(onClick = { onEdit(article) }, modifier = Modifier.fillMaxWidth()) { Text("Редактировать") }
+            if (isAdmin) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) { OutlinedButton(onClick = { onToggleFlag(article, "is_pinned") }, modifier = Modifier.weight(1f)) { Text(if (article.isPinned) "Открепить" else "Закрепить") }; OutlinedButton(onClick = { onToggleFlag(article, "is_hidden") }, modifier = Modifier.weight(1f)) { Text(if (article.isHidden) "Вернуть" else "Скрыть") } }
+                TextButton(onClick = { confirmDelete = true }, colors = ButtonDefaults.textButtonColors(contentColor = AstraTheme.danger), modifier = Modifier.fillMaxWidth()) { Text("Удалить статью") }
+            }
+            if (canManage) OutlinedButton(onClick = { onShareClient(article) }, modifier = Modifier.fillMaxWidth()) { Text("Отправить клиенту") }
+            if (hasTrainer && !canManage) OutlinedButton(onClick = { onShareTrainer(article) }, modifier = Modifier.fillMaxWidth()) { Text("Отправить тренеру") }
+        }
+    }
+    if (confirmDelete) AlertDialog(onDismissRequest = { confirmDelete = false }, title = { Text("Удалить статью?") }, text = { Text("Это действие нельзя отменить.") }, confirmButton = { Button(onClick = { confirmDelete = false; onDelete(article) }, colors = ButtonDefaults.buttonColors(containerColor = AstraTheme.danger)) { Text("Удалить") } }, dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Отмена") } })
+}
+
+@Composable
+private fun ArticleEditorDialog(existing: Article?, sections: List<ArticleSection>, onSave: (org.json.JSONObject) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit) {
+    var sectionId by remember { mutableStateOf(existing?.sectionId ?: sections.firstOrNull()?.id ?: 0) }
+    var title by remember { mutableStateOf(existing?.title.orEmpty()) }
+    var body by remember { mutableStateOf(existing?.body?.stripHtml().orEmpty()) }
+    var tags by remember { mutableStateOf(existing?.tags.orEmpty()) }
+    var video by remember { mutableStateOf(existing?.video.orEmpty()) }
+    var links by remember { mutableStateOf(existing?.links?.joinToString("\n") { "${it.title}|${it.url}" }.orEmpty()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (existing == null) "Новая статья" else "Редактировать статью") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                if (sections.isNotEmpty()) Picker("Раздел", sections.map { it.name }) { name -> sectionId = sections.firstOrNull { it.name == name }?.id ?: sectionId }
+                EditField("Заголовок", title) { title = it }
+                EditField("Текст статьи", body) { body = it }
+                EditField("Хэштеги", tags) { tags = it }
+                EditField("Видео URL", video) { video = it }
+                EditField("Ссылки: название|URL, по одной в строке", links) { links = it }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val linkArray = org.json.JSONArray()
+                links.lines().mapNotNull { line ->
+                    val parts = line.split("|", limit = 2)
+                    if (parts.size == 2 && parts[0].trim().isNotEmpty() && parts[1].trim().isNotEmpty()) org.json.JSONObject().put("title", parts[0].trim()).put("url", parts[1].trim()) else null
+                }.forEach { linkArray.put(it) }
+                onSave(org.json.JSONObject().put("section_id", sectionId).put("title", title.trim()).put("body", body).put("tags", tags.trim()).put("video", video.trim().ifBlank { org.json.JSONObject.NULL }).put("links", linkArray).put("photos", org.json.JSONArray(existing?.photos ?: emptyList<String>())))
+            }, enabled = sectionId > 0 && title.isNotBlank() && body.isNotBlank()) { Text("Сохранить") }
+        },
+        dismissButton = {
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                onDelete?.let { TextButton(onClick = it, colors = ButtonDefaults.textButtonColors(contentColor = AstraTheme.danger)) { Text("Удалить") } }
+                TextButton(onClick = onDismiss) { Text("Отмена") }
+            }
+        }
+    )
 }
 
 private fun String.stripHtml(): String = replace(Regex("<[^>]+>"), " ").replace("&nbsp;", " ").replace(Regex("\\s+"), " ").trim()
 
 @Composable
+private fun MobileWorkoutsDashboardScreen(state: AstraState) {
+    var category by rememberSaveable { mutableStateOf<Int?>(null) }
+    var plans by remember { mutableStateOf<List<WorkoutPlan>>(emptyList()) }
+    var logs by remember { mutableStateOf<List<WorkoutEntry>>(emptyList()) }
+    var exercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }
+    var complexes by remember { mutableStateOf<List<WorkoutComplex>>(emptyList()) }
+    var equipment by remember { mutableStateOf<List<WorkoutEquipment>>(emptyList()) }
+    var selectedPlan by remember { mutableStateOf<WorkoutPlan?>(null) }
+    var selectedWorkout by remember { mutableStateOf<WorkoutEntry?>(null) }
+    var selectedExercise by remember { mutableStateOf<Exercise?>(null) }
+    var selectedComplex by remember { mutableStateOf<WorkoutComplex?>(null) }
+    var selectedEquipment by remember { mutableStateOf<WorkoutEquipment?>(null) }
+    var showAdd by remember { mutableStateOf(false) }
+    var showPlanEditor by remember { mutableStateOf(false) }
+    var editingPlan by remember { mutableStateOf<WorkoutPlan?>(null) }
+    var planFromComplex by remember { mutableStateOf<WorkoutComplex?>(null) }
+    var editingWorkout by remember { mutableStateOf<WorkoutEntry?>(null) }
+    var showWorkoutEditor by remember { mutableStateOf(false) }
+    var editingExercise by remember { mutableStateOf<Exercise?>(null) }
+    var showExerciseEditor by remember { mutableStateOf(false) }
+    var editingEquipment by remember { mutableStateOf<WorkoutEquipment?>(null) }
+    var showEquipmentEditor by remember { mutableStateOf(false) }
+    var showComplexEditor by remember { mutableStateOf(false) }
+    var showWorkoutManage by remember { mutableStateOf(false) }
+    var editingComplex by remember { mutableStateOf<WorkoutComplex?>(null) }
+    var shareType by remember { mutableStateOf<String?>(null) }
+    var shareId by remember { mutableStateOf<Int?>(null) }
+    var clients by remember { mutableStateOf<List<ClientSummary>>(emptyList()) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+
+    suspend fun load() {
+        plans = suspendResult { state.api.plans() }.getOrDefault(emptyList())
+        logs = suspendResult { state.api.workouts() }.getOrDefault(emptyList())
+        exercises = suspendResult { state.api.exercises() }.getOrDefault(emptyList())
+        complexes = suspendResult { state.api.workoutComplexes() }.getOrDefault(emptyList())
+        equipment = suspendResult { state.api.workoutEquipment() }.getOrDefault(emptyList())
+    }
+
+    LaunchedEffect(Unit) { load() }
+    LaunchedEffect(shareType) { if (shareType != null && clients.isEmpty()) clients = suspendResult { state.api.clients() }.getOrDefault(emptyList()) }
+
+    if (selectedPlan != null) {
+        val plan = selectedPlan!!
+        TrainerPlanDetailScreen(plan, onBack = { selectedPlan = null }, onEdit = { selectedPlan = null; editingPlan = plan; planFromComplex = null; showPlanEditor = true }, onRepeat = { selectedPlan = null; editingPlan = plan; planFromComplex = null; showPlanEditor = true }, onCancel = { scope.launch { suspendResult { state.api.cancelPlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }, onDelete = { scope.launch { suspendResult { state.api.deletePlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } })
+        return
+    }
+    if (selectedWorkout != null) {
+        val workout = selectedWorkout!!
+        TrainerWorkoutDetailScreen(workout, onBack = { selectedWorkout = null }, onEdit = { selectedWorkout = null; editingWorkout = workout; showWorkoutEditor = true }, onRepeat = { selectedWorkout = null; editingPlan = WorkoutPlan(0, workout.date, null, "planned", null, listOf(WorkoutPlanItem(null, workout.exerciseId, workout.name, workout.muscleGroup, workout.weight, workout.sets, null, null))); planFromComplex = null; showPlanEditor = true }, onDelete = { scope.launch { suspendResult { state.api.deleteWorkout(workout.id) }.onSuccess { load(); selectedWorkout = null }.onFailure { error = it.message } } })
+        return
+    }
+    if (selectedExercise != null) {
+        MobileExerciseDetailScreen(selectedExercise!!, onBack = { selectedExercise = null })
+        return
+    }
+    if (selectedEquipment != null) {
+        MobileEquipmentDetailScreen(selectedEquipment!!, onBack = { selectedEquipment = null })
+        return
+    }
+
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        if (category == null) {
+            Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 16.dp), verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f)) {
+                    Text("Тренировки", fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    Text("План, упражнения и история нагрузки в одном месте", color = AstraTheme.muted)
+                }
+                TextButton(onClick = { showAdd = true }) { Text("Записать") }
+            }
+            TextButton(onClick = { editingComplex = null; showComplexEditor = true }) { Text("+ complex") }
+            TextButton(onClick = { editingExercise = null; showExerciseEditor = true }) { Text("+ exercise") }
+            TextButton(onClick = { editingEquipment = null; showEquipmentEditor = true }) { Text("+ equipment") }
+            TextButton(onClick = { showWorkoutManage = true }) { Text("manage") }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
+            val planned = plans.filter { it.status == "planned" }
+            LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (planned.isNotEmpty()) {
+                    item { Text("Закреплённые тренировки", fontSize = 19.sp, fontWeight = FontWeight.Bold) }
+                    items(planned.take(3), key = { "pinned-${it.id}" }) { plan ->
+                        MobileCard(Modifier.clickable { selectedPlan = plan }) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Text("БЛИЖАЙШАЯ ТРЕНИРОВКА", color = AstraTheme.blue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                Text(plan.scheduledAt, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                                Text(plan.items.joinToString(" · ") { it.name ?: "Упражнение" }.ifBlank { "План тренировки" }, color = AstraTheme.muted, maxLines = 2)
+                                Text("Открыть тренировку  ›", color = AstraTheme.blue, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+                item { Text("Разделы", fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)) }
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(Modifier.weight(1f)) {
+                            MobileWorkoutCategoryTile("Тренировки", "Комплексы и программы", plans.size, Icons.Default.FitnessCenter, AstraTheme.blue) { category = 0 }
+                        }
+                        Box(Modifier.weight(1f)) {
+                            MobileWorkoutCategoryTile("Упражнения", "Справочник упражнений", exercises.size, Icons.Default.FitnessCenter, AstraTheme.green) { category = 1 }
+                        }
+                    }
+                }
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(Modifier.weight(1f)) {
+                            MobileWorkoutCategoryTile("Инвентарь", "Оборудование", equipment.size, Icons.Default.Info, AstraTheme.amber) { category = 2 }
+                        }
+                        Box(Modifier.weight(1f)) {
+                            MobileWorkoutCategoryTile("История", "Завершённые тренировки", logs.size, Icons.Default.Book, AstraTheme.blue) { category = 3 }
+                        }
+                    }
+                }
+                item { Spacer(Modifier.height(12.dp)) }
+            }
+        } else {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { category = null }) { Text("‹ Разделы") }
+                Spacer(Modifier.weight(1f))
+                Text(listOf("Тренировки", "Упражнения", "Инвентарь", "История")[category!!], fontWeight = FontWeight.Bold)
+            }
+            when (category) {
+                0 -> LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(plans, key = { "plan-${it.id}" }) { plan ->
+                        MobileCard(Modifier.clickable { selectedPlan = plan }) {
+                            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(plan.scheduledAt, fontWeight = FontWeight.Bold)
+                                    Text("${plan.items.size} упражнений · ${plan.status}", color = AstraTheme.muted, fontSize = 12.sp)
+                                }
+                                Text("›", fontSize = 22.sp, color = AstraTheme.muted)
+                            }
+                        }
+                    }
+                }
+                1 -> LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(exercises, key = { "exercise-${it.id}" }) { exercise ->
+                        MobileCard(Modifier.clickable { selectedExercise = exercise }) {
+                            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.FitnessCenter, null, tint = AstraTheme.green)
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(exercise.name, fontWeight = FontWeight.Bold)
+                                    Text("${exercise.muscleGroup ?: "Другое"} · ${exercise.defaultSets.shown(" подхода")} × ${exercise.defaultReps.shown(" повторений")}", color = AstraTheme.muted, fontSize = 12.sp)
+                                }
+                                Text("›", fontSize = 22.sp, color = AstraTheme.muted)
+                            }
+                        }
+                    }
+                }
+                2 -> LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    item { Text("Оборудование", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+                    items(equipment, key = { "equipment-${it.id}" }) { item ->
+                        MobileCard(Modifier.clickable { selectedEquipment = item }) {
+                            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.FitnessCenter, null, tint = AstraTheme.amber)
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(item.name, fontWeight = FontWeight.Bold)
+                                    Text(item.description ?: if (item.kind == "machine") "Тренажёр" else "Инвентарь", color = AstraTheme.muted, fontSize = 12.sp)
+                                }
+                                Text("›", fontSize = 22.sp, color = AstraTheme.muted)
+                            }
+                        }
+                    }
+                    item { Text("Комплексы", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 10.dp)) }
+                    items(complexes, key = { "complex-${it.id}" }) { complex ->
+                        MobileCard(Modifier.clickable { planFromComplex = complex; editingPlan = null; showPlanEditor = true }) {
+                            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text(complex.name, fontWeight = FontWeight.Bold)
+                                Text("${complex.items.size} упражнений", color = AstraTheme.muted, fontSize = 12.sp)
+                                complex.comment?.let { Text(it, color = AstraTheme.muted, fontSize = 12.sp) }
+                            }
+                        }
+                    }
+                }
+                else -> LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(logs, key = { "log-${it.id}" }) { log ->
+                        MobileCard(Modifier.clickable { selectedWorkout = log }) {
+                            Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(log.name, fontWeight = FontWeight.Bold)
+                                    Text("${log.date} · ${log.sets.shown(" подходов")} × ${log.reps.shown(" повторений")}", color = AstraTheme.muted, fontSize = 12.sp)
+                                }
+                                Text("›", fontSize = 22.sp, color = AstraTheme.muted)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showAdd) MobileAddWorkoutDialog(exercises, { date, exercise, weight, sets, reps, rir ->
+        scope.launch {
+            suspendResult { state.api.addWorkout(date, exercise.id, weight, sets, reps, rir) }
+            load()
+            showAdd = false
+        }
+    }, { showAdd = false })
+    if (showPlanEditor) WorkoutPlanEditorDialog(editingPlan, planFromComplex, exercises, { body -> scope.launch { suspendResult { if (editingPlan == null || editingPlan!!.id == 0) state.api.createPlan(body) else state.api.updatePlan(editingPlan!!.id, body) }.onSuccess { load(); showPlanEditor = false; editingPlan = null; planFromComplex = null }.onFailure { error = it.message } } }, { showPlanEditor = false; editingPlan = null; planFromComplex = null })
+    if (showWorkoutEditor) WorkoutEntryEditorDialog(editingWorkout, exercises, { body -> scope.launch { suspendResult { if (editingWorkout == null) state.api.createWorkout(body) else state.api.updateWorkout(editingWorkout!!.id, body) }.onSuccess { load(); showWorkoutEditor = false; editingWorkout = null }.onFailure { error = it.message } } }, if (editingWorkout != null) ({ scope.launch { suspendResult { state.api.deleteWorkout(editingWorkout!!.id) }.onSuccess { load(); showWorkoutEditor = false; editingWorkout = null }.onFailure { error = it.message } } }) else null) { showWorkoutEditor = false; editingWorkout = null }
+    if (showExerciseEditor) ExerciseEditorDialog(editingExercise, { body -> scope.launch { suspendResult { if (editingExercise == null) state.api.createExercise(body) else state.api.updateExercise(editingExercise!!.id, body) }.onSuccess { load(); showExerciseEditor = false; editingExercise = null }.onFailure { error = it.message } } }, if (editingExercise != null) ({ scope.launch { suspendResult { state.api.deleteExercise(editingExercise!!.id) }.onSuccess { load(); showExerciseEditor = false; editingExercise = null }.onFailure { error = it.message } } }) else null) { showExerciseEditor = false; editingExercise = null }
+    if (showEquipmentEditor) EquipmentEditorDialog(editingEquipment, { body -> scope.launch { suspendResult { if (editingEquipment == null) state.api.createEquipment(body) else state.api.updateEquipment(editingEquipment!!.id, body) }.onSuccess { load(); showEquipmentEditor = false; editingEquipment = null }.onFailure { error = it.message } } }, if (editingEquipment != null) ({ scope.launch { suspendResult { state.api.deleteEquipment(editingEquipment!!.id) }.onSuccess { load(); showEquipmentEditor = false; editingEquipment = null }.onFailure { error = it.message } } }) else null) { showEquipmentEditor = false; editingEquipment = null }
+    if (showComplexEditor) WorkoutComplexEditorDialog(editingComplex, exercises, { body -> scope.launch { suspendResult { if (editingComplex == null) state.api.createComplex(body) else state.api.updateComplex(editingComplex!!.id, body) }.onSuccess { load(); showComplexEditor = false; editingComplex = null }.onFailure { error = it.message } } }, { showComplexEditor = false; editingComplex = null })
+    if (showWorkoutManage) WorkoutEntityManageDialog(exercises, equipment, complexes, { item -> editingExercise = item; showExerciseEditor = true; showWorkoutManage = false }, { item -> scope.launch { suspendResult { state.api.deleteExercise(item.id) }.onSuccess { load(); showWorkoutManage = false }.onFailure { error = it.message } } }, { item -> editingEquipment = item; showEquipmentEditor = true; showWorkoutManage = false }, { item -> scope.launch { suspendResult { state.api.deleteEquipment(item.id) }.onSuccess { load(); showWorkoutManage = false }.onFailure { error = it.message } } }, { item -> editingComplex = item; showComplexEditor = true; showWorkoutManage = false }, { item -> planFromComplex = item; editingPlan = null; showPlanEditor = true; showWorkoutManage = false }, { type, id -> scope.launch { suspendResult { state.api.shareToTrainer(type, id) }.onFailure { error = it.message } }; shareType = type; shareId = id; showWorkoutManage = false }, { showWorkoutManage = false })
+    if (shareType != null && shareId != null) ShareToClientDialog(clients, { clientId -> val type = shareType!!; val id = shareId!!; scope.launch { suspendResult { state.api.shareToClient(clientId, type, id) }.onFailure { error = it.message }; shareType = null; shareId = null } }, { shareType = null; shareId = null })
+    selectedExercise?.let { exercise ->
+        AlertDialog(onDismissRequest = { selectedExercise = null }, title = { Text(exercise.name) }, text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(exercise.muscleGroup ?: "Другое", color = AstraTheme.muted)
+                Text("Единица: ${exercise.unit ?: "—"}")
+                Text("Подходы: ${exercise.defaultSets.shown()}")
+                Text("Повторения: ${exercise.defaultReps.shown()}")
+            }
+        }, confirmButton = { TextButton({ selectedExercise = null }) { Text("Закрыть") } })
+    }
+    selectedComplex?.let { complex ->
+        AlertDialog(onDismissRequest = { selectedComplex = null }, title = { Text(complex.name) }, text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                complex.comment?.let { Text(it) }
+                Text("Упражнения", fontWeight = FontWeight.Bold)
+                complex.items.forEach { Text("${it.name} · ${it.sets.shown(" подхода")} · ${it.durationMinutes.shown(" мин")}") }
+            }
+        }, confirmButton = { TextButton({ selectedComplex = null }) { Text("Закрыть") } })
+    }
+    selectedEquipment?.let { item ->
+        AlertDialog(onDismissRequest = { selectedEquipment = null }, title = { Text(item.name) }, text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(if (item.kind == "machine") "Тренажёр" else "Инвентарь", color = AstraTheme.muted)
+                item.description?.let { Text(it) }
+            }
+        }, confirmButton = { TextButton({ selectedEquipment = null }) { Text("Закрыть") } })
+    }
+}
+
+@Composable
+private fun MobileWorkoutCategoryTile(title: String, subtitle: String, count: Int, icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, onClick: () -> Unit) {
+    MobileCard(Modifier.clickable(onClick = onClick)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Icon(icon, null, tint = tint, modifier = Modifier.size(24.dp))
+            Text(title, fontWeight = FontWeight.Bold)
+            Text(subtitle, color = AstraTheme.muted, fontSize = 11.sp, maxLines = 2)
+            Text(count.toString(), color = tint, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+private fun WorkoutDetailHeader(title: String, onBack: () -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }
+        Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun WorkoutDetailHero(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(176.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(tint.copy(alpha = .13f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(76.dp))
+    }
+}
+
+@Composable
+private fun WorkoutDetailBadge(title: String, tint: Color) {
+    Text(
+        title,
+        color = tint,
+        fontSize = 12.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier
+            .clip(RoundedCornerShape(50.dp))
+            .background(tint.copy(alpha = .08f))
+            .border(1.dp, tint.copy(alpha = .7f), RoundedCornerShape(50.dp))
+            .padding(horizontal = 11.dp, vertical = 6.dp)
+    )
+}
+
+@Composable
+private fun WorkoutDetailRow(index: Int, title: String, value: String) {
+    MobileCard {
+        Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier
+                    .size(32.dp)
+                    .background(AstraTheme.blue.copy(alpha = .10f), RoundedCornerShape(50.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(index.toString(), color = AstraTheme.blue, fontWeight = FontWeight.Bold)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, fontWeight = FontWeight.Bold)
+                Text(value, color = AstraTheme.muted, fontSize = 13.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MobileExerciseDetailScreen(exercise: Exercise, onBack: () -> Unit, onEdit: (() -> Unit)? = null, onDelete: (() -> Unit)? = null, onShareTrainer: (() -> Unit)? = null, onShareClient: (() -> Unit)? = null) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        WorkoutDetailHeader("Упражнение", onBack)
+        LazyColumn(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item { WorkoutDetailHero(Icons.Default.FitnessCenter, AstraTheme.green) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(exercise.name, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    Text(exercise.muscleGroup ?: "Другое", color = AstraTheme.muted)
+                }
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WorkoutDetailBadge(exercise.muscleGroup ?: "Другое", AstraTheme.green)
+                    exercise.unit?.takeIf { it.isNotBlank() }?.let { WorkoutDetailBadge(it, AstraTheme.blue) }
+                }
+            }
+            item { Text("Параметры упражнения", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)) }
+            item { WorkoutDetailRow(1, "Единица нагрузки", exercise.unit ?: "—") }
+            item { WorkoutDetailRow(2, "Подходы", exercise.defaultSets.shown()) }
+            item { WorkoutDetailRow(3, "Повторения", exercise.defaultReps.shown()) }
+            if (onEdit != null || onDelete != null) item { Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { onEdit?.let { OutlinedButton(onClick = it) { Text("edit") } }; onDelete?.let { OutlinedButton(onClick = it) { Text("delete") } } } }
+            item { Spacer(Modifier.height(16.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun MobileEquipmentDetailScreen(item: WorkoutEquipment, onBack: () -> Unit, onEdit: (() -> Unit)? = null, onDelete: (() -> Unit)? = null, onShareTrainer: (() -> Unit)? = null, onShareClient: (() -> Unit)? = null) {
+    val kind = if (item.kind == "machine") "Тренажёр" else "Инвентарь"
+    val tint = if (item.kind == "machine") AstraTheme.green else AstraTheme.amber
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        WorkoutDetailHeader(kind, onBack)
+        LazyColumn(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item { WorkoutDetailHero(Icons.Default.FitnessCenter, tint) }
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(item.name, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                    Text(kind, color = AstraTheme.muted)
+                }
+            }
+            item { Row { WorkoutDetailBadge(kind, tint) } }
+            item { Text("Описание", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)) }
+            item { WorkoutDetailRow(1, "Тип", kind) }
+            item { WorkoutDetailRow(2, "Описание", item.description ?: "—") }
+            item { Spacer(Modifier.height(16.dp)) }
+        }
+    }
+}
+
+@Composable
 fun MobileWorkoutsScreen(state: AstraState) {
-    var section by rememberSaveable { mutableStateOf(0) }; var plans by remember { mutableStateOf<List<WorkoutPlan>>(emptyList()) }; var logs by remember { mutableStateOf<List<WorkoutEntry>>(emptyList()) }; var exercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }; var complexes by remember { mutableStateOf<List<WorkoutComplex>>(emptyList()) }; var equipment by remember { mutableStateOf<List<WorkoutEquipment>>(emptyList()) }; var showAdd by remember { mutableStateOf(false) }
+    var section by rememberSaveable { mutableStateOf(0) }; var plans by remember { mutableStateOf<List<WorkoutPlan>>(emptyList()) }; var logs by remember { mutableStateOf<List<WorkoutEntry>>(emptyList()) }; var exercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }; var complexes by remember { mutableStateOf<List<WorkoutComplex>>(emptyList()) }; var equipment by remember { mutableStateOf<List<WorkoutEquipment>>(emptyList()) }; var showAdd by remember { mutableStateOf(false) }; var selectedWorkout by remember { mutableStateOf<WorkoutEntry?>(null) }
     suspend fun load() { plans = suspendResult { state.api.plans() }.getOrDefault(emptyList()); logs = suspendResult { state.api.workouts() }.getOrDefault(emptyList()); exercises = suspendResult { state.api.exercises() }.getOrDefault(emptyList()); complexes = suspendResult { state.api.workoutComplexes() }.getOrDefault(emptyList()); equipment = suspendResult { state.api.workoutEquipment() }.getOrDefault(emptyList()) }
     LaunchedEffect(Unit) { load() }
+    if (selectedWorkout != null) {
+        TrainerWorkoutDetailScreen(selectedWorkout!!, onBack = { selectedWorkout = null })
+        return
+    }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(Modifier.padding(16.dp)) { Text("Тренировки", fontSize = 28.sp, fontWeight = FontWeight.Bold); Text("Планы, журнал, упражнения и инвентарь", color = AstraTheme.muted) }
-        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) { listOf("Журнал", "Упражнения", "Комплексы", "Инвентарь").forEachIndexed { index, title -> if (section == index) Button({ section = index }) { Text(title) } else OutlinedButton({ section = index }) { Text(title) } } }
+        Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) { listOf("Журнал", "Упражнения", "Комплексы", "Инвентарь").forEachIndexed { index, title -> if (section == index) OutlinedButton({ section = index }, colors = ButtonDefaults.outlinedButtonColors(containerColor = AstraTheme.blue.copy(alpha = .12f), contentColor = AstraTheme.blue)) { Text(title) } else OutlinedButton({ section = index }) { Text(title) } } }
         if (section == 0) Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.End) { Button({ showAdd = true }) { Text("Записать") } }
         when (section) {
-            0 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { if (plans.isNotEmpty()) item { Text("Планы", fontSize = 18.sp, fontWeight = FontWeight.Bold) }; items(plans, key = { "p${it.id}" }) { plan -> MobileCard { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(plan.scheduledAt, fontWeight = FontWeight.Bold); Text("${plan.items.size} упражнений · ${plan.status}", color = AstraTheme.muted, fontSize = 12.sp) }; if (plan.status == "planned") TextButton({ kotlinx.coroutines.MainScope().launch { state.api.completePlan(plan.id); load() } }) { Text("Готово") } } } }; item { Text("Журнал", fontSize = 18.sp, fontWeight = FontWeight.Bold) }; items(logs, key = { "l${it.id}" }) { log -> MobileCard { Column(Modifier.padding(14.dp)) { Text(log.name, fontWeight = FontWeight.Bold); Text("${log.date} · ${log.sets.shown(" подходов")} × ${log.reps.shown(" повторений")}", color = AstraTheme.muted, fontSize = 12.sp) } } } }
+            0 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { if (plans.isNotEmpty()) item { Text("Планы", fontSize = 18.sp, fontWeight = FontWeight.Bold) }; items(plans, key = { "p${it.id}" }) { plan -> MobileCard { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(plan.scheduledAt, fontWeight = FontWeight.Bold); Text("${plan.items.size} упражнений · ${plan.status}", color = AstraTheme.muted, fontSize = 12.sp) }; if (plan.status == "planned") TextButton({ kotlinx.coroutines.MainScope().launch { state.api.completePlan(plan.id); load() } }) { Text("Готово") } } } }; item { Text("Журнал", fontSize = 18.sp, fontWeight = FontWeight.Bold) }; items(logs, key = { "l${it.id}" }) { log -> MobileCard(Modifier.clickable { selectedWorkout = log }) { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(log.name, fontWeight = FontWeight.Bold); Text("${log.date} · ${log.sets.shown(" подходов")} × ${log.reps.shown(" повторений")}", color = AstraTheme.muted, fontSize = 12.sp) }; Text("›", fontSize = 22.sp, color = AstraTheme.muted) } } } }
             1 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(exercises, key = { it.id }) { exercise -> MobileCard { Column(Modifier.padding(14.dp)) { Text(exercise.name, fontWeight = FontWeight.Bold); Text("${exercise.muscleGroup ?: "Другое"} · ${exercise.defaultSets.shown(" подхода")} × ${exercise.defaultReps.shown(" повторений")}", color = AstraTheme.muted, fontSize = 12.sp) } } } }
             2 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(complexes, key = { it.id }) { complex -> MobileCard { Column(Modifier.padding(14.dp)) { Text(complex.name, fontWeight = FontWeight.Bold); Text("${complex.items.size} упражнений", color = AstraTheme.muted, fontSize = 12.sp); complex.comment?.let { Text(it, fontSize = 12.sp) } } } } }
             else -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(equipment, key = { it.id }) { item -> MobileCard { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.FitnessCenter, null, tint = AstraTheme.green); Spacer(Modifier.width(10.dp)); Column { Text(item.name, fontWeight = FontWeight.Bold); Text(if (item.kind == "machine") "Тренажёр" else "Инвентарь", color = AstraTheme.muted, fontSize = 12.sp); item.description?.let { Text(it, fontSize = 12.sp) } } } } } }
         }
     }
     if (showAdd) MobileAddWorkoutDialog(exercises, { date, exercise, weight, sets, reps, rir -> kotlinx.coroutines.MainScope().launch { state.api.addWorkout(date, exercise.id, weight, sets, reps, rir); load(); showAdd = false } }, { showAdd = false })
+}
+
+@Composable
+private fun TrainerPlanDetailScreen(plan: WorkoutPlan, onBack: () -> Unit, onEdit: () -> Unit = {}, onRepeat: () -> Unit = {}, onCancel: () -> Unit = {}, onDelete: () -> Unit = {}) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }
+            Text("План тренировки", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            item {
+                MobileCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text(plan.scheduledAt, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Text(plan.status, color = AstraTheme.muted)
+                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) { TextButton(onClick = onEdit) { Text("Изменить") }; TextButton(onClick = onRepeat) { Text("Повторить") }; if (plan.status == "planned") TextButton(onClick = onCancel) { Text("Отменить") }; TextButton(onClick = onDelete) { Text("Удалить") } }
+                    }
+                }
+            }
+            item { Text("Упражнения", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+            items(plan.items) { item ->
+                MobileCard {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(item.name ?: "Упражнение", fontWeight = FontWeight.Bold)
+                        Text("${item.sets.shown(" подхода")} · ${item.duration.shown(" мин")}", color = AstraTheme.muted, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrainerWorkoutDetailScreen(workout: WorkoutEntry, onBack: () -> Unit, onEdit: () -> Unit = {}, onRepeat: () -> Unit = {}, onDelete: () -> Unit = {}) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }
+            Text("Тренировка", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item {
+                MobileCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(workout.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        Text(workout.date, color = AstraTheme.muted)
+                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) { TextButton(onClick = onEdit) { Text("Изменить") }; TextButton(onClick = onRepeat) { Text("Повторить") }; TextButton(onClick = onDelete) { Text("Удалить") } }
+                    }
+                }
+            }
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(Modifier.weight(1f)) { MobileMetric("Подходы", workout.sets.shown(), AstraTheme.blue) {} }
+                    Box(Modifier.weight(1f)) { MobileMetric("Повторения", workout.reps.shown(), AstraTheme.green) {} }
+                }
+            }
+            item {
+                MobileCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Нагрузка", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Вес: ${workout.weight.shown(" кг")}")
+                        workout.comment?.let { Text(it, color = AstraTheme.muted) }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

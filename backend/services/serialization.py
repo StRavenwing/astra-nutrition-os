@@ -273,6 +273,7 @@ def serialize_exercise(exercise: Exercise) -> dict:
         {
             "id": variant.id,
             "position": variant.position,
+            "name": variant.name,
             "machine": variant.machine,
             "equipment": variant.equipment,
             "description": variant.description,
@@ -326,6 +327,7 @@ def serialize_workout_plan(plan: WorkoutPlan) -> dict:
     )
     return {
         "id": plan.id,
+        "name": plan.name,
         "scheduled_at": plan.scheduled_at,
         "duration_minutes": plan.duration_minutes,
         "status": plan.status,
@@ -335,7 +337,10 @@ def serialize_workout_plan(plan: WorkoutPlan) -> dict:
                 "id": item.id,
                 "exercise_id": item.exercise.id,
                 "exercise_code": item.exercise.code,
-                "name": item.exercise.name,
+                "name": item.exercise.name + (f" ({item.variant.name})" if item.variant and item.variant.name else ""),
+                "exercise_name": item.exercise.name,
+                "variant_id": item.variant.id if item.variant else None,
+                "variant_name": item.variant.name if item.variant else None,
                 "muscle_group": item.exercise.muscle_group,
                 "default_unit": item.exercise.default_unit,
                 "working_weight": item.working_weight,

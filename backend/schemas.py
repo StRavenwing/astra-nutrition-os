@@ -214,6 +214,7 @@ class ProgressInput(BaseModel):
 
 
 class ExerciseVariantInput(BaseModel):
+    name: str | None = None
     machine: str | None = None
     equipment: str | None = None
     description: str | None = None
@@ -258,6 +259,7 @@ class WorkoutInput(BaseModel):
 
 class WorkoutPlanItemInput(BaseModel):
     exercise_id: int
+    variant_id: int | None = None
     working_weight: Any = None
     sets: Any = None
     duration_minutes: Any = None
@@ -265,6 +267,7 @@ class WorkoutPlanItemInput(BaseModel):
 
 
 class WorkoutPlanInput(BaseModel):
+    name: str | None = None
     scheduled_at: str
     duration_minutes: Any = None
     items: list[WorkoutPlanItemInput]

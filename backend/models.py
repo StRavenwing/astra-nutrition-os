@@ -385,6 +385,7 @@ class ExerciseVariant(BaseModel):
     id = AutoField()
     exercise = ForeignKeyField(Exercise, backref="variants", on_delete="CASCADE")
     position = IntegerField(default=1)
+    name = CharField(null=True)
     machine = CharField(null=True)
     equipment = CharField(null=True)
     description = TextField(null=True)
@@ -427,6 +428,7 @@ class WorkoutLog(BaseModel):
 class WorkoutPlan(BaseModel):
     id = AutoField()
     user = ForeignKeyField(User, backref="workout_plans", on_delete="CASCADE")
+    name = CharField(null=True)
     scheduled_at = CharField(index=True)
     duration_minutes = IntegerField(null=True)
     status = CharField(default="planned", index=True)
@@ -441,6 +443,7 @@ class WorkoutPlanItem(BaseModel):
     id = AutoField()
     plan = ForeignKeyField(WorkoutPlan, backref="items", on_delete="CASCADE")
     exercise = ForeignKeyField(Exercise, backref="workout_plan_items")
+    variant = ForeignKeyField(ExerciseVariant, backref="workout_plan_items", null=True, on_delete="SET NULL")
     working_weight = FloatField(null=True)
     sets = IntegerField(null=True)
     duration_minutes = IntegerField(null=True)

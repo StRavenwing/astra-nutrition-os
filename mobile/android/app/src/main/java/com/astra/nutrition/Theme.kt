@@ -8,38 +8,44 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 object AstraTheme {
-    val blue = Color(0xFF6F82FF)
-    val blueDark = Color(0xFF8A99FF)
-    val green = Color(0xFF329A63)
-    val greenDark = Color(0xFF7DDBA8)
-    val ink = Color(0xFF172033)
-    val inkDark = Color(0xFFF4F7FC)
-    val muted = Color(0xFF7D879B)
-    val mutedDark = Color(0xFFAAB6C8)
-    val canvas = Color(0xFFF6F8FC)
-    val canvasDark = Color(0xFF0E1728)
+    val blue = Color(0xFFE8732A)
+    val blueDark = Color(0xFFFF9A5F)
+    val green = Color(0xFFE8732A)
+    val greenDark = Color(0xFFFF9A5F)
+    val amber = Color(0xFFE8732A)
+    val ink = Color(0xFF1A1A1A)
+    val inkDark = Color(0xFFF7F4F0)
+    val muted = Color(0xFFA09E9B)
+    val mutedDark = Color(0xFFB8B0A9)
+    val canvas = Color(0xFFFFFFFF)
+    val canvasDark = Color(0xFF121110)
     val surface = Color(0xFFFFFFFF)
-    val surfaceDark = Color(0xFF17243A)
-    val surfaceElevatedDark = Color(0xFF1E2B42)
-    val line = Color(0xFFE5EAF2)
-    val lineDark = Color(0xFF2A3A51)
+    val surfaceDark = Color(0xFF1C1A18)
+    val surfaceElevatedDark = Color(0xFF25221F)
+    val line = Color(0xFFF0EEEA)
+    val lineDark = Color(0xFF3A332E)
+    val danger = Color(0xFFFF3B30)
 }
 
 private val lightColors = lightColorScheme(
     primary = AstraTheme.blue,
-    secondary = AstraTheme.green,
+    secondary = AstraTheme.blue,
     background = AstraTheme.canvas,
     surface = AstraTheme.surface,
+    surfaceVariant = AstraTheme.line,
+    outline = AstraTheme.line,
     onBackground = AstraTheme.ink,
-    onSurface = AstraTheme.ink
+    onSurface = AstraTheme.ink,
+    onSurfaceVariant = AstraTheme.muted
 )
 
 private val darkColors = darkColorScheme(
     primary = AstraTheme.blueDark,
-    secondary = AstraTheme.greenDark,
+    secondary = AstraTheme.blueDark,
     background = AstraTheme.canvasDark,
     surface = AstraTheme.surfaceDark,
     surfaceVariant = AstraTheme.surfaceElevatedDark,
+    outline = AstraTheme.lineDark,
     onBackground = AstraTheme.inkDark,
     onSurface = AstraTheme.inkDark,
     onSurfaceVariant = AstraTheme.mutedDark

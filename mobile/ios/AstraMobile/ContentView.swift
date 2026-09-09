@@ -97,8 +97,8 @@ struct DashboardView: View {
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                             MetricTile(label: "Продукты", value: "\(dashboard.products)", tint: AstraTheme.blue)
                             MetricTile(label: "Рецепты", value: "\(dashboard.recipes)", tint: AstraTheme.green)
-                            MetricTile(label: "Одобрено", value: "\(dashboard.approved)", tint: .orange)
-                            MetricTile(label: "Вес", value: dashboard.latest?.weightKg.display ?? "—", tint: .purple)
+                            MetricTile(label: "Одобрено", value: "\(dashboard.approved)", tint: AstraTheme.blue)
+                            MetricTile(label: "Вес", value: dashboard.latest?.weightKg.display ?? "—", tint: AstraTheme.blue)
                         }
                         if let latest = dashboard.latest {
                             AstraCard {
@@ -395,7 +395,7 @@ struct RecipeDetailView: View {
     }
 }
 
-struct ProgressScreen: View {
+struct LegacyProgressScreen: View {
     @EnvironmentObject private var session: SessionStore
     @State private var entries: [ProgressEntry] = []
     @State private var showAdd = false
@@ -455,6 +455,105 @@ struct AddProgressView: View {
     }
 }
 
+struct ProgressScreen: View {
+    @EnvironmentObject private var session: SessionStore
+    @State private var entries: [ProgressEntry] = []
+    @State private var showAdd = false
+    @State private var error: String?
+    private let periods = ["Неделя", "Месяц", "3 месяца", "Год"]
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 6) { ForEach(periods, id: \.self) { period in Text(period).font(.caption.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 9).background(period == "Месяц" ? AstraTheme.blue : AstraTheme.surface).foregroundStyle(period == "Месяц" ? Color.white : AstraTheme.ink).clipShape(Capsule()).overlay(Capsule().stroke(AstraTheme.line, lineWidth: 1)) } }
+                    let latest = entries.first
+                    let weights = entries.compactMap(\.weightKg).prefix(8).reversed()
+                    AstraCard {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack { VStack(alignment: .leading, spacing: 3) { Text("ДИНАМИКА ВЕСА").font(.caption2.weight(.bold)).foregroundStyle(AstraTheme.blue); Text("Последние 30 дней").font(.headline.weight(.bold)) }; Spacer(); Text("\(weights.count) замеров").font(.caption2).foregroundStyle(AstraTheme.muted) }
+                            if weights.isEmpty { Text("Добавьте несколько замеров, чтобы увидеть динамику веса.").font(.caption).foregroundStyle(AstraTheme.muted).padding(.vertical, 28) }
+                            else { let minValue = weights.min() ?? 0; let maxValue = weights.max() ?? minValue; let range = max(maxValue - minValue, 1); HStack(alignment: .bottom, spacing: 7) { ForEach(Array(weights.enumerated()), id: \.offset) { _, value in Rectangle().fill(AstraTheme.blue.opacity(0.82)).frame(maxWidth: .infinity).frame(height: 34 + CGFloat((value - minValue) / range) * 78).clipShape(RoundedRectangle(cornerRadius: 5)) } }.frame(height: 126); HStack { Text(entries.last?.measuredAt ?? "").font(.caption2).foregroundStyle(AstraTheme.muted); Spacer(); Text(entries.first?.measuredAt ?? "").font(.caption2).foregroundStyle(AstraTheme.muted) } }
+                        }
+                    }
+                    HStack(spacing: 10) { ProgressMetricMobile(label: "Вес", value: latest?.weightKg.display ?? "— кг"); ProgressMetricMobile(label: "ИМТ", value: latest?.bmi.display ?? "—"); ProgressMetricMobile(label: "Талия", value: latest?.waistCm.display ?? "— см") }
+                    AstraCard { VStack(alignment: .leading, spacing: 9) { HStack { Text("Последние 30 дней").font(.headline.weight(.bold)); Spacer(); Text("\(entries.count) всего").font(.caption2).foregroundStyle(AstraTheme.muted) }; HStack(spacing: 5) { ForEach(0..<16, id: \.self) { index in RoundedRectangle(cornerRadius: 4).fill(index < min(entries.count, 16) ? AstraTheme.blue : AstraTheme.line).frame(maxWidth: .infinity).frame(height: 14) } } } }
+                    HStack(spacing: 10) { ProgressMetricMobile(label: "Калории", value: latest?.kcalTarget.display ?? "— ккал"); ProgressMetricMobile(label: "Белок", value: latest?.proteinTargetG.display ?? "— г"); ProgressMetricMobile(label: "Самочувствие", value: latest?.wellbeingScore.display ?? "— / 5") }
+                    HStack(alignment: .bottom) { VStack(alignment: .leading, spacing: 3) { Text("ИСТОРИЯ ЗАМЕРОВ").font(.caption2.weight(.bold)).foregroundStyle(AstraTheme.blue); Text("Открывайте карточку, чтобы посмотреть детали").font(.headline.weight(.bold)) }; Spacer(); Button { showAdd = true } label: { Label("Добавить", systemImage: "plus") }.buttonStyle(.bordered) }
+                    if entries.isEmpty { Text(error ?? "Замеров пока нет").foregroundStyle(error == nil ? AstraTheme.muted : AstraTheme.danger).frame(maxWidth: .infinity).padding(32) }
+                    else { LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) { ForEach(entries) { item in NavigationLink(value: item) { ProgressTileMobile(item: item) }.buttonStyle(.plain) } } }
+                    AstraCard { VStack(alignment: .leading, spacing: 4) { Text("ПОДСКАЗКА").font(.caption2.weight(.bold)).foregroundStyle(AstraTheme.blue); Text("Добавляйте замеры примерно в одно и то же время").font(.subheadline.weight(.bold)); Text("Так динамика веса и объёмов будет сравниваться точнее.").font(.caption).foregroundStyle(AstraTheme.muted) } }
+                }.padding()
+            }
+            .background(AstraTheme.canvas)
+            .navigationTitle("Прогресс")
+            .navigationDestination(for: ProgressEntry.self) { item in ProgressDetailMobileView(entry: item, onChanged: load, onDeleted: load) }
+            .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { showAdd = true } label: { Image(systemName: "plus") } } }
+            .task { await load() }
+            .refreshable { await load() }
+            .sheet(isPresented: $showAdd) { ProgressEditorMobileView(existing: nil) { await load() } }
+        }
+    }
+    private func load() async { do { entries = try await session.api.progress(); error = nil } catch { error = error.localizedDescription } }
+}
+
+private struct ProgressMetricMobile: View {
+    let label: String; let value: String
+    var body: some View { VStack(alignment: .leading, spacing: 4) { Text(label.uppercased()).font(.caption2.weight(.bold)).foregroundStyle(AstraTheme.muted); Text(value).font(.subheadline.weight(.bold)).lineLimit(1).minimumScaleFactor(0.7) }.frame(maxWidth: .infinity, alignment: .leading).padding(11).background(AstraTheme.blue.opacity(0.10)).clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(AstraTheme.line, lineWidth: 1)) }
+}
+
+private struct ProgressTileMobile: View {
+    let item: ProgressEntry
+    var body: some View { AstraCard { VStack(alignment: .leading, spacing: 7) { HStack { Text(item.measuredAt).font(.subheadline.weight(.bold)); Spacer(); Text("ЗАМЕР").font(.caption2.weight(.bold)).foregroundStyle(AstraTheme.blue) }; Divider(); Text("Вес").font(.caption).foregroundStyle(AstraTheme.muted); Text(item.weightKg.display + " кг").font(.title3.weight(.bold)); Text("Талия \(item.waistCm.display) см").font(.caption).foregroundStyle(AstraTheme.muted); Text("ИМТ \(item.bmi.display) · Самочувствие \(item.wellbeingScore.display) / 5").font(.caption2).foregroundStyle(AstraTheme.muted); Text("Открыть").font(.caption.weight(.bold)).foregroundStyle(AstraTheme.blue).frame(maxWidth: .infinity).padding(.vertical, 8).background(AstraTheme.blue.opacity(0.10)).clipShape(RoundedRectangle(cornerRadius: 8)) } } }
+}
+
+struct ProgressDetailMobileView: View {
+    @EnvironmentObject private var session: SessionStore
+    @Environment(\.dismiss) private var dismiss
+    let entry: ProgressEntry
+    let onChanged: () async -> Void
+    let onDeleted: () async -> Void
+    @State private var showEditor = false
+    @State private var showShare = false
+    @State private var showDelete = false
+    @State private var clients: [ClientSummary] = []
+    @State private var hasTrainer = false
+    @State private var actionMessage: String?
+    @State private var actionError: String?
+    private var canManage: Bool { session.user?.isAdmin == true || session.user?.isTrainer == true }
+
+    var body: some View {
+        ScrollView { VStack(alignment: .leading, spacing: 12) {
+            AstraCard { VStack(alignment: .leading, spacing: 8) { Text("ТЕКУЩИЕ ПОКАЗАТЕЛИ").font(.caption2.weight(.bold)).foregroundStyle(AstraTheme.blue); Text(entry.weightKg.display + " кг").font(.system(size: 38, weight: .bold)); Text("Вес на дату замера").font(.caption).foregroundStyle(AstraTheme.muted); HStack(spacing: 8) { ProgressMetricMobile(label: "Цель", value: entry.desiredWeightKg.display + " кг"); ProgressMetricMobile(label: "ИМТ", value: entry.bmi.display) } } }
+            AstraCard { VStack(alignment: .leading, spacing: 9) { Text("Подробности").font(.headline.weight(.bold)); ProgressDetailRowMobile("Талия", entry.waistCm.display + " см"); ProgressDetailRowMobile("Грудь", entry.chestCm.display + " см"); ProgressDetailRowMobile("Бёдра", entry.hipsCm.display + " см"); ProgressDetailRowMobile("Рост", entry.heightCm.display + " см"); ProgressDetailRowMobile("Процент жира", entry.bodyFatPct.display + " %"); ProgressDetailRowMobile("Мышечная масса", entry.muscleMassKg.display + " кг"); ProgressDetailRowMobile("Калорийность", entry.kcalTarget.display + " ккал"); ProgressDetailRowMobile("Белок", entry.proteinTargetG.display + " г"); ProgressDetailRowMobile("Жиры", entry.fatTargetG.display + " г"); ProgressDetailRowMobile("Углеводы", entry.carbsTargetG.display + " г"); ProgressDetailRowMobile("Сон", entry.sleepScore.display + " / 5"); ProgressDetailRowMobile("Самочувствие", entry.wellbeingScore.display + " / 5"); if let comment = entry.comment, !comment.isEmpty { Text(comment).font(.caption).foregroundStyle(AstraTheme.muted) } } }
+            AstraCard { VStack(spacing: 9) { Button("Редактировать") { showEditor = true }.buttonStyle(.borderedProminent).frame(maxWidth: .infinity); if canManage { Button("Отправить клиенту") { loadClients() }.buttonStyle(.bordered).frame(maxWidth: .infinity) }; if !canManage && hasTrainer { Button("Отправить тренеру") { sendToTrainer() }.buttonStyle(.bordered).frame(maxWidth: .infinity) }; Button("Удалить замер", role: .destructive) { showDelete = true }.frame(maxWidth: .infinity); if let actionMessage { Text(actionMessage).font(.caption).foregroundStyle(AstraTheme.green) }; if let actionError { Text(actionError).font(.caption).foregroundStyle(AstraTheme.danger) } } }
+        }.padding() }.background(AstraTheme.canvas).navigationTitle("Замер").navigationBarTitleDisplayMode(.inline).task { if !canManage { hasTrainer = (try? await session.api.myTrainer()).map { $0.trainer != nil } ?? false } }.sheet(isPresented: $showEditor) { ProgressEditorMobileView(existing: entry) { await onChanged() } }.sheet(isPresented: $showShare) { ShareClientMobileView(clients: clients) { clientId in Task { do { _ = try await session.api.shareToClient(clientId: clientId, itemType: "progress", itemId: entry.id); actionMessage = "Отправлено клиенту"; actionError = nil; showShare = false } catch { actionError = error.localizedDescription } } } }.confirmationDialog("Удалить замер?", isPresented: $showDelete, titleVisibility: .visible) { Button("Удалить", role: .destructive) { delete() }; Button("Отмена", role: .cancel) {} } message: { Text("Это действие нельзя отменить.") }
+    }
+    private func loadClients() { Task { clients = (try? await session.api.clients()) ?? []; showShare = true } }
+    private func sendToTrainer() { Task { do { _ = try await session.api.shareToTrainer(itemType: "progress", itemId: entry.id); actionMessage = "Отправлено тренеру"; actionError = nil } catch { actionError = error.localizedDescription } } }
+    private func delete() { Task { do { _ = try await session.api.deleteProgress(id: entry.id); await onDeleted(); dismiss() } catch { actionError = error.localizedDescription } } }
+}
+
+private struct ProgressDetailRowMobile: View { let label: String; let value: String; init(_ label: String, _ value: String) { self.label = label; self.value = value }; var body: some View { HStack { Text(label).font(.caption).foregroundStyle(AstraTheme.muted); Spacer(); Text(value).font(.caption.weight(.bold)) } } }
+
+struct ProgressEditorMobileView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var session: SessionStore
+    let existing: ProgressEntry?
+    let onSaved: () async -> Void
+    @State private var date = ""
+    @State private var weight = ""; @State private var desiredWeight = ""; @State private var height = ""; @State private var bodyFat = ""; @State private var muscleMass = ""; @State private var kcal = ""; @State private var protein = ""; @State private var fat = ""; @State private var carbs = ""; @State private var waist = ""; @State private var chest = ""; @State private var hips = ""; @State private var sleep = ""; @State private var wellbeing = ""; @State private var comment = ""; @State private var error: String?
+
+    var body: some View { NavigationStack { Form { Section("Дата") { TextField("YYYY-MM-DD", text: $date) }; Section("Основные показатели") { ProgressNumberField("Вес, кг", text: $weight); ProgressNumberField("Желаемый вес, кг", text: $desiredWeight); ProgressNumberField("Рост, см", text: $height); ProgressNumberField("Талия, см", text: $waist); ProgressNumberField("Грудь, см", text: $chest); ProgressNumberField("Бёдра, см", text: $hips) }; Section("Состав тела") { ProgressNumberField("Процент жира", text: $bodyFat); ProgressNumberField("Мышечная масса, кг", text: $muscleMass) }; Section("Цели питания") { ProgressNumberField("Калорийность", text: $kcal); ProgressNumberField("Белок, г", text: $protein); ProgressNumberField("Жиры, г", text: $fat); ProgressNumberField("Углеводы, г", text: $carbs) }; Section("Самочувствие") { ProgressNumberField("Сон, 1–5", text: $sleep); ProgressNumberField("Самочувствие, 1–5", text: $wellbeing); TextField("Комментарий", text: $comment, axis: .vertical) }; if let error { Text(error).foregroundStyle(AstraTheme.danger) } }.navigationTitle(existing == nil ? "Новый замер" : "Редактировать замер").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { save() }.disabled(date.isEmpty) } }.onAppear { populate() } } }
+    private func populate() { guard date.isEmpty else { return }; date = existing?.measuredAt ?? progressToday(); weight = existing?.weightKg.display == "—" ? "" : existing?.weightKg.display ?? ""; desiredWeight = existing?.desiredWeightKg.display == "—" ? "" : existing?.desiredWeightKg.display ?? ""; height = existing?.heightCm.display == "—" ? "" : existing?.heightCm.display ?? ""; bodyFat = existing?.bodyFatPct.display == "—" ? "" : existing?.bodyFatPct.display ?? ""; muscleMass = existing?.muscleMassKg.display == "—" ? "" : existing?.muscleMassKg.display ?? ""; kcal = existing?.kcalTarget.display == "—" ? "" : existing?.kcalTarget.display ?? ""; protein = existing?.proteinTargetG.display == "—" ? "" : existing?.proteinTargetG.display ?? ""; fat = existing?.fatTargetG.display == "—" ? "" : existing?.fatTargetG.display ?? ""; carbs = existing?.carbsTargetG.display == "—" ? "" : existing?.carbsTargetG.display ?? ""; waist = existing?.waistCm.display == "—" ? "" : existing?.waistCm.display ?? ""; chest = existing?.chestCm.display == "—" ? "" : existing?.chestCm.display ?? ""; hips = existing?.hipsCm.display == "—" ? "" : existing?.hipsCm.display ?? ""; sleep = existing?.sleepScore.display == "—" ? "" : existing?.sleepScore.display ?? ""; wellbeing = existing?.wellbeingScore.display == "—" ? "" : existing?.wellbeingScore.display ?? ""; comment = existing?.comment ?? "" }
+    private func save() { Task { do { let payload = JSONPayload(values: ["measured_at": AnyEncodable(date), "weight_kg": progressNumber(weight), "desired_weight_kg": progressNumber(desiredWeight), "height_cm": progressNumber(height), "body_fat_pct": progressNumber(bodyFat), "muscle_mass_kg": progressNumber(muscleMass), "kcal_target": progressNumber(kcal), "protein_target_g": progressNumber(protein), "fat_target_g": progressNumber(fat), "carbs_target_g": progressNumber(carbs), "waist_cm": progressNumber(waist), "chest_cm": progressNumber(chest), "hips_cm": progressNumber(hips), "sleep_score": progressNumber(sleep), "wellbeing_score": progressNumber(wellbeing), "comment": progressText(comment)]); if let id = existing?.id { _ = try await session.api.updateProgress(id: id, payload: payload) } else { _ = try await session.api.createProgress(payload) }; await onSaved(); dismiss() } catch { error = error.localizedDescription } } }
+}
+
+private struct ProgressNumberField: View { let title: String; @Binding var text: String; init(_ title: String, text: Binding<String>) { self.title = title; self._text = text }; var body: some View { TextField(title, text: $text).keyboardType(.decimalPad) } }
+private func progressNumber(_ value: String) -> AnyEncodable { AnyEncodable(Double(value.replacingOccurrences(of: ",", with: "."))) }
+private func progressText(_ value: String) -> AnyEncodable { AnyEncodable(value.isEmpty ? nil : value) }
+private func progressToday() -> String { let formatter = DateFormatter(); formatter.dateFormat = "yyyy-MM-dd"; formatter.locale = Locale(identifier: "en_US_POSIX"); return formatter.string(from: Date()) }
+
 struct WorkoutsView: View {
     @EnvironmentObject private var session: SessionStore
     @State private var plans: [WorkoutPlan] = []
@@ -487,7 +586,7 @@ struct WorkoutsView: View {
 struct WorkoutPlanRow: View {
     let plan: WorkoutPlan
     let onComplete: () -> Void
-    var body: some View { HStack { VStack(alignment: .leading) { Text(plan.scheduledAt).font(.headline); Text("\(plan.items.count) упражнений · \(plan.status)").font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); if plan.status == "planned" { Button("Готово", action: onComplete).buttonStyle(.borderedProminent).controlSize(.small) } } }
+    var body: some View { HStack { VStack(alignment: .leading) { Text(plan.scheduledAt).font(.headline); Text("\(plan.items.count) упражнений · \(plan.status)").font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); if plan.status == "planned" { Button("Готово", action: onComplete).buttonStyle(.bordered).controlSize(.small) } } }
 }
 
 struct AddWorkoutView: View {

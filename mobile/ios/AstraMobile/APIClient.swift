@@ -107,12 +107,48 @@ final class APIClient {
     func myTrainerChat() async throws -> TrainerChatResponse { try await request("clients/me/chat") }
     func sendMyTrainerChat(message: String) async throws -> TrainerChatMessage { try await request("clients/me/chat", method: "POST", body: TrainerChatPayload(message: message)) }
     func clients() async throws -> [ClientSummary] { try await request("clients") }
+    func client(id: Int) async throws -> ClientDetail { try await request("clients/\(id)") }
     func clientChat(id: Int) async throws -> [TrainerChatMessage] { try await request("clients/\(id)/chat") }
     func sendClientChat(id: Int, message: String) async throws -> TrainerChatMessage { try await request("clients/\(id)/chat", method: "POST", body: TrainerChatPayload(message: message)) }
+    func createProduct(_ payload: JSONPayload) async throws -> Product { try await request("products", method: "POST", body: payload) }
+    func updateProduct(id: Int, payload: JSONPayload) async throws -> Product { try await request("products/\(id)", method: "PUT", body: payload) }
+    func deleteProduct(id: Int) async throws -> DeleteResponse { try await request("products/\(id)", method: "DELETE") }
+    func createRecipe(_ payload: JSONPayload) async throws -> Recipe { try await request("recipes", method: "POST", body: payload) }
+    func updateRecipe(id: Int, payload: JSONPayload) async throws -> Recipe { try await request("recipes/\(id)", method: "PUT", body: payload) }
+    func deleteRecipe(id: Int) async throws -> DeleteResponse { try await request("recipes/\(id)", method: "DELETE") }
+    func requestRecipeSubmission(id: Int) async throws -> Recipe { try await request("recipes/\(id)/submission-request", method: "POST") }
+    func cancelRecipeSubmission(id: Int) async throws -> Recipe { try await request("recipes/\(id)/submission-request", method: "DELETE") }
+    func moderateRecipe(id: Int, action: String, note: String?) async throws -> Recipe { try await request("recipes/\(id)/moderation", method: "POST", body: JSONPayload(values: ["action": AnyEncodable(action), "note": AnyEncodable(note)])) }
+    func createExercise(_ payload: JSONPayload) async throws -> Exercise { try await request("exercises", method: "POST", body: payload) }
+    func updateExercise(id: Int, payload: JSONPayload) async throws -> Exercise { try await request("exercises/\(id)", method: "PUT", body: payload) }
+    func deleteExercise(id: Int) async throws -> DeleteResponse { try await request("exercises/\(id)", method: "DELETE") }
+    func createEquipment(_ payload: JSONPayload) async throws -> WorkoutEquipment { try await request("workout-equipment", method: "POST", body: payload) }
+    func updateEquipment(id: Int, payload: JSONPayload) async throws -> WorkoutEquipment { try await request("workout-equipment/\(id)", method: "PUT", body: payload) }
+    func deleteEquipment(id: Int) async throws -> DeleteResponse { try await request("workout-equipment/\(id)", method: "DELETE") }
+    func createComplex(_ payload: JSONPayload) async throws -> WorkoutComplex { try await request("workout-complexes", method: "POST", body: payload) }
+    func updateComplex(id: Int, payload: JSONPayload) async throws -> WorkoutComplex { try await request("workout-complexes/\(id)", method: "PUT", body: payload) }
+    func updateWorkout(id: Int, payload: JSONPayload) async throws -> WorkoutEntry { try await request("workouts/\(id)", method: "PUT", body: payload) }
+    func deleteWorkout(id: Int) async throws -> DeleteResponse { try await request("workouts/\(id)", method: "DELETE") }
+    func createWorkoutPlan(_ payload: JSONPayload) async throws -> WorkoutPlan { try await request("workout-plans", method: "POST", body: payload) }
+    func updateWorkoutPlan(id: Int, payload: JSONPayload) async throws -> WorkoutPlan { try await request("workout-plans/\(id)", method: "PUT", body: payload) }
+    func cancelWorkoutPlan(id: Int) async throws -> WorkoutPlan { try await request("workout-plans/\(id)/cancel", method: "POST") }
+    func deleteWorkoutPlan(id: Int) async throws -> DeleteResponse { try await request("workout-plans/\(id)", method: "DELETE") }
+    func createArticle(_ payload: JSONPayload) async throws -> Article { try await request("articles", method: "POST", body: payload) }
+    func updateArticle(id: Int, payload: JSONPayload) async throws -> Article { try await request("articles/\(id)", method: "PUT", body: payload) }
+    func updateArticleFlags(id: Int, payload: JSONPayload) async throws -> Article { try await request("articles/\(id)/flags", method: "PATCH", body: payload) }
+    func deleteArticle(id: Int) async throws -> DeleteResponse { try await request("articles/\(id)", method: "DELETE") }
+    func shareToTrainer(itemType: String, itemId: Int) async throws -> SharedItemResult { try await request("clients/me/shares", method: "POST", body: JSONPayload(values: ["item_type": AnyEncodable(itemType), "item_id": AnyEncodable(itemId)])) }
+    func shareToClient(clientId: Int, itemType: String, itemId: Int) async throws -> SharedItemResult { try await request("clients/shares", method: "POST", body: JSONPayload(values: ["client_id": AnyEncodable(clientId), "item_type": AnyEncodable(itemType), "item_id": AnyEncodable(itemId)])) }
     func createDiary(_ payload: DiaryPayload) async throws -> [DiaryEntry] { try await request("diary", method: "POST", body: payload) }
+    func createDiary(_ payload: JSONPayload) async throws -> [DiaryEntry] { try await request("diary", method: "POST", body: payload) }
+    func updateDiary(id: Int, payload: JSONPayload) async throws -> DiaryEntry { try await request("diary/\(id)", method: "PUT", body: payload) }
     func deleteDiary(id: Int) async throws -> DeleteResponse { try await request("diary/\(id)", method: "DELETE") }
     func createProgress(_ payload: ProgressPayload) async throws -> ProgressEntry { try await request("progress", method: "POST", body: payload) }
+    func createProgress(_ payload: JSONPayload) async throws -> ProgressEntry { try await request("progress", method: "POST", body: payload) }
+    func updateProgress(id: Int, payload: JSONPayload) async throws -> ProgressEntry { try await request("progress/\(id)", method: "PUT", body: payload) }
+    func deleteProgress(id: Int) async throws -> DeleteResponse { try await request("progress/\(id)", method: "DELETE") }
     func createWorkout(_ payload: WorkoutPayload) async throws -> WorkoutEntry { try await request("workouts", method: "POST", body: payload) }
+    func createWorkout(_ payload: JSONPayload) async throws -> WorkoutEntry { try await request("workouts", method: "POST", body: payload) }
     func completeWorkoutPlan(id: Int) async throws -> WorkoutPlan { try await request("workout-plans/\(id)/complete", method: "POST") }
     func logout() async {
         do { let _: EmptyResponse = try await request("auth/logout", method: "POST") }
@@ -125,7 +161,21 @@ struct DeleteResponse: Decodable { let deleted: Bool; let id: Int }
 struct EmptyResponse: Decodable { let ok: Bool }
 struct TrainerInfoResponse: Codable { let trainer: TrainerInfo? }
 
-private struct AnyEncodable: Encodable {
+struct JSONPayload: Encodable {
+    let values: [String: AnyEncodable]
+    private struct CodingKeyImpl: CodingKey {
+        let stringValue: String
+        init?(stringValue: String) { self.stringValue = stringValue }
+        let intValue: Int? = nil
+        init?(intValue: Int) { return nil }
+    }
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeyImpl.self)
+        for (key, value) in values { try container.encode(value, forKey: CodingKeyImpl(stringValue: key)!) }
+    }
+}
+
+struct AnyEncodable: Encodable {
     private let encodeClosure: (Encoder) throws -> Void
     init(_ value: Encodable) { encodeClosure = { encoder in try value.encode(to: encoder) } }
     func encode(to encoder: Encoder) throws { try encodeClosure(encoder) }

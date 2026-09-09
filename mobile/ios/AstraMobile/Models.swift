@@ -32,6 +32,11 @@ struct Product: Codable, Identifiable, Hashable {
     let proteinG: Double?
     let fatG: Double?
     let carbsG: Double?
+    let packagePriceRsd: Double?
+    let packageSize: Double?
+    let pricePer100OrUnitRsd: Double?
+    let dataStatus: String?
+    let note: String?
 }
 
 struct Recipe: Codable, Identifiable, Hashable {
@@ -47,6 +52,20 @@ struct Recipe: Codable, Identifiable, Hashable {
     let fatPerServingG: Double?
     let carbsPerServingG: Double?
     let costPerServingRsd: Double?
+    let version: String?
+    let tags: String?
+    let isReady: Bool?
+    let needsGarnish: Bool?
+    let collection: String?
+    let ownerId: Int?
+    let submissionRequested: Bool?
+    let moderationStatus: String?
+    let moderationNote: String?
+    let isSubmitter: Bool?
+    let kcal: Double?
+    let proteinG: Double?
+    let fatG: Double?
+    let carbsG: Double?
 }
 
 struct RecipeIngredient: Codable, Identifiable, Hashable {
@@ -55,6 +74,12 @@ struct RecipeIngredient: Codable, Identifiable, Hashable {
     let name: String
     let quantity: Double?
     let unit: String?
+    let portionDescription: String?
+    let kcal: Double?
+    let proteinG: Double?
+    let fatG: Double?
+    let carbsG: Double?
+    let costRsd: Double?
 }
 
 struct RecipeDetail: Codable {
@@ -80,6 +105,7 @@ struct DiaryEntry: Codable, Identifiable, Hashable {
     let proteinPerServingG: Double?
     let fatPerServingG: Double?
     let carbsPerServingG: Double?
+    let costPerServingRsd: Double?
 }
 
 struct ProgressEntry: Codable, Identifiable, Hashable {
@@ -143,6 +169,20 @@ struct Exercise: Codable, Identifiable, Hashable {
     let defaultUnit: String?
     let defaultSets: Double?
     let defaultReps: Double?
+    let targetRir: String?
+    let note: String?
+    let description: String?
+    let photos: [String]
+    let video: String?
+    let variants: [ExerciseVariant]
+}
+
+struct ExerciseVariant: Codable, Hashable {
+    let machine: String?
+    let equipment: String?
+    let description: String?
+    let technique: String?
+    let tips: String?
 }
 
 struct WorkoutEquipment: Codable, Identifiable, Hashable {
@@ -257,6 +297,15 @@ struct SharedChatItem: Codable, Hashable {
     let name: String
 }
 
+struct SharedItemResult: Codable, Hashable {
+    let id: Int
+    let clientId: Int
+    let itemType: String
+    let itemId: Int
+    let alreadyShared: Bool
+    let chatMessageId: Int?
+}
+
 struct TrainerChatMessage: Codable, Identifiable, Hashable {
     let id: Int
     let senderId: Int?
@@ -288,6 +337,33 @@ struct ClientSummary: Codable, Identifiable, Hashable {
     let email: String
     let nextWorkout: ClientNextWorkout?
     let unreadMessages: Int
+}
+
+struct ClientNutritionValues: Codable, Hashable {
+    let kcal: Double?
+    let protein: Double?
+    let fat: Double?
+    let carbs: Double?
+}
+
+struct ClientToday: Codable, Hashable {
+    let date: String
+    let entries: [DiaryEntry]
+    let totals: ClientNutritionValues
+    let targets: ClientNutritionValues
+    let remaining: ClientNutritionValues
+}
+
+struct ClientDetail: Codable, Identifiable, Hashable {
+    let id: Int
+    let name: String
+    let email: String
+    let nextWorkout: ClientNextWorkout?
+    let unreadMessages: Int
+    let progress: [ProgressEntry]
+    let today: ClientToday
+    let workouts: [WorkoutEntry]
+    let workoutPlans: [WorkoutPlan]
 }
 
 enum APIError: LocalizedError {

@@ -85,8 +85,14 @@ def _ensure_chat_columns(connection: sqlite3.Connection) -> None:
 
 def _ensure_workout_plan_columns(connection: sqlite3.Connection) -> None:
     columns = _columns(connection, "workout_plans")
-    if columns and "duration_minutes" not in columns:
-        connection.execute("ALTER TABLE workout_plans ADD COLUMN duration_minutes INTEGER")
+    if columns:
+        if "name" not in columns:
+            connection.execute("ALTER TABLE workout_plans ADD COLUMN name TEXT")
+        if "duration_minutes" not in columns:
+            connection.execute("ALTER TABLE workout_plans ADD COLUMN duration_minutes INTEGER")
+    item_columns = _columns(connection, "workout_plan_items")
+    if item_columns and "variant_id" not in item_columns:
+        connection.execute("ALTER TABLE workout_plan_items ADD COLUMN variant_id INTEGER REFERENCES exercise_variants(id) ON DELETE SET NULL")
 
 
 def _ensure_exercise_columns(connection: sqlite3.Connection) -> None:
@@ -107,6 +113,7 @@ def _ensure_exercise_columns(connection: sqlite3.Connection) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             exercise_id INTEGER NOT NULL REFERENCES exercises(id) ON DELETE CASCADE,
             position INTEGER NOT NULL DEFAULT 1,
+            name TEXT,
             machine TEXT,
             equipment TEXT,
             description TEXT,
@@ -115,6 +122,9 @@ def _ensure_exercise_columns(connection: sqlite3.Connection) -> None:
         )
         """
     )
+    variant_columns = _columns(connection, "exercise_variants")
+    if variant_columns and "name" not in variant_columns:
+        connection.execute("ALTER TABLE exercise_variants ADD COLUMN name TEXT")
 
 
 def _ensure_workout_equipment_table(connection: sqlite3.Connection) -> None:

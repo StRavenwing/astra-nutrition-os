@@ -6,6 +6,9 @@ import ModalDialog from '@/components/shared/ModalDialog.vue';
 
 type BuilderItem = {
   exercise_id: number;
+  variant_id: number | null;
+  const form = reactive<{ name: string; scheduled_at: string; scheduled_time: string; duration_minutes: number | ''; items: BuilderItem[] }>({
+    name: '',
   working_weight: number | '';
   sets: number | '';
   duration_minutes: number | '';
@@ -29,7 +32,8 @@ const exercises = ref<Exercise[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const error = ref('');
-const form = reactive<{ scheduled_at: string; scheduled_time: string; duration_minutes: number | ''; items: BuilderItem[] }>({
+const form = reactive<{ name: string; scheduled_at: string; scheduled_time: string; duration_minutes: number | ''; items: BuilderItem[] }>({
+  name: '',
   scheduled_at: today(),
   scheduled_time: '',
   duration_minutes: '',
@@ -49,10 +53,12 @@ function resetForm() {
   const complex = props.complex;
   const scheduledAt = props.editPlan?.scheduled_at || '';
   form.scheduled_at = scheduledAt.slice(0, 10) || today();
+  form.name = props.editPlan?.name || '';
   form.scheduled_time = scheduledAt.includes('T') ? scheduledAt.slice(11, 16) : '';
   form.duration_minutes = props.editPlan?.duration_minutes ?? props.repeatPlan?.duration_minutes ?? '';
   form.items = (plan?.items || complex?.items)?.map((item) => ({
     exercise_id: item.exercise_id,
+    variant_id: item.variant_id ?? null,
     working_weight: item.working_weight ?? '',
     sets: item.sets ?? '',
     duration_minutes: item.duration_minutes ?? '',
@@ -97,6 +103,7 @@ function addExercise(exercise?: Exercise) {
   if (!selected) return;
   form.items.push({
     exercise_id: selected.id,
+    variant_id: null,
     working_weight: '',
     sets: selected.default_sets ?? '',
     duration_minutes: '',
@@ -123,6 +130,7 @@ function supportsSpeed(item: BuilderItem) {
 }
 
 function normalizeItem(item: BuilderItem) {
+  item.variant_id = null;
   if (!supportsDuration(item)) item.duration_minutes = '';
   if (!supportsSpeed(item)) item.speed_kmh = '';
 }
@@ -136,10 +144,12 @@ async function save() {
   saving.value = true;
   try {
     const payload = {
+      name: form.name.trim() || null,
       scheduled_at: form.scheduled_time ? `${form.scheduled_at}T${form.scheduled_time}` : form.scheduled_at,
       duration_minutes: form.duration_minutes || null,
       items: form.items.map((item) => ({
         exercise_id: item.exercise_id,
+        variant_id: item.variant_id || null,
         working_weight: item.working_weight || null,
         sets: item.sets || null,
         duration_minutes: item.duration_minutes || null,
@@ -165,6 +175,11 @@ async function save() {
       <div v-if="loading" class="panel">Загрузка…</div>
       <template v-else>
         <div class="builder-schedule">
+          <div class="builder-name field">
+            <label for="planned-workout-name">Название тренировки <small>необязательно</small></label>
+            <input id="planned-workout-name" v-model="form.name" placeholder="Например, силовая тренировка">
+            <small>Если не заполнить, отобразится «Тренировка».</small>
+          </div>
           <div class="builder-date field">
             <label for="planned-workout-date">Дата тренировки</label>
             <input id="planned-workout-date" v-model="form.scheduled_at" type="date" required>
@@ -197,6 +212,10 @@ async function save() {
               <span class="builder-number">{{ index + 1 }}</span>
               <select v-model="item.exercise_id" aria-label="Упражнение" required @change="normalizeItem(item)">
                 <option v-for="exercise in exercises" :key="exercise.id" :value="exercise.id">{{ exercise.name }}</option>
+              </select>
+              <select v-if="selectedExercise(item)?.variants?.length" v-model="item.variant_id" aria-label="Вариант упражнения">
+                <option :value="null">Без варианта</option>
+                <option v-for="(variant, variantIndex) in selectedExercise(item)?.variants" :key="variant.id || variantIndex" :value="variant.id">{{ variant.name || `Вариант ${variantIndex + 1}` }}</option>
               </select>
               <button type="button" class="remove-builder-item" aria-label="Удалить упражнение" @click="removeExercise(index)">×</button>
             </div>
@@ -238,7 +257,7 @@ async function save() {
 
 .builder-schedule {
   display: grid;
-  grid-template-columns: minmax(210px, 1.2fr) minmax(145px, .75fr) minmax(145px, .75fr);
+  grid-template-columns: minmax(210px, 1.2fr) minmax(210px, 1.2fr) minmax(145px, .75fr) minmax(145px, .75fr);
   gap: 12px;
   max-width: 680px;
 }

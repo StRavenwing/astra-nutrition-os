@@ -16,7 +16,7 @@ const videoInput = ref<HTMLInputElement | null>(null);
 const machineOptions = ref([...exerciseMachineOptions]);
 const equipmentOptions = ref([...exerciseEquipmentOptions]);
 type ExerciseVariantDraft = Omit<ExerciseVariant, 'id' | 'position'>;
-const emptyVariant = (): ExerciseVariantDraft => ({ machine: '', equipment: '', description: '', technique: '', tips: '' });
+const emptyVariant = (): ExerciseVariantDraft => ({ name: '', machine: '', equipment: '', description: '', technique: '', tips: '' });
 const variants = ref<ExerciseVariantDraft[]>([emptyVariant()]);
 const form = reactive({
   name: '',
@@ -80,6 +80,7 @@ async function save() {
       ...form,
       description: variants.value[0]?.description?.trim() || form.description,
       variants: variants.value.map((variant) => ({
+          name: variant.name || null,
         machine: variant.machine || null,
         equipment: variant.equipment || null,
         description: variant.description || null,
@@ -121,6 +122,7 @@ onMounted(async () => {
       const existingVariants = exercise.variants || [];
       variants.value = existingVariants.length
         ? existingVariants.map((variant) => ({
+          name: variant.name || '',
             machine: variant.machine || '',
             equipment: variant.equipment || '',
             description: variant.description || '',
@@ -156,6 +158,7 @@ onMounted(async () => {
         <div v-for="(variant, index) in variants" :key="index" class="exercise-variant-card">
           <div class="exercise-variant-head"><strong>Вариант {{ index + 1 }}</strong><button v-if="variants.length > 1" type="button" class="remove-variant" @click="removeVariant(index)">Удалить вариант</button></div>
           <div class="grid">
+            <div class="field full"><label>Введите название</label><input v-model="variant.name" :placeholder="`Вариант ${index + 1}`"></div>
             <div class="field"><label>Тренажёр</label><select v-model="variant.machine"><option value="">Не выбран</option><option v-for="option in machineOptions" :key="option" :value="option">{{ option }}</option></select></div>
             <div class="field"><label>Инвентарь</label><select v-model="variant.equipment"><option value="">Не выбран</option><option v-for="option in equipmentOptions" :key="option" :value="option">{{ option }}</option></select></div>
             <div class="field full"><label>Описание</label><textarea v-model="variant.description" rows="3" placeholder="Краткое описание упражнения"></textarea></div>

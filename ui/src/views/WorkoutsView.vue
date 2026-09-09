@@ -88,6 +88,19 @@ function planSummary(plan: WorkoutPlan) {
 }
 
 function planTitle(plan: WorkoutPlan) {
+    if (plan.name?.trim()) return plan.name;
+            <h3>{{ planTitle(plan) }}</h3>
+        <aside class="history-statistics-card">
+          <p class="eyebrow">СТАТИСТИКА ИСТОРИИ</p>
+          <h3>{{ historyStats.total }} тренировок</h3>
+          <p class="history-statistics-period">за {{ historyStats.month }}</p>
+          <div class="history-statistics-metrics">
+            <div><b>{{ historyStats.completed }}</b><span>ПРОЙДЕНО</span></div>
+            <div><b>{{ historyStats.canceled }}</b><span>ОТМЕНЕНО</span></div>
+            <div><b>{{ historyStats.exercises }}</b><span>УПРАЖНЕНИЙ</span></div>
+          </div>
+        </aside>
+        <div class="archive-history-groups">
   const muscleGroups = [...new Set(plan.items.map((item) => item.muscle_group).filter((group): group is string => Boolean(group?.trim())))];
   if (muscleGroups.length) return muscleGroups.slice(0, 3).join(' · ');
   return plan.items.map((item) => item.name).filter(Boolean).slice(0, 2).join(' · ') || 'Тренировка';
@@ -339,7 +352,7 @@ async function removeEquipment(id: number) {
         <div class="workout-grid archive-workout-grid">
         <article v-for="plan in completedPlans" :key="plan.id" class="workout-tile archive-plan-tile history-workout-card" tabindex="0" @click="emit('openPlan', plan)" @keydown.enter.prevent="emit('openPlan', plan)" @keydown.space.prevent="emit('openPlan', plan)">
           <div class="workout-tile-head"><span class="workout-date">{{ formatScheduledAt(plan.scheduled_at) }}</span><span class="workout-group" :class="plan.status === 'canceled' ? 'canceled-badge' : 'completed-badge'">{{ planStatus(plan) }}</span></div>
-          <h3>{{ planTitle(plan) }}</h3>
+          <h3>{{ plan.name?.trim() || 'Тренировка' }}</h3>
           <p>{{ planHistoryMeta(plan) }}</p>
           <div class="history-card-summary"><b>{{ planHistoryPreview(plan) }}</b><small>{{ planHistorySummary(plan) }}</small></div>
           <div class="workout-tile-actions workout-card-actions history-card-actions">
@@ -368,15 +381,6 @@ async function removeEquipment(id: number) {
       </div>
       </div>
       <aside class="history-statistics-card">
-        <p class="eyebrow">СТАТИСТИКА ИСТОРИИ</p>
-        <h3>{{ historyStats.total }} тренировок</h3>
-        <p class="history-statistics-period">за {{ historyStats.month }}</p>
-        <div class="history-statistics-metrics">
-          <div><b>{{ historyStats.completed }}</b><span>ПРОЙДЕНО</span></div>
-          <div><b>{{ historyStats.canceled }}</b><span>ОТМЕНЕНО</span></div>
-          <div><b>{{ historyStats.exercises }}</b><span>УПРАЖНЕНИЙ</span></div>
-        </div>
-      </aside>
       </div>
     </section>
   </template>

@@ -4400,6 +4400,49 @@ body main .history-card-actions .history-details-action {
 }
 body main .history-card-actions .history-details-action:hover { border-color: #6f82ff; background: #dfeaff; color: #566ddf; }
 
+/* Workout collections use the same four-column card rhythm on desktop. */
+body main .scheduled-grid,
+body main .workout-complex-grid,
+body main .archive-history-groups .archive-workout-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  width: 100% !important;
+}
+body main .archive-history-layout { display: flex !important; flex-direction: column !important; gap: 18px; }
+body main .archive-history-layout .history-statistics-card {
+  order: -1;
+  width: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  flex-direction: row;
+  align-items: center;
+  gap: 24px;
+  padding: 18px 24px;
+}
+body main .archive-history-layout .history-statistics-card .eyebrow,
+body main .archive-history-layout .history-statistics-card h3,
+body main .archive-history-layout .history-statistics-card .history-statistics-period { margin: 0; }
+body main .archive-history-layout .history-statistics-card .history-statistics-metrics { flex: 1; margin-top: 0; }
+body main .archive-history-groups { width: 100%; max-width: none; }
+body main .product-add-card.recipe-add-card { min-height: 272px; padding: 14px; }
+body main .product-add-card.recipe-add-card h3 { margin: 18px 0 5px; font-size: 16px; }
+body main .product-add-card.recipe-add-card p { margin: 0; color: #7d879b; font-size: 11px; }
+body main .product-add-card.recipe-add-card .primary { min-height: 32px; height: 32px; margin-top: 18px; border-radius: 9px; padding: 0 14px; font-size: 11px; }
+
+@media (max-width: 1100px) {
+  body main .scheduled-grid,
+  body main .workout-complex-grid,
+  body main .archive-history-groups .archive-workout-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  body main .archive-history-layout .history-statistics-card { align-items: flex-start; flex-wrap: wrap; }
+  body main .archive-history-layout .history-statistics-card .history-statistics-metrics { flex-basis: 100%; }
+}
+
+@media (max-width: 600px) {
+  body main .scheduled-grid,
+  body main .workout-complex-grid,
+  body main .archive-history-groups .archive-workout-grid { grid-template-columns: 1fr !important; }
+  body main .archive-history-layout .history-statistics-card { display: grid; grid-template-columns: 1fr; gap: 8px; }
+}
+
 /* Complex cards: keep the visual, content and actions inside the card bounds. */
 body main .workout-complex-grid > .workout-complex-card:not(.workout-create-card) {
   display: flex !important;

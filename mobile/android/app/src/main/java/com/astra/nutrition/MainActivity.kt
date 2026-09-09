@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -82,8 +83,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.material3.CircularProgressIndicator
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -172,7 +175,7 @@ fun LoginScreen(state: AstraState) {
 
 @Composable
 private fun RowScope.ChoiceButton(label: String, active: Boolean, onClick: () -> Unit) {
-    if (active) Button(onClick, Modifier.weight(1f)) { Text(label) }
+    if (active) OutlinedButton(onClick, Modifier.weight(1f), colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = AstraTheme.blue.copy(alpha = .12f), contentColor = AstraTheme.blue)) { Text(label) }
     else OutlinedButton(onClick, Modifier.weight(1f)) { Text(label) }
 }
 
@@ -190,7 +193,7 @@ fun MainScaffold(state: AstraState) {
         Box(Modifier.padding(padding).fillMaxSize()) {
             when (screen) {
                 Screen.Overview -> DashboardScreen(state)
-                Screen.Diary -> DiaryScreen(state)
+                Screen.Diary -> DiaryCalendarScreen(state)
                 Screen.Products -> ProductsScreen(state)
                 Screen.Recipes -> RecipesScreen(state)
                 Screen.Progress -> ProgressScreen(state)
@@ -208,14 +211,14 @@ private fun Screen.icon() = when (this) { Screen.Overview -> Icons.Default.Home;
 @Composable
 private fun Page(title: String, subtitle: String? = null, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) { Text(title, fontSize = 28.sp, fontWeight = FontWeight.Bold); subtitle?.let { Text(it, color = AstraTheme.muted) } }
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) { Text(title, fontSize = 24.sp, fontWeight = FontWeight.Bold); subtitle?.let { Text(it, color = AstraTheme.muted) } }
         content()
     }
 }
 
 @Composable
 private fun AstraCard(content: @Composable () -> Unit) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(2.dp)) { content() }
+    Card(Modifier.fillMaxWidth().border(1.dp, AstraTheme.line, RoundedCornerShape(16.dp)), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(1.dp)) { content() }
 }
 
 @Composable
@@ -234,7 +237,7 @@ fun DashboardScreen(state: AstraState) {
         data?.let { dashboard ->
             Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Metric("Продукты", dashboard.products.toString(), AstraTheme.blue); Metric("Рецепты", dashboard.recipes.toString(), AstraTheme.green) }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Metric("Одобрено", dashboard.approved.toString(), Color(0xFFFFA726)); Metric("Вес", dashboard.latest?.weight.shown(" кг"), Color(0xFF8E7CFF)) }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Metric("Одобрено", dashboard.approved.toString(), AstraTheme.blue); Metric("Вес", dashboard.latest?.weight.shown(" кг"), AstraTheme.blue) }
                 dashboard.latest?.let { latest ->
                     AstraCard { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text("Последний замер", fontWeight = FontWeight.Bold); Text(latest.date, color = AstraTheme.muted); Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Metric("Талия", latest.waist.shown(" см"), AstraTheme.green); Metric("ИМТ", latest.bmi.shown(), AstraTheme.blue) } } }
                 }
@@ -360,7 +363,7 @@ fun MoreScreen(state: AstraState, onNavigate: (Screen) -> Unit) {
 }
 
 @Composable
-fun ProgressScreen(state: AstraState) {
+fun LegacyProgressScreen(state: AstraState) {
     var entries by remember { mutableStateOf<List<ProgressEntry>>(emptyList()) }
     var showAdd by remember { mutableStateOf(false) }
     suspend fun load() { entries = suspendResult { state.api.progress() }.getOrDefault(emptyList()) }
@@ -378,6 +381,219 @@ private fun AddProgressDialog(onSave: (String, Double?, Double?, Double?, String
     var date by remember { mutableStateOf(today()) }; var weight by remember { mutableStateOf("") }; var waist by remember { mutableStateOf("") }; var wellbeing by remember { mutableStateOf("") }; var comment by remember { mutableStateOf("") }
     AlertDialog(onDismissRequest = onDismiss, title = { Text("Новый замер") }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { OutlinedTextField(date, { date = it }, label = { Text("Дата YYYY-MM-DD") }, singleLine = true); NumberField("Вес, кг", weight) { weight = it }; NumberField("Талия, см", waist) { waist = it }; NumberField("Самочувствие 1–5", wellbeing) { wellbeing = it }; OutlinedTextField(comment, { comment = it }, label = { Text("Комментарий") }, modifier = Modifier.fillMaxWidth()) } }, confirmButton = { Button({ onSave(date, weight.toNumber(), waist.toNumber(), wellbeing.toNumber(), comment.takeIf { it.isNotBlank() }) }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
 }
+
+@Composable
+fun ProgressScreen(state: AstraState) {
+    var entries by remember { mutableStateOf<List<ProgressEntry>>(emptyList()) }
+    var selected by remember { mutableStateOf<ProgressEntry?>(null) }
+    var showAdd by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    suspend fun load() { entries = suspendResult { state.api.progress() }.getOrDefault(emptyList()) }
+    LaunchedEffect(Unit) { load() }
+
+    selected?.let { item ->
+        ProgressDetailScreen(
+            state = state,
+            entry = item,
+            onBack = { selected = null },
+            onChanged = { scope.launch { load(); selected = null } }
+        )
+    } ?: Page("Прогресс", "Измерения, которые помогают увидеть динамику") {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                listOf("Неделя", "Месяц", "3 месяца", "Год").forEachIndexed { index, label ->
+                    OutlinedButton(onClick = { }, modifier = Modifier.weight(1f), colors = if (index == 1) androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = AstraTheme.blue.copy(alpha = .12f), contentColor = AstraTheme.blue) else androidx.compose.material3.ButtonDefaults.outlinedButtonColors()) { Text(label, fontSize = 10.sp) }
+                }
+            }
+            val latest = entries.firstOrNull()
+            val weightValues = entries.mapNotNull { it.weight }.take(8).reversed()
+            AstraCard {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("ДИНАМИКА ВЕСА", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AstraTheme.blue)
+                            Text("Последние 30 дней", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Text("${weightValues.size} замеров", fontSize = 11.sp, color = AstraTheme.muted)
+                    }
+                    if (weightValues.isEmpty()) {
+                        Text("Добавьте несколько замеров, чтобы увидеть динамику веса.", color = AstraTheme.muted, fontSize = 12.sp, modifier = Modifier.padding(vertical = 26.dp))
+                    } else {
+                        val min = weightValues.minOrNull() ?: 0.0
+                        val max = weightValues.maxOrNull() ?: min
+                        val range = (max - min).coerceAtLeast(1.0)
+                        Row(Modifier.fillMaxWidth().height(132.dp), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.Bottom) {
+                            weightValues.forEach { value ->
+                                val barHeight = (34.0 + ((value - min) / range) * 78.0).dp
+                                Box(Modifier.weight(1f).height(barHeight).background(AstraTheme.blue.copy(alpha = .82f), RoundedCornerShape(6.dp)))
+                            }
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(entries.lastOrNull()?.date.orEmpty(), fontSize = 10.sp, color = AstraTheme.muted)
+                            Text(entries.firstOrNull()?.date.orEmpty(), fontSize = 10.sp, color = AstraTheme.muted)
+                        }
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.weight(1f)) { ProgressMetric("Вес", latest?.weight.shown(" кг"), AstraTheme.blue) }
+                Box(Modifier.weight(1f)) { ProgressMetric("ИМТ", latest?.bmi.shown(), AstraTheme.blue) }
+                Box(Modifier.weight(1f)) { ProgressMetric("Талия", latest?.waist.shown(" см"), AstraTheme.blue) }
+            }
+            AstraCard {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Последние 30 дней", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                        Text("${entries.size} всего", fontSize = 11.sp, color = AstraTheme.muted)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        (0 until 16).forEach { index ->
+                            val filled = index < entries.size.coerceAtMost(16)
+                            Box(Modifier.weight(1f).height(14.dp).background(if (filled) AstraTheme.blue else AstraTheme.line, RoundedCornerShape(4.dp)))
+                        }
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.weight(1f)) { ProgressMetric("Калории", latest?.kcalTarget.shown(" ккал"), AstraTheme.blue) }
+                Box(Modifier.weight(1f)) { ProgressMetric("Белок", latest?.proteinTarget.shown(" г"), AstraTheme.blue) }
+                Box(Modifier.weight(1f)) { ProgressMetric("Самочувствие", latest?.wellbeing.shown(" / 5"), AstraTheme.blue) }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("ИСТОРИЯ ЗАМЕРОВ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AstraTheme.blue)
+                    Text("Открывайте карточку, чтобы посмотреть детали", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+                OutlinedButton({ showAdd = true }) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(4.dp)); Text("Добавить") }
+            }
+            if (entries.isEmpty()) {
+                EmptyMessage("Замеров пока нет", "Добавь первый показатель.")
+            } else {
+                entries.chunked(2).forEach { pair ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        pair.forEach { item -> Box(Modifier.weight(1f)) { ProgressTile(item) { selected = item } } }
+                        if (pair.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                }
+            }
+            AstraCard {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("ПОДСКАЗКА", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AstraTheme.blue)
+                    Text("Добавляйте замеры примерно в одно и то же время", fontWeight = FontWeight.Bold)
+                    Text("Так динамика веса и объёмов будет сравниваться точнее.", color = AstraTheme.muted, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+    if (showAdd) ProgressEditorDialog(null, { body -> scope.launch { suspendResult { state.api.createProgress(body) }; load(); showAdd = false } }, { showAdd = false })
+}
+
+@Composable
+private fun ProgressMetric(label: String, value: String, color: Color) {
+    Column(Modifier.fillMaxWidth().background(color.copy(alpha = .12f), RoundedCornerShape(14.dp)).padding(10.dp)) {
+        Text(label.uppercase(), fontSize = 9.sp, fontWeight = FontWeight.Bold, color = AstraTheme.muted)
+        Spacer(Modifier.height(4.dp))
+        Text(value, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
+}
+
+@Composable
+private fun ProgressTile(item: ProgressEntry, onOpen: () -> Unit) {
+    AstraCard {
+        Column(Modifier.fillMaxWidth().clickable(onClick = onOpen).padding(12.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(item.date, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                Text("ЗАМЕР", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = AstraTheme.blue)
+            }
+            Divider()
+            Text("Вес", fontSize = 11.sp, color = AstraTheme.muted)
+            Text(item.weight.shown(" кг"), fontSize = 19.sp, fontWeight = FontWeight.Bold)
+            Text("Талия ${item.waist.shown(" см")}", fontSize = 11.sp, color = AstraTheme.muted)
+            Text("ИМТ ${item.bmi.shown()} · Самочувствие ${item.wellbeing.shown(" / 5")}", fontSize = 11.sp, color = AstraTheme.muted)
+            Button(onClick = onOpen, modifier = Modifier.fillMaxWidth()) { Text("Открыть") }
+        }
+    }
+}
+
+@Composable
+private fun ProgressDetailScreen(state: AstraState, entry: ProgressEntry, onBack: () -> Unit, onChanged: () -> Unit) {
+    var showEditor by remember { mutableStateOf(false) }
+    var showDelete by remember { mutableStateOf(false) }
+    var showShare by remember { mutableStateOf(false) }
+    var clients by remember { mutableStateOf<List<ClientSummary>>(emptyList()) }
+    var hasTrainer by remember { mutableStateOf(false) }
+    var actionMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val canManage = state.user?.isAdmin == true || state.user?.isTrainer == true
+    LaunchedEffect(canManage) { if (!canManage) hasTrainer = suspendResult { state.api.myTrainerChat() }.getOrNull()?.trainer != null }
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, "Назад") }
+            Column(Modifier.weight(1f)) { Text("Замер", fontSize = 20.sp, fontWeight = FontWeight.Bold); Text(entry.date, color = AstraTheme.muted, fontSize = 12.sp) }
+        }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            AstraCard {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("ТЕКУЩИЕ ПОКАЗАТЕЛИ", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AstraTheme.blue)
+                    Text(entry.weight.shown(" кг"), fontSize = 38.sp, fontWeight = FontWeight.Bold)
+                    Text("Вес на дату замера", color = AstraTheme.muted, fontSize = 12.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Box(Modifier.weight(1f)) { ProgressMetric("Цель", entry.desiredWeight.shown(" кг"), AstraTheme.blue) }
+                        Box(Modifier.weight(1f)) { ProgressMetric("ИМТ", entry.bmi.shown(), AstraTheme.blue) }
+                    }
+                }
+            }
+            AstraCard {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Text("Подробности", fontWeight = FontWeight.Bold)
+                    ProgressDetailRow("Талия", entry.waist.shown(" см")); ProgressDetailRow("Грудь", entry.chest.shown(" см")); ProgressDetailRow("Бёдра", entry.hips.shown(" см")); ProgressDetailRow("Рост", entry.height.shown(" см")); ProgressDetailRow("Процент жира", entry.bodyFat.shown(" %")); ProgressDetailRow("Мышечная масса", entry.muscleMass.shown(" кг")); ProgressDetailRow("Калорийность", entry.kcalTarget.shown(" ккал")); ProgressDetailRow("Белок", entry.proteinTarget.shown(" г")); ProgressDetailRow("Жиры", entry.fatTarget.shown(" г")); ProgressDetailRow("Углеводы", entry.carbsTarget.shown(" г")); ProgressDetailRow("Сон", entry.sleep.shown(" / 5")); ProgressDetailRow("Самочувствие", entry.wellbeing.shown(" / 5"))
+                    entry.comment?.takeIf { it.isNotBlank() }?.let { Text(it, color = AstraTheme.muted, fontSize = 12.sp) }
+                }
+            }
+            AstraCard {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button({ showEditor = true }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Edit, null); Spacer(Modifier.width(6.dp)); Text("Редактировать") }
+                    if (canManage) OutlinedButton({ scope.launch { clients = suspendResult { state.api.clients() }.getOrDefault(emptyList()); showShare = true } }, modifier = Modifier.fillMaxWidth()) { Text("Отправить клиенту") }
+                    if (!canManage && hasTrainer) OutlinedButton({ scope.launch { suspendResult { state.api.shareToTrainer("progress", entry.id) }; actionMessage = "Отправлено тренеру" } }, modifier = Modifier.fillMaxWidth()) { Text("Отправить тренеру") }
+                    TextButton({ showDelete = true }, modifier = Modifier.fillMaxWidth()) { Text("Удалить замер", color = AstraTheme.danger) }
+                    actionMessage?.let { Text(it, color = AstraTheme.green, fontSize = 12.sp) }
+                }
+            }
+        }
+    }
+    if (showEditor) ProgressEditorDialog(entry, { body -> scope.launch { suspendResult { state.api.updateProgress(entry.id, body) }; showEditor = false; onChanged() } }, { showEditor = false })
+    if (showShare) ShareToClientDialog(clients, { clientId -> scope.launch { suspendResult { state.api.shareToClient(clientId, "progress", entry.id) }; showShare = false; actionMessage = "Отправлено клиенту" } }, { showShare = false })
+    if (showDelete) AlertDialog(onDismissRequest = { showDelete = false }, title = { Text("Удалить замер?") }, text = { Text("Это действие нельзя отменить.") }, confirmButton = { TextButton({ scope.launch { suspendResult { state.api.deleteProgress(entry.id) }; showDelete = false; onChanged() } }) { Text("Удалить", color = AstraTheme.danger) } }, dismissButton = { TextButton({ showDelete = false }) { Text("Отмена") } })
+}
+
+@Composable
+private fun ProgressDetailRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text(label, color = AstraTheme.muted, fontSize = 12.sp); Text(value, fontWeight = FontWeight.Bold, fontSize = 12.sp) }
+}
+
+@Composable
+private fun ProgressEditorDialog(existing: ProgressEntry?, onSave: (JSONObject) -> Unit, onDismiss: () -> Unit) {
+    var date by remember(existing?.id) { mutableStateOf(existing?.date ?: today()) }
+    var weight by remember(existing?.id) { mutableStateOf(existing?.weight?.toString().orEmpty()) }
+    var desired by remember(existing?.id) { mutableStateOf(existing?.desiredWeight?.toString().orEmpty()) }
+    var height by remember(existing?.id) { mutableStateOf(existing?.height?.toString().orEmpty()) }
+    var bodyFat by remember(existing?.id) { mutableStateOf(existing?.bodyFat?.toString().orEmpty()) }
+    var muscle by remember(existing?.id) { mutableStateOf(existing?.muscleMass?.toString().orEmpty()) }
+    var kcal by remember(existing?.id) { mutableStateOf(existing?.kcalTarget?.toString().orEmpty()) }
+    var protein by remember(existing?.id) { mutableStateOf(existing?.proteinTarget?.toString().orEmpty()) }
+    var fat by remember(existing?.id) { mutableStateOf(existing?.fatTarget?.toString().orEmpty()) }
+    var carbs by remember(existing?.id) { mutableStateOf(existing?.carbsTarget?.toString().orEmpty()) }
+    var waist by remember(existing?.id) { mutableStateOf(existing?.waist?.toString().orEmpty()) }
+    var chest by remember(existing?.id) { mutableStateOf(existing?.chest?.toString().orEmpty()) }
+    var hips by remember(existing?.id) { mutableStateOf(existing?.hips?.toString().orEmpty()) }
+    var sleep by remember(existing?.id) { mutableStateOf(existing?.sleep?.toString().orEmpty()) }
+    var wellbeing by remember(existing?.id) { mutableStateOf(existing?.wellbeing?.toString().orEmpty()) }
+    var comment by remember(existing?.id) { mutableStateOf(existing?.comment.orEmpty()) }
+    fun body(): JSONObject = JSONObject().put("measured_at", date).putProgressValue("weight_kg", weight).putProgressValue("desired_weight_kg", desired).putProgressValue("height_cm", height).putProgressValue("body_fat_pct", bodyFat).putProgressValue("muscle_mass_kg", muscle).putProgressValue("kcal_target", kcal).putProgressValue("protein_target_g", protein).putProgressValue("fat_target_g", fat).putProgressValue("carbs_target_g", carbs).putProgressValue("waist_cm", waist).putProgressValue("chest_cm", chest).putProgressValue("hips_cm", hips).putProgressValue("sleep_score", sleep).putProgressValue("wellbeing_score", wellbeing).put("comment", comment.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новый замер" else "Редактировать замер") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) { OutlinedTextField(date, { date = it }, label = { Text("Дата YYYY-MM-DD") }, singleLine = true); NumberField("Вес, кг", weight) { weight = it }; NumberField("Желаемый вес, кг", desired) { desired = it }; NumberField("Рост, см", height) { height = it }; NumberField("Талия, см", waist) { waist = it }; NumberField("Грудь, см", chest) { chest = it }; NumberField("Бёдра, см", hips) { hips = it }; NumberField("Процент жира", bodyFat) { bodyFat = it }; NumberField("Мышечная масса, кг", muscle) { muscle = it }; NumberField("Калорийность", kcal) { kcal = it }; NumberField("Белок, г", protein) { protein = it }; NumberField("Жиры, г", fat) { fat = it }; NumberField("Углеводы, г", carbs) { carbs = it }; NumberField("Сон, 1–5", sleep) { sleep = it }; NumberField("Самочувствие, 1–5", wellbeing) { wellbeing = it }; OutlinedTextField(comment, { comment = it }, label = { Text("Комментарий") }, modifier = Modifier.fillMaxWidth()) } }, confirmButton = { Button({ onSave(body()) }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
+}
+
+private fun JSONObject.putProgressValue(key: String, value: String): JSONObject = put(key, value.toNumber() ?: JSONObject.NULL)
 
 @Composable
 fun WorkoutsScreen(state: AstraState) {
@@ -410,3 +626,93 @@ fun todayTime() = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.US).format(Da
 
 @Composable
 fun EmptyMessage(title: String, body: String) { Box(Modifier.fillMaxWidth().padding(42.dp), contentAlignment = Alignment.Center) { Column(horizontalAlignment = Alignment.CenterHorizontally) { Icon(Icons.Default.CalendarMonth, null, tint = AstraTheme.blue, modifier = Modifier.size(40.dp)); Text(title, fontWeight = FontWeight.Bold); Text(body, color = AstraTheme.muted, fontSize = 12.sp) } } }
+
+private val androidMealOrder = listOf("Завтрак", "Обед", "Ужин", "Перекус", "Напиток", "Десерт")
+private data class AndroidDiaryTotals(val kcal: Double, val protein: Double, val fat: Double, val carbs: Double, val cost: Double)
+private fun diaryTotalsAndroid(items: List<DiaryEntry>) = AndroidDiaryTotals(items.sumOf { it.kcal ?: 0.0 }, items.sumOf { it.protein ?: 0.0 }, items.sumOf { it.fat ?: 0.0 }, items.sumOf { it.carbs ?: 0.0 }, items.sumOf { it.cost ?: 0.0 })
+private fun Double?.diaryShown(suffix: String = ""): String { val value = this ?: 0.0; return if (value % 1.0 == 0.0) "${value.toInt()}$suffix" else "${"%.1f".format(Locale.US, value)}$suffix" }
+private fun daysInMonthAndroid(year: Int, month: Int): Int = Calendar.getInstance().apply { set(year, month, 1) }.getActualMaximum(Calendar.DAY_OF_MONTH)
+private fun firstDayOffsetAndroid(year: Int, month: Int): Int = ((Calendar.getInstance().apply { set(year, month, 1) }.get(Calendar.DAY_OF_WEEK) + 5) % 7)
+private fun shiftMonthAndroid(value: String, delta: Int): String { val parts = value.split('-').map { it.toInt() }; val calendar = Calendar.getInstance().apply { set(parts[0], parts[1] - 1, 1); add(Calendar.MONTH, delta) }; return "%04d-%02d".format(Locale.US, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1) }
+private fun monthLabelAndroid(value: String): String { val parts = value.split('-').map { it.toInt() }; return SimpleDateFormat("LLLL yyyy", Locale("ru")).format(Calendar.getInstance().apply { set(parts[0], parts[1] - 1, 1) }.time).replaceFirstChar { it.titlecase(Locale("ru")) } }
+
+@Composable
+fun DiaryCalendarScreen(state: AstraState) {
+    var entries by remember { mutableStateOf<List<DiaryEntry>>(emptyList()) }
+    var products by remember { mutableStateOf<List<Product>>(emptyList()) }
+    var recipes by remember { mutableStateOf<List<Recipe>>(emptyList()) }
+    var month by rememberSaveable { mutableStateOf(today().take(7)) }
+    var editingDate by rememberSaveable { mutableStateOf<String?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    suspend fun load() { suspendResult { entries = state.api.diary(); products = state.api.products(); recipes = state.api.recipes(); error = null }.onFailure { error = it.message } }
+    LaunchedEffect(Unit) { load() }
+    val date = editingDate
+    if (date != null) DiaryDayEditorScreen(state, date, entries.filter { it.date == date }, products, recipes, { editingDate = null }, { load() })
+    else Page("Дневник", "Food Calendar · питание по дням") {
+        val todayEntries = entries.filter { it.date == today() }
+        val todayTotals = diaryTotalsAndroid(todayEntries)
+        val parts = month.split('-').map { it.toIntOrNull() ?: 1 }
+        val year = parts.getOrElse(0) { Calendar.getInstance().get(Calendar.YEAR) }
+        val monthIndex = parts.getOrElse(1) { 1 } - 1
+        val days = daysInMonthAndroid(year, monthIndex)
+        val offset = firstDayOffsetAndroid(year, monthIndex)
+        val filledDays = entries.filter { it.date.startsWith(month) }.map { it.date }.toSet().size
+        LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item { AstraCard { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("FOOD CALENDAR", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AstraTheme.green); Text("Сегодня · ${today()}", fontSize = 20.sp, fontWeight = FontWeight.Bold) }; Button({ editingDate = today() }) { Text("Сегодня") } }; Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Metric("Заполнено дней", filledDays.toString(), AstraTheme.green); Metric("Ккал", todayTotals.kcal.diaryShown(), AstraTheme.blue); Metric("Белок", todayTotals.protein.diaryShown(" г"), AstraTheme.green) }; Text("${todayEntries.size} записей · ${todayTotals.fat.diaryShown(" г жиров")} · ${todayTotals.carbs.diaryShown(" г углеводов")}", color = AstraTheme.muted, fontSize = 12.sp) } } }
+            item { AstraCard { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("ТЕКУЩИЙ ДЕНЬ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AstraTheme.blue); Text("Питание по приёмам", fontSize = 18.sp, fontWeight = FontWeight.Bold) }; TextButton({ editingDate = today() }) { Text("Изменить") } }; if (todayEntries.isEmpty()) Text("Записей пока нет — откройте день и добавьте блюдо или продукт.", color = AstraTheme.muted) else for (meal in androidMealOrder) { val mealEntries = todayEntries.filter { it.meal == meal }; if (mealEntries.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) { Text(meal.take(1), modifier = Modifier.size(30.dp).background(AstraTheme.green.copy(alpha = .14f), RoundedCornerShape(10.dp)).padding(7.dp), color = AstraTheme.green, fontWeight = FontWeight.Bold); Column(Modifier.weight(1f).padding(horizontal = 10.dp)) { Text(meal, fontWeight = FontWeight.Bold); Text(mealEntries.joinToString(" · ") { it.name ?: "Без названия" }, color = AstraTheme.muted, fontSize = 12.sp) }; Text(diaryTotalsAndroid(mealEntries).kcal.diaryShown(" ккал"), color = AstraTheme.blue, fontWeight = FontWeight.Bold, fontSize = 12.sp) } } } } }
+            item { Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("КАЛЕНДАРЬ ПИТАНИЯ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AstraTheme.green); Text("Нажмите на день для редактирования", fontSize = 18.sp, fontWeight = FontWeight.Bold) }; TextButton({ month = shiftMonthAndroid(month, -1) }) { Text("‹") }; TextButton({ month = today().take(7) }) { Text("Сегодня") }; TextButton({ month = shiftMonthAndroid(month, 1) }) { Text("›") } } }
+            item { AstraCard { Column(Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(monthLabelAndroid(month), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp)); Row(Modifier.fillMaxWidth()) { listOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс").forEach { Text(it, Modifier.weight(1f).padding(5.dp), fontSize = 11.sp, color = AstraTheme.muted, fontWeight = FontWeight.Bold) } }; for (row in 0 until ((offset + days + 6) / 7)) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) { for (column in 0..6) { val day = row * 7 + column - offset + 1; if (day !in 1..days) Spacer(Modifier.weight(1f).height(72.dp)) else { val dayDate = "%04d-%02d-%02d".format(Locale.US, year, monthIndex + 1, day); val dayItems = entries.filter { it.date == dayDate }; val isToday = dayDate == today(); Button({ editingDate = dayDate }, Modifier.weight(1f).height(72.dp), shape = RoundedCornerShape(12.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(5.dp), colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = if (isToday) AstraTheme.green.copy(alpha = .18f) else MaterialTheme.colorScheme.surface, contentColor = MaterialTheme.colorScheme.onSurface)) { Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) { Text(day.toString(), fontWeight = FontWeight.Bold, color = if (isToday) AstraTheme.green else MaterialTheme.colorScheme.onSurface); Text(if (dayItems.isEmpty()) "Нет записей" else "${dayItems.size} · ${diaryTotalsAndroid(dayItems).kcal.diaryShown(" ккал")}", fontSize = 9.sp, color = AstraTheme.muted, maxLines = 2) } } } } } } } }
+            item { Spacer(Modifier.height(8.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun DiaryDayEditorScreen(state: AstraState, date: String, entries: List<DiaryEntry>, products: List<Product>, recipes: List<Recipe>, onBack: () -> Unit, onChanged: suspend () -> Unit) {
+    var editorEntry by remember { mutableStateOf<DiaryEntry?>(null) }
+    var editorOpen by remember { mutableStateOf(false) }
+    var pickerOpen by remember { mutableStateOf(false) }
+    var presetProduct by remember { mutableStateOf<Product?>(null) }
+    var presetRecipe by remember { mutableStateOf<Recipe?>(null) }
+    var presetCustom by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    Page("День · $date", "Редактирование дневника") {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) { OutlinedButton(onBack) { Icon(Icons.Default.ArrowBack, null); Spacer(Modifier.width(5.dp)); Text("Назад") }; Spacer(Modifier.weight(1f)); Button({ pickerOpen = true }) { Icon(Icons.Default.Add, null); Spacer(Modifier.width(4.dp)); Text("Добавить") } }
+        val totals = diaryTotalsAndroid(entries)
+        LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { item { AstraCard { Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { Metric("Записей", entries.size.toString(), AstraTheme.green); Metric("Ккал", totals.kcal.diaryShown(), AstraTheme.blue); Metric("Белок", totals.protein.diaryShown(" г"), AstraTheme.green) } } }; if (entries.isEmpty()) item { EmptyMessage("В этот день записей пока нет", "Добавьте блюдо, ингредиент или новое блюдо.") }; items(entries, key = { it.id }) { entry -> AstraCard { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Icon(if (entry.itemType == "product") Icons.Default.LocalGroceryStore else Icons.Default.Restaurant, null, tint = AstraTheme.green); Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text(entry.name ?: "Без названия", fontWeight = FontWeight.Bold); Text("${entry.meal ?: "Приём пищи"} · ${entry.kcal.diaryShown(" ккал")}", color = AstraTheme.muted, fontSize = 12.sp) }; IconButton({ editorEntry = entry; editorOpen = true }) { Icon(Icons.Default.Edit, "Редактировать") }; IconButton({ scope.launch { suspendResult { state.api.deleteDiary(entry.id); onChanged() } } }) { Icon(Icons.Default.Delete, "Удалить") } }; Text("${if (entry.itemType == "product") "Количество: ${entry.measurementQuantity ?: entry.quantity ?: 0.0} ${entry.measurementName ?: entry.unit ?: "г"}" else "Порций: ${entry.servings ?: 1.0}"}${entry.comment?.let { " · $it" } ?: ""}", color = AstraTheme.muted, fontSize = 12.sp) } } } }
+    }
+    if (pickerOpen) DiaryFoodPickerScreen(products, recipes, { pickerOpen = false }, { presetProduct = null; presetRecipe = null; presetCustom = true; pickerOpen = false; editorEntry = null; editorOpen = true }) { product, recipe -> presetProduct = product; presetRecipe = recipe; presetCustom = false; pickerOpen = false; editorEntry = null; editorOpen = true }
+    if (editorOpen) DiaryEntryEditorDialog(products, recipes, date, editorEntry, presetProduct, presetRecipe, presetCustom, { editorOpen = false }) { id, body -> scope.launch { suspendResult { if (id == null) state.api.addDiary(body) else state.api.updateDiary(id, body); onChanged() }; editorOpen = false } }
+}
+
+@Composable
+private fun DiaryFoodPickerScreen(products: List<Product>, recipes: List<Recipe>, onBack: () -> Unit, onCustom: () -> Unit, onSelect: (Product?, Recipe?) -> Unit) {
+    var search by rememberSaveable { mutableStateOf("") }
+    var tab by rememberSaveable { mutableStateOf("Блюда") }
+    val filteredRecipes = recipes.filter { search.isBlank() || it.name.contains(search, true) }
+    val filteredProducts = products.filter { search.isBlank() || it.name.contains(search, true) }
+    Page("Добавить в дневник", "Выберите блюдо или продукт") {
+        Column(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedTextField(search, { search = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, shape = RoundedCornerShape(24.dp), label = { Text("Поиск") }, leadingIcon = { Icon(Icons.Default.LocalGroceryStore, null, tint = AstraTheme.blue) })
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("Блюда", "Продукты", "Новое", "Все").forEach { item ->
+                    if (tab == item) OutlinedButton({ tab = item }, Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp), colors = androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = AstraTheme.blue.copy(alpha = .12f), contentColor = AstraTheme.blue)) { Text(item, fontSize = 11.sp, maxLines = 1) }
+                    else OutlinedButton({ if (item == "Новое") onCustom() else tab = item }, Modifier.weight(1f), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp)) { Text(item, fontSize = 11.sp, maxLines = 1) }
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("Выберите запись", fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Нажмите на карточку, чтобы указать количество", color = AstraTheme.muted, fontSize = 12.sp) }; TextButton(onBack) { Text("Отмена") } }
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
+                    if (tab == "Блюда" || tab == "Все") items(filteredRecipes, key = { "recipe-${it.id}" }) { recipe -> AstraCard { Row(Modifier.fillMaxWidth().clickable { onSelect(null, recipe) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Restaurant, null, tint = AstraTheme.blue); Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(recipe.name, fontWeight = FontWeight.Bold); Text("${recipe.category} · ${recipe.kcal.shown(" ккал")} · Б ${recipe.protein.shown(" г")}", color = AstraTheme.muted, fontSize = 12.sp) }; Box(Modifier.size(28.dp).background(AstraTheme.blue.copy(alpha = .12f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) { Text("+", color = AstraTheme.blue, fontWeight = FontWeight.Bold) } } } }
+                    if (tab == "Продукты" || tab == "Все") items(filteredProducts, key = { "product-${it.id}" }) { product -> AstraCard { Row(Modifier.fillMaxWidth().clickable { onSelect(product, null) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.LocalGroceryStore, null, tint = AstraTheme.blue); Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(product.name, fontWeight = FontWeight.Bold); Text("${product.category ?: "Без категории"} · ${product.kcal.shown(" ккал")} · Б ${product.protein.shown(" г")}", color = AstraTheme.muted, fontSize = 12.sp) }; Box(Modifier.size(28.dp).background(AstraTheme.blue.copy(alpha = .12f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) { Text("+", color = AstraTheme.blue, fontWeight = FontWeight.Bold) } } } }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiaryEntryEditorDialog(products: List<Product>, recipes: List<Recipe>, initialDate: String, entry: DiaryEntry?, presetProduct: Product? = null, presetRecipe: Recipe? = null, presetCustom: Boolean = false, onDismiss: () -> Unit, onSave: (Int?, JSONObject) -> Unit) {
+    var kind by remember(entry?.id) { mutableStateOf(if (entry?.itemType == "product") 0 else 1) }; var date by remember(entry?.id) { mutableStateOf(entry?.date ?: initialDate) }; var meal by remember(entry?.id) { mutableStateOf(entry?.meal ?: androidMealOrder.first()) }; var product by remember(entry?.id) { mutableStateOf(products.firstOrNull { it.id == entry?.productId } ?: products.firstOrNull()) }; var recipe by remember(entry?.id) { mutableStateOf(recipes.firstOrNull { it.id == entry?.recipeId } ?: recipes.firstOrNull()) }; var amount by remember(entry?.id) { mutableStateOf((entry?.measurementQuantity ?: entry?.quantity ?: entry?.servings ?: 1.0).toString()) }; var unit by remember(entry?.id) { mutableStateOf(entry?.measurementName ?: entry?.unit ?: product?.unit ?: "г") }; var comment by remember(entry?.id) { mutableStateOf(entry?.comment ?: "") }
+    LaunchedEffect(presetProduct?.id, presetRecipe?.id, presetCustom) { if (entry == null) { if (presetCustom) kind = 2; presetProduct?.let { product = it; unit = it.unit ?: unit; kind = 0 }; presetRecipe?.let { recipe = it; kind = 1 } } }
+    var customName by remember(entry?.id) { mutableStateOf("") }; var customKcal by remember(entry?.id) { mutableStateOf("") }; var customProtein by remember(entry?.id) { mutableStateOf("") }; var customFat by remember(entry?.id) { mutableStateOf("") }; var customCarbs by remember(entry?.id) { mutableStateOf("") }
+    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (entry == null) "Добавить запись" else "Редактировать запись") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { ChoiceButton("Продукт", kind == 0) { kind = 0 }; ChoiceButton("Блюдо", kind == 1) { kind = 1 }; ChoiceButton("Новое блюдо", kind == 2) { kind = 2 } }; OutlinedTextField(date, { date = it }, label = { Text("Дата YYYY-MM-DD") }, singleLine = true); Picker("Приём: $meal", androidMealOrder) { meal = it }; if (kind == 0) { Picker("Продукт: ${product?.name ?: "—"}", products.map { it.name }) { product = products.firstOrNull { p -> p.name == it }; unit = product?.unit ?: "г" }; OutlinedTextField(amount, { amount = it }, label = { Text("Количество") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(unit, { unit = it }, label = { Text("Единица") }, singleLine = true) } else if (kind == 1) { Picker("Блюдо: ${recipe?.name ?: "—"}", recipes.map { it.name }) { recipe = recipes.firstOrNull { r -> r.name == it } }; OutlinedTextField(amount, { amount = it }, label = { Text("Порций") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)) } else { OutlinedTextField(customName, { customName = it }, label = { Text("Название блюда") }, singleLine = true); OutlinedTextField(customKcal, { customKcal = it }, label = { Text("Ккал") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(customProtein, { customProtein = it }, label = { Text("Белки, г") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(customFat, { customFat = it }, label = { Text("Жиры, г") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(customCarbs, { customCarbs = it }, label = { Text("Углеводы, г") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(amount, { amount = it }, label = { Text("Порций") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)) }; OutlinedTextField(comment, { comment = it }, label = { Text("Комментарий") }, modifier = Modifier.fillMaxWidth()) } }, confirmButton = { Button({ val body = JSONObject().put("entry_date", date).put("meal_type", meal).put("servings", if (kind == 0) 1.0 else amount.toNumber() ?: 1.0).put("comment", comment.ifBlank { JSONObject.NULL }); when (kind) { 0 -> body.put("product_id", product?.id).put("quantity", amount.toNumber() ?: 1.0).put("measurement_quantity", amount.toNumber() ?: 1.0).put("measurement_name", unit); 1 -> body.put("recipe_id", recipe?.id); else -> body.put("custom_dish", JSONObject().put("name", customName).put("kcal", customKcal.toNumber() ?: 0.0).put("protein_g", customProtein.toNumber() ?: 0.0).put("fat_g", customFat.toNumber() ?: 0.0).put("carbs_g", customCarbs.toNumber() ?: 0.0)) }; onSave(entry?.id, body) }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
+}

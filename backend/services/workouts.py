@@ -272,6 +272,7 @@ def _replace_exercise_variants(exercise: Exercise, variants: object) -> None:
         ExerciseVariant.create(
             exercise=exercise,
             position=position,
+            name=str(item.get("name") or "").strip() or None,
             machine=str(item.get("machine") or "").strip() or None,
             equipment=str(item.get("equipment") or "").strip() or None,
             description=str(item.get("description") or "").strip() or None,
@@ -439,15 +440,18 @@ def create_workout_plan(data: dict, user: User) -> dict:
     with current_database().atomic():
         plan = WorkoutPlan.create(
             user=user,
+            name=str(data.get("name") or "").strip() or None,
             scheduled_at=data["scheduled_at"],
             duration_minutes=int_number(data.get("duration_minutes")),
             status="planned",
         )
         for item in items:
             exercise = get_exercise(int(item["exercise_id"]))
+            variant = ExerciseVariant.get_or_none((ExerciseVariant.id == item.get("variant_id")) & (ExerciseVariant.exercise == exercise)) if item.get("variant_id") else None
             WorkoutPlanItem.create(
                 plan=plan,
                 exercise=exercise,
+                variant=variant,
                 working_weight=number(item.get("working_weight")),
                 sets=int_number(item.get("sets")),
                 duration_minutes=int_number(item.get("duration_minutes")),
@@ -462,9 +466,11 @@ def _replace_workout_plan_items(plan: WorkoutPlan, items: list[dict]) -> None:
     WorkoutPlanItem.delete().where(WorkoutPlanItem.plan == plan).execute()
     for item in items:
         exercise = get_exercise(int(item["exercise_id"]))
+        variant = ExerciseVariant.get_or_none((ExerciseVariant.id == item.get("variant_id")) & (ExerciseVariant.exercise == exercise)) if item.get("variant_id") else None
         WorkoutPlanItem.create(
             plan=plan,
             exercise=exercise,
+            variant=variant,
             working_weight=number(item.get("working_weight")),
             sets=int_number(item.get("sets")),
             duration_minutes=int_number(item.get("duration_minutes")),
@@ -478,6 +484,7 @@ def update_workout_plan(plan_id: int, data: dict, user: User) -> dict:
         if plan.status != "planned":
             raise ConflictError("Редактировать можно только запланированную тренировку")
         plan.scheduled_at = data["scheduled_at"]
+        plan.name = str(data.get("name") or "").strip() or None
         plan.duration_minutes = int_number(data.get("duration_minutes"))
         plan.save()
         _replace_workout_plan_items(plan, data.get("items") or [])

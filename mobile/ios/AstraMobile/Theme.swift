@@ -21,21 +21,21 @@ private extension Color {
 }
 
 enum AstraTheme {
-    // Astra design tokens from the checked-in Figma exports.
-    static let ink = Color(light: UIColor(hex: 0x172033), dark: UIColor(hex: 0xF4F7FC))
-    static let muted = Color(light: UIColor(hex: 0x7D879B), dark: UIColor(hex: 0xAAB6C8))
-    static let blue = Color(light: UIColor(hex: 0x6F82FF), dark: UIColor(hex: 0x8A99FF))
-    static let green = Color(light: UIColor(hex: 0x329A63), dark: UIColor(hex: 0x7DDBA8))
-    static let mint = Color(light: UIColor(hex: 0xE2F7EB), dark: UIColor(hex: 0x203A34))
-    static let softBlue = Color(light: UIColor(hex: 0xEAF2FF), dark: UIColor(hex: 0x202E4A))
-    static let canvas = Color(light: UIColor(hex: 0xF6F8FC), dark: UIColor(hex: 0x0E1728))
-    static let surface = Color(light: UIColor(hex: 0xFFFFFF), dark: UIColor(hex: 0x17243A))
-    static let surfaceElevated = Color(light: UIColor(hex: 0xFFFFFF), dark: UIColor(hex: 0x1E2B42))
-    static let line = Color(light: UIColor(hex: 0xE5EAF2), dark: UIColor(hex: 0x2A3A51))
-    static let sidebar = Color(light: UIColor(hex: 0x0E1728), dark: UIColor(hex: 0x08101E))
-    static let sidebarActive = Color(light: UIColor(hex: 0x26364A), dark: UIColor(hex: 0x26364A))
-    static let amber = Color(light: UIColor(hex: 0xB56A16), dark: UIColor(hex: 0xF2B866))
-    static let danger = Color(light: UIColor(hex: 0xC84B5C), dark: UIColor(hex: 0xFF9AA8))
+    // Native tokens mapped to the supplied 390x771 mobile reference.
+    static let ink = Color(light: UIColor(hex: 0x1A1A1A), dark: UIColor(hex: 0xF7F4F0))
+    static let muted = Color(light: UIColor(hex: 0xA09E9B), dark: UIColor(hex: 0xB8B0A9))
+    static let blue = Color(light: UIColor(hex: 0xE8732A), dark: UIColor(hex: 0xFF9A5F))
+    static let green = Color(light: UIColor(hex: 0xE8732A), dark: UIColor(hex: 0xFF9A5F))
+    static let mint = Color(light: UIColor(hex: 0xFFF1E8), dark: UIColor(hex: 0x3A251B))
+    static let softBlue = Color(light: UIColor(hex: 0xFFF1E8), dark: UIColor(hex: 0x3A251B))
+    static let canvas = Color(light: UIColor(hex: 0xFFFFFF), dark: UIColor(hex: 0x121110))
+    static let surface = Color(light: UIColor(hex: 0xFFFFFF), dark: UIColor(hex: 0x1C1A18))
+    static let surfaceElevated = Color(light: UIColor(hex: 0xFFFFFF), dark: UIColor(hex: 0x25221F))
+    static let line = Color(light: UIColor(hex: 0xF0EEEA), dark: UIColor(hex: 0x3A332E))
+    static let sidebar = Color(light: UIColor(hex: 0x1A1A1A), dark: UIColor(hex: 0x0D0C0B))
+    static let sidebarActive = Color(light: UIColor(hex: 0x3A332E), dark: UIColor(hex: 0x3A332E))
+    static let amber = Color(light: UIColor(hex: 0xE8732A), dark: UIColor(hex: 0xFF9A5F))
+    static let danger = Color(light: UIColor(hex: 0xFF3B30), dark: UIColor(hex: 0xFF7B73))
 }
 
 struct AstraCard<Content: View>: View {
@@ -46,9 +46,9 @@ struct AstraCard<Content: View>: View {
         content
             .padding(16)
             .background(AstraTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(AstraTheme.line, lineWidth: 1))
-            .shadow(color: AstraTheme.ink.opacity(0.07), radius: 14, y: 6)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(AstraTheme.line, lineWidth: 1))
+            .shadow(color: AstraTheme.ink.opacity(0.06), radius: 10, y: 4)
     }
 }
 
@@ -64,9 +64,9 @@ struct MetricTile: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(14)
-        .background(tint.opacity(0.13))
-        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(tint.opacity(0.16), lineWidth: 1))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(tint.opacity(0.10))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(AstraTheme.line, lineWidth: 1))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 

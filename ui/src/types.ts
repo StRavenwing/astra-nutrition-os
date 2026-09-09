@@ -196,6 +196,7 @@ export interface ProgressEntry {
 export interface ExerciseVariant {
   id?: number;
   position?: number;
+  name: string | null;
   machine: string | null;
   equipment: string | null;
   description: string | null;
@@ -315,6 +316,9 @@ export interface WorkoutPlanItem {
   exercise_id: number;
   exercise_code?: string;
   name?: string;
+  exercise_name?: string;
+  variant_id?: number | null;
+  variant_name?: string | null;
   muscle_group?: string | null;
   default_unit?: string | null;
   working_weight: number | null;
@@ -325,6 +329,7 @@ export interface WorkoutPlanItem {
 
 export interface WorkoutPlan {
   id: number;
+  name: string | null;
   scheduled_at: string;
   duration_minutes: number | null;
   status: 'planned' | 'archived' | string;
