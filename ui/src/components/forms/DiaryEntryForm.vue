@@ -260,11 +260,9 @@ async function remove() {
         <button type="button" id="add-diary-product" @click="addProductRow()">＋ Добавить ингредиент</button>
       </div>
 
-      <div v-if="props.diaryId" class="destructive-zone">
-        <button type="button" class="danger-button" @click="remove">Удалить запись</button>
-      </div>
       <p id="form-error">{{ error }}</p>
       <div class="actions">
+        <button v-if="props.diaryId" type="button" class="danger-button" @click="remove">Удалить запись</button>
         <button type="button" @click="$emit('cancel')">Отмена</button>
         <button type="submit" class="primary">Сохранить</button>
       </div>

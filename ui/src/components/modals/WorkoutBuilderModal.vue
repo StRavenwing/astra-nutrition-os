@@ -255,9 +255,19 @@ async function save() {
 
 .builder-schedule {
   display: grid;
-  grid-template-columns: minmax(210px, 1.2fr) minmax(210px, 1.2fr) minmax(145px, .75fr) minmax(145px, .75fr);
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, .75fr) minmax(0, .75fr);
   gap: 12px;
+  width: 100%;
   max-width: 680px;
+
+  > .field {
+    min-width: 0;
+  }
+
+  input {
+    min-width: 0;
+    width: 100%;
+  }
 }
 
 .builder-time label small,

@@ -214,16 +214,16 @@ async function removeArticle() {
       <div class="field full"><label>Видео (до 1 шт.)</label><input v-model="form.video" type="url" placeholder="Ссылка на видео"><label class="file-button">Выбрать видео<input type="file" accept="video/*" @change="chooseVideo"></label></div>
     </section>
     <p v-if="error" class="form-error">{{ error }}</p>
-    <div v-if="editing" class="article-delete-row">
-      <button type="button" class="danger-button article-delete-button" :disabled="saving" @click="removeArticle">Удалить статью</button>
+    <div class="actions">
+      <button v-if="editing" type="button" class="danger-button article-delete-button" :disabled="saving" @click="removeArticle">Удалить статью</button>
+      <button type="button" @click="$emit('cancel')">Отмена</button>
+      <button class="primary" type="submit" :disabled="saving || !form.section_id">{{ editing ? 'Сохранить изменения' : 'Сохранить статью' }}</button>
     </div>
-    <div class="actions"><button type="button" @click="$emit('cancel')">Отмена</button><button class="primary" type="submit" :disabled="saving || !form.section_id">{{ editing ? 'Сохранить изменения' : 'Сохранить статью' }}</button></div>
   </form>
 </template>
 
 <style scoped lang="scss">
 .article-form { display: grid; gap: 16px; }
-.article-delete-row { display: flex; justify-content: flex-start; }
 .article-delete-button { min-height: 36px; }
 .field-hint { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
 .rich-editor { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: #fff; }

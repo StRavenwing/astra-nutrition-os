@@ -242,11 +242,9 @@ async function remove() {
         <p class="subtle">Для жидкостей: 1 ч. л. = 5 мл, 1 ст. л. = 15 мл. Для продуктов в граммах значения являются оценочными и их можно уточнить.</p>
       </section>
 
-      <div v-if="props.productId" class="destructive-zone">
-        <button type="button" class="danger-button" @click="remove">Удалить продукт</button>
-      </div>
       <p id="form-error">{{ error }}</p>
       <div class="actions">
+        <button v-if="props.productId" type="button" class="danger-button" @click="remove">Удалить продукт</button>
         <button type="button" @click="$emit('cancel')">Отмена</button>
         <button type="submit" class="primary">Сохранить</button>
       </div>

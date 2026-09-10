@@ -152,8 +152,10 @@ struct WorkoutPlan: Codable, Identifiable, Hashable {
 }
 
 extension WorkoutPlan {
+    var isHistory: Bool { status == "archived" || status == "canceled" }
+    var historyStatus: String { status == "canceled" ? "\u{041E}\u{0442}\u{043C}\u{0435}\u{043D}\u{0430" : "\u{041F}\u{0440}\u{043E}\u{0439}\u{0434}\u{0435}\u{043D}\u{0430" }
     var displayName: String {
-        name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false ? name! : "Тренировка"
+        name.displayOr("Тренировка")
     }
 }
 
@@ -183,6 +185,7 @@ struct Exercise: Codable, Identifiable, Hashable {
     let photos: [String]
     let video: String?
     let variants: [ExerciseVariant]
+    let code: String? = nil
 }
 
 struct ExerciseVariant: Codable, Hashable {

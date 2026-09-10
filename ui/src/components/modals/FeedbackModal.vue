@@ -92,7 +92,7 @@ async function send() {
       <ModalDialog :open="Boolean(selected)" title="Сообщение пользователя" eyebrow="ОБРАТНАЯ СВЯЗЬ" wide @close="selected = null">
         <template v-if="selected">
           <div class="feedback-message-detail"><div class="feedback-card-head"><b>{{ selected.email }}</b><time>{{ formatDateTime(selected.submitted_at) }}</time></div><p>{{ selected.message }}</p></div>
-          <form class="reply-form" @submit.prevent="sendReply"><label class="field full"><span>Ответ пользователю</span><textarea v-model="reply" rows="6" maxlength="2000" placeholder="Напишите ответ"></textarea></label><div class="feedback-actions"><button type="button" @click="selected = null">Закрыть</button><button type="submit" class="primary" :disabled="sending || !reply.trim()">{{ sending ? 'Отправка…' : 'Ответить' }}</button></div></form>
+          <form class="reply-form" @submit.prevent="sendReply"><label class="field full"><span>Ответ пользователю</span><textarea v-model="reply" rows="6" maxlength="2000" placeholder="Напишите ответ"></textarea></label><div class="actions feedback-actions"><button type="button" @click="selected = null">Закрыть</button><button type="submit" class="primary" :disabled="sending || !reply.trim()">{{ sending ? 'Отправка…' : 'Ответить' }}</button></div></form>
         </template>
       </ModalDialog>
     </template>
@@ -103,7 +103,7 @@ async function send() {
       </label>
       <div class="feedback-form-meta">{{ message.length }}/500</div>
       <p v-if="error" class="form-error">{{ error }}</p>
-      <div class="feedback-actions">
+      <div class="actions feedback-actions">
         <button type="button" @click="$emit('close')">Закрыть</button>
         <button type="submit" class="primary" :disabled="sending || !message.trim()">{{ sending ? 'Отправка…' : 'Отправить' }}</button>
       </div>

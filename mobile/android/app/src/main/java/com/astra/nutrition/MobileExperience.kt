@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -31,6 +32,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
@@ -147,13 +150,13 @@ fun MobileDashboard(state: AstraState, onNavigate: (Screen) -> Unit) {
         if (data == null && error == null) Text("Загрузка…", Modifier.padding(16.dp), color = AstraTheme.muted)
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp)) }
         data?.let { dashboard ->
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Box(Modifier.weight(1f)) { MobileMetric("Продукты", dashboard.products.toString(), AstraTheme.blue) { onNavigate(Screen.Catalog) } }; Box(Modifier.weight(1f)) { MobileMetric("Рецепты", dashboard.recipes.toString(), AstraTheme.green) { onNavigate(Screen.Catalog) } } }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Box(Modifier.weight(1f)) { MobileMetric("Одобренные рецепты", dashboard.approved.toString(), AstraTheme.blue) { onNavigate(Screen.Catalog) } }; Box(Modifier.weight(1f)) { MobileMetric("Вес", dashboard.latest?.weight.shown(" кг"), AstraTheme.blue) { onNavigate(Screen.Progress) } } }
+            Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { Box(Modifier.weight(1f)) { MobileMetric("Продукты", dashboard.products.toString(), AstraTheme.blue) { onNavigate(Screen.Catalog) } }; Box(Modifier.weight(1f)) { MobileMetric("Рецепты", dashboard.recipes.toString(), AstraTheme.green) { onNavigate(Screen.Catalog) } } }
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { Box(Modifier.weight(1f)) { MobileMetric("Одобренные рецепты", dashboard.approved.toString(), AstraTheme.blue) { onNavigate(Screen.Catalog) } }; Box(Modifier.weight(1f)) { MobileMetric("Вес", dashboard.latest?.weight.shown(" кг"), AstraTheme.blue) { onNavigate(Screen.Progress) } } }
                 Text("«Одобренные рецепты» — рецепты, прошедшие модерацию и доступные для дневника питания.", fontSize = 12.sp, color = AstraTheme.muted)
                 dashboard.latest?.let { latest -> MobileCard(Modifier.clickable { onNavigate(Screen.Progress) }) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) { Text("Последний замер", fontWeight = FontWeight.Bold); Text("${latest.date} · Вес ${latest.weight.shown(" кг")} · Талия ${latest.waist.shown(" см")}", color = AstraTheme.muted) } } }
                 Row(verticalAlignment = Alignment.CenterVertically) { Text("Рецепты с высоким белком", fontSize = 18.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.weight(1f)); TextButton({ onNavigate(Screen.Catalog) }) { Text("Каталог") } }
-                dashboard.top.forEach { recipe -> MobileRecipeRow(recipe) { onNavigate(Screen.Catalog) } }
+                MobileItemGrid(dashboard.top) { recipe -> MobileRecipeRow(recipe) { onNavigate(Screen.Catalog) } }
                 Spacer(Modifier.height(16.dp))
             }
         }
@@ -162,7 +165,14 @@ fun MobileDashboard(state: AstraState, onNavigate: (Screen) -> Unit) {
 
 @Composable
 private fun MobileRecipeRow(recipe: Recipe, onClick: () -> Unit) {
-    MobileCard(Modifier.clickable(onClick = onClick)) { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Book, null, tint = AstraTheme.green); Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text(recipe.name, fontWeight = FontWeight.Bold); Text("${recipe.category} · ${recipe.protein.shown(" г белка")}", color = AstraTheme.muted, fontSize = 12.sp) }; Text(recipe.kcal.shown(" ккал"), color = AstraTheme.blue, fontSize = 12.sp, fontWeight = FontWeight.Bold) } }
+    MobileCard(Modifier.clickable(onClick = onClick)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Icon(Icons.Default.Book, null, tint = AstraTheme.green)
+            Text(recipe.name, fontWeight = FontWeight.Bold, maxLines = 3)
+            Text(recipe.category, color = AstraTheme.muted, fontSize = 12.sp, maxLines = 2)
+            Text("Б ${recipe.protein.shown(" г")} · ${recipe.kcal.shown(" ккал")}", color = AstraTheme.blue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+    }
 }
 
 @Composable
@@ -229,7 +239,7 @@ private fun LegacyMobileProfileReferenceScreen(state: AstraState, onNavigate: (S
                         Text("Замеры и цели", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                         MobileProfileMetric("Вес", latest?.weight.shown(" кг"))
                         MobileProfileMetric("Калории", latest?.kcalTarget.shown(" ккал в день"))
-                        MobileProfileMetric("Тренировки", if (plans.isEmpty()) "Нет планов" else "${plans.size} запланировано")
+                        MobileProfileMetric("Тренировки", if (plans.none { it.status == "planned" }) "Нет планов" else "${plans.count { it.status == "planned" }} запланировано")
                     }
                 }
             }
@@ -313,7 +323,7 @@ private fun MobileProfileReferenceScreen(state: AstraState, onNavigate: (Screen)
                 item {
                     MobileCard {
                         Column(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            MobileProfileMetric("Вес", latest?.weight.shown(" кг")); MobileProfileMetric("Желаемый вес", latest?.desiredWeight.shown(" кг")); MobileProfileMetric("Калории", latest?.kcalTarget.shown(" ккал в день")); MobileProfileMetric("Тренировки", if (plans.isEmpty()) "Нет планов" else "${plans.size} запланировано")
+                            MobileProfileMetric("Вес", latest?.weight.shown(" кг")); MobileProfileMetric("Желаемый вес", latest?.desiredWeight.shown(" кг")); MobileProfileMetric("Калории", latest?.kcalTarget.shown(" ккал в день")); MobileProfileMetric("Тренировки", if (plans.none { it.status == "planned" }) "Нет планов" else "${plans.count { it.status == "planned" }} запланировано")
                             Button({ onNavigate(Screen.Progress) }, modifier = Modifier.fillMaxWidth()) { Text("Открыть прогресс") }
                         }
                     }
@@ -565,14 +575,14 @@ fun CatalogScreen(state: AstraState) {
         val visibleProducts = products.filter { (search.isBlank() || it.name.contains(search, true)) && (category == "Все" || it.category == category) }
         val visibleRecipes = recipes.filter { (search.isBlank() || it.name.contains(search, true)) && (category == "Все" || it.category == category) }
         if (mode == 0) {
-            LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
+            LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
                 items(visibleProducts.size, key = { visibleProducts[it].id }) { index ->
                     val product = visibleProducts[index]
                     CatalogFoodCard(product.name, product.category ?: "Без категории", product.kcal, product.protein, product.fat, product.carbs) { selectedProduct = product }
                 }
             }
         } else {
-            LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
+            LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(bottom = 16.dp)) {
                 items(visibleRecipes.size, key = { visibleRecipes[it].id }) { index ->
                     val recipe = visibleRecipes[index]
                     CatalogFoodCard(recipe.name, recipe.category, recipe.kcal, recipe.protein, recipe.fat, recipe.carbs) { selected = recipe }
@@ -610,9 +620,9 @@ private fun MobileProductDetailScreen(product: Product, onBack: () -> Unit, onEd
                 MobileCard {
                     Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         RecipeMetric("Ккал", product.kcal.shown(), AstraTheme.blue, Modifier.weight(1f))
-                        RecipeMetric("Белки", product.protein.shown(), AstraTheme.ink, Modifier.weight(1f))
-                        RecipeMetric("Жиры", product.fat.shown(), AstraTheme.ink, Modifier.weight(1f))
-                        RecipeMetric("Угл.", product.carbs.shown(), AstraTheme.ink, Modifier.weight(1f))
+                        RecipeMetric("Белки", product.protein.shown(), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f))
+                        RecipeMetric("Жиры", product.fat.shown(), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f))
+                        RecipeMetric("Угл.", product.carbs.shown(), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f))
                     }
                 }
             }
@@ -642,7 +652,7 @@ private fun MobileProductDetailScreen(product: Product, onBack: () -> Unit, onEd
 }
 
 @Composable
-private fun MobileRecipeDetailScreen(state: AstraState, recipe: Recipe, onBack: () -> Unit, onEdit: () -> Unit = {}, onDelete: () -> Unit = {}, onShare: () -> Unit = {}, onShareClient: () -> Unit = {}, canEdit: Boolean = true, canShareToTrainer: Boolean = true, canShareToClient: Boolean = false, onSubmit: (() -> Unit)? = null, onCancelSubmission: (() -> Unit)? = null) {
+fun MobileRecipeDetailScreen(state: AstraState, recipe: Recipe, onBack: () -> Unit, onEdit: () -> Unit = {}, onDelete: () -> Unit = {}, onShare: () -> Unit = {}, onShareClient: () -> Unit = {}, canEdit: Boolean = true, canShareToTrainer: Boolean = true, canShareToClient: Boolean = false, onSubmit: (() -> Unit)? = null, onCancelSubmission: (() -> Unit)? = null) {
     var detail by remember { mutableStateOf<RecipeDetail?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -652,53 +662,77 @@ private fun MobileRecipeDetailScreen(state: AstraState, recipe: Recipe, onBack: 
             .onFailure { error = it.message }
     }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }
-            Text("Блюдо", fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        }
-        LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
             item {
-                MobileCard {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(Icons.Default.Restaurant, null, tint = AstraTheme.blue, modifier = Modifier.size(34.dp))
-                        Text(recipe.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                        Text(recipe.category, color = AstraTheme.muted)
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(240.dp)
+                        .background(recipeCoverAccent(recipe.category).copy(alpha = .24f))
+                ) {
+                    Text(
+                        "✦",
+                        color = recipeCoverAccent(recipe.category),
+                        fontSize = 88.sp,
+                        fontWeight = FontWeight.Light,
+                        modifier = Modifier.padding(start = 28.dp).align(Alignment.CenterStart)
+                    )
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier
+                            .padding(start = 16.dp, top = 16.dp)
+                            .size(36.dp)
+                            .background(Color.Black.copy(alpha = .5f), RoundedCornerShape(50.dp))
+                    ) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад", tint = Color.White) }
+                }
+            }
+            item {
+                Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(recipe.name, color = MaterialTheme.colorScheme.onBackground, fontSize = 26.sp, fontWeight = FontWeight.Bold, maxLines = 3)
+                    Text(recipe.category, color = AstraTheme.muted, fontSize = 14.sp)
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        RecipeInfoPill(recipe.category)
+                        recipe.servings?.let { RecipeInfoPill("${it.shown(" порц.")}") }
                     }
                 }
             }
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    RecipeInfoPill(recipe.category)
-                    recipe.servings?.let { RecipeInfoPill("${it.shown(" порц.")}") }
-                    recipe.status?.takeIf { it.isNotBlank() }?.let { RecipeInfoPill(it) }
-                }
-            }
-            item {
-                MobileCard {
+                MobileCard(Modifier.padding(horizontal = 20.dp)) {
                     Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         RecipeMetric("Ккал", recipe.kcal.shown(), AstraTheme.blue, Modifier.weight(1f))
-                        RecipeMetric("Белки", recipe.protein.shown(), AstraTheme.ink, Modifier.weight(1f))
-                        RecipeMetric("Жиры", recipe.fat.shown(), AstraTheme.ink, Modifier.weight(1f))
-                        RecipeMetric("Угл.", recipe.carbs.shown(), AstraTheme.ink, Modifier.weight(1f))
-                    }
-                }
-            }
-            item { Text("Ингредиенты", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
-            if (error != null) {
-                item { Text(error!!, color = MaterialTheme.colorScheme.error) }
-            } else if (detail == null) {
-                item { CircularProgressIndicator(Modifier.padding(12.dp)) }
-            } else {
-                items(detail!!.ingredients, key = { it.id }) { ingredient ->
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(ingredient.name, Modifier.weight(1f))
-                        Text("${ingredient.quantity.shown()} ${ingredient.unit ?: ""}", color = AstraTheme.muted, fontSize = 13.sp)
+                        RecipeMetric("Белки", recipe.protein.shown(), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f))
+                        RecipeMetric("Жиры", recipe.fat.shown(), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f))
+                        RecipeMetric("Угл.", recipe.carbs.shown(), MaterialTheme.colorScheme.onSurface, Modifier.weight(1f))
                     }
                 }
             }
             item {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (canEdit) Button(onClick = onEdit, modifier = Modifier.fillMaxWidth()) { Text("Редактировать") }
+                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Ингредиенты", color = MaterialTheme.colorScheme.onBackground, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                    if (canEdit) {
+                        IconButton(onClick = onEdit, modifier = Modifier.size(32.dp).background(MaterialTheme.colorScheme.surface, RoundedCornerShape(50.dp))) { Icon(Icons.Default.Edit, "Редактировать", tint = AstraTheme.blue, modifier = Modifier.size(16.dp)) }
+                        Spacer(Modifier.width(8.dp))
+                        IconButton(onClick = { confirmDelete = true }, modifier = Modifier.size(32.dp).background(MaterialTheme.colorScheme.surface, RoundedCornerShape(50.dp))) { Icon(Icons.Default.Delete, "Удалить", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp)) }
+                    }
+                }
+            }
+            if (error != null) {
+                item { Text(error!!, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 20.dp)) }
+            } else if (detail == null) {
+                item { CircularProgressIndicator(Modifier.padding(horizontal = 20.dp)) }
+            } else {
+                items(detail!!.ingredients, key = { it.id }) { ingredient ->
+                    Column(Modifier.padding(horizontal = 20.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(ingredient.name, Modifier.weight(1f), color = MaterialTheme.colorScheme.onBackground, maxLines = 2)
+                            Text("${ingredient.quantity.shown()} ${ingredient.unit ?: ""}", color = AstraTheme.muted, fontSize = 13.sp)
+                        }
+                        Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.onBackground.copy(alpha = .08f)))
+                    }
+                }
+            }
+            item {
+                Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (canShareToTrainer) OutlinedButton(onClick = onShare, modifier = Modifier.weight(1f)) { Text("Тренеру") }
                         if (canShareToClient) OutlinedButton(onClick = onShareClient, modifier = Modifier.weight(1f)) { Text("Клиенту") }
@@ -711,13 +745,20 @@ private fun MobileRecipeDetailScreen(state: AstraState, recipe: Recipe, onBack: 
                     } else if (recipe.submissionRequested) {
                         onCancelSubmission?.let { OutlinedButton(onClick = it, modifier = Modifier.fillMaxWidth()) { Text("Отменить отправку") } }
                     }
-                    if (canEdit) TextButton(onClick = { confirmDelete = true }, colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) { Text("Удалить") }
                 }
             }
-            item { Spacer(Modifier.height(16.dp)) }
         }
     }
     if (confirmDelete) AlertDialog(onDismissRequest = { confirmDelete = false }, title = { Text("Удалить рецепт?") }, text = { Text("Это действие нельзя отменить.") }, confirmButton = { Button(onClick = { confirmDelete = false; onDelete() }, colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) { Text("Удалить") } }, dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text("Отмена") } })
+}
+
+private fun recipeCoverAccent(category: String): Color = when {
+    category.contains("breakfast", ignoreCase = true) || category.contains("завтрак", ignoreCase = true) -> Color(0xFF6F82FF)
+    category.contains("dessert", ignoreCase = true) || category.contains("десерт", ignoreCase = true) -> Color(0xFFC88731)
+    category.contains("salad", ignoreCase = true) || category.contains("салат", ignoreCase = true) || category.contains("drink", ignoreCase = true) || category.contains("напит", ignoreCase = true) -> Color(0xFF4B9DB0)
+    category.contains("wrap", ignoreCase = true) || category.contains("врап", ignoreCase = true) || category.contains("garnish", ignoreCase = true) || category.contains("гарнир", ignoreCase = true) -> Color(0xFF329A63)
+    category.contains("sauce", ignoreCase = true) || category.contains("соус", ignoreCase = true) || category.contains("snack", ignoreCase = true) || category.contains("перекус", ignoreCase = true) -> Color(0xFF6F82FF)
+    else -> Color(0xFF329A63)
 }
 
 @Composable
@@ -815,7 +856,15 @@ private fun TrainerClientDetailScreen(state: AstraState, client: ClientSummary, 
     LaunchedEffect(client.id) { suspendResult { state.api.client(client.id) }.onSuccess { detail = it }.onFailure { error = it.message } }
     if (selectedPlan != null) {
         val plan = selectedPlan!!
-        TrainerPlanDetailScreen(selectedPlan!!, onBack = { selectedPlan = null })
+        TrainerPlanDetailScreen(
+            plan,
+            onBack = { selectedPlan = null },
+            onEdit = if (plan.status == "planned") ({ selectedPlan = null; editingPlan = plan; planFromComplex = null; showPlanEditor = true }) else null,
+            onRepeat = { selectedPlan = null; editingPlan = plan.copy(id = 0, scheduledAt = todayTime()); planFromComplex = null; showPlanEditor = true },
+            onCancel = if (plan.status == "planned") ({ scope.launch { suspendResult { state.api.cancelPlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }) else null,
+            onDelete = if (plan.status == "canceled") ({ scope.launch { suspendResult { state.api.deletePlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }) else null,
+            onComplete = if (plan.status == "planned") ({ scope.launch { suspendResult { state.api.completePlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }) else null
+        )
         return
     }
     if (selectedWorkout != null) {
@@ -884,7 +933,7 @@ private fun TrainerClientDetailScreen(state: AstraState, client: ClientSummary, 
             }
             item { Text("Запланированные тренировки", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
             items(loaded.workoutPlans.filter { it.status == "planned" }, key = { "plan-${it.id}" }) { plan ->
-                MobileCard(Modifier.clickable { selectedPlan = plan }) { Column(Modifier.padding(14.dp)) { Text(plan.displayName, fontWeight = FontWeight.Bold); Text(plan.scheduledAt, color = AstraTheme.muted, fontSize = 12.sp); Text(plan.items.joinToString(" · ") { it.name ?: "Упражнение" }, color = AstraTheme.muted, fontSize = 12.sp) } }
+                MobileCard(Modifier.clickable { selectedPlan = plan }) { Column(Modifier.padding(14.dp)) { Text(plan.displayName, fontWeight = FontWeight.Bold); Text(plan.scheduledAt, color = AstraTheme.muted, fontSize = 12.sp); Text(plan.items.joinToString(" · ") { it.name.displayOr("Упражнение") }, color = AstraTheme.muted, fontSize = 12.sp) } }
             }
             if (loaded.workoutPlans.none { it.status == "planned" }) item { Text("Планов пока нет.", color = AstraTheme.muted, fontSize = 12.sp) }
             item { Text("История тренировок", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
@@ -916,12 +965,25 @@ fun TrainerWorkspaceFullScreen(state: AstraState) {
     var section by rememberSaveable { mutableStateOf(0) }
     var clients by remember { mutableStateOf<List<ClientSummary>>(emptyList()) }; var plans by remember { mutableStateOf<List<WorkoutPlan>>(emptyList()) }; var history by remember { mutableStateOf<List<WorkoutEntry>>(emptyList()) }; var exercises by remember { mutableStateOf<List<Exercise>>(emptyList()) }; var complexes by remember { mutableStateOf<List<WorkoutComplex>>(emptyList()) }; var equipment by remember { mutableStateOf<List<WorkoutEquipment>>(emptyList()) }; var error by remember { mutableStateOf<String?>(null) }
     var selectedClient by remember { mutableStateOf<ClientSummary?>(null) }; var selectedExercise by remember { mutableStateOf<Exercise?>(null) }; var selectedComplex by remember { mutableStateOf<WorkoutComplex?>(null) }; var selectedEquipment by remember { mutableStateOf<WorkoutEquipment?>(null) }; var selectedPlan by remember { mutableStateOf<WorkoutPlan?>(null) }; var selectedWorkout by remember { mutableStateOf<WorkoutEntry?>(null) }
-    val planned = plans.filter { it.status == "planned" }; val machines = equipment.filter { it.kind == "machine" }; val freeEquipment = equipment.filter { it.kind != "machine" }
+    var editingComplex by remember { mutableStateOf<WorkoutComplex?>(null) }; var showComplexEditor by remember { mutableStateOf(false) }; var planFromComplex by remember { mutableStateOf<WorkoutComplex?>(null) }; var editingPlan by remember { mutableStateOf<WorkoutPlan?>(null) }; var showPlanEditor by remember { mutableStateOf(false) }
+    var editingExercise by remember { mutableStateOf<Exercise?>(null) }; var showExerciseEditor by remember { mutableStateOf(false) }; var editingEquipment by remember { mutableStateOf<WorkoutEquipment?>(null) }; var showEquipmentEditor by remember { mutableStateOf(false) }; var shareType by remember { mutableStateOf<String?>(null) }; var shareId by remember { mutableStateOf<Int?>(null) }; var shareClients by remember { mutableStateOf<List<ClientSummary>>(emptyList()) }
+    val scope = rememberCoroutineScope()
+    val canManage = true
+    val planned = plans.filter { it.status == "planned" }; val historyPlans = plans.filter { it.isHistory }.sortedByDescending { it.completedAt ?: it.scheduledAt }; val machines = equipment.filter { it.kind == "machine" }; val freeEquipment = equipment.filter { it.kind != "machine" }
     suspend fun load() { suspendResult { state.api.clients() }.onSuccess { clients = it }; suspendResult { state.api.plans() }.onSuccess { plans = it }; suspendResult { state.api.workouts() }.onSuccess { history = it }; suspendResult { state.api.exercises() }.onSuccess { exercises = it }; suspendResult { state.api.workoutComplexes() }.onSuccess { complexes = it }; suspendResult { state.api.workoutEquipment() }.onSuccess { equipment = it }.onFailure { error = it.message } }
     LaunchedEffect(Unit) { load() }
+    LaunchedEffect(shareType) { if (shareType != null && shareClients.isEmpty()) shareClients = suspendResult { state.api.clients() }.getOrDefault(emptyList()) }
     if (selectedPlan != null) {
         val plan = selectedPlan!!
-        TrainerPlanDetailScreen(selectedPlan!!, onBack = { selectedPlan = null })
+        TrainerPlanDetailScreen(
+            plan,
+            onBack = { selectedPlan = null },
+            onEdit = if (plan.status == "planned") ({ selectedPlan = null; editingPlan = plan; planFromComplex = null; showPlanEditor = true }) else null,
+            onRepeat = { selectedPlan = null; editingPlan = plan.copy(id = 0, scheduledAt = todayTime()); planFromComplex = null; showPlanEditor = true },
+            onCancel = if (plan.status == "planned") ({ scope.launch { suspendResult { state.api.cancelPlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }) else null,
+            onDelete = if (plan.status == "canceled") ({ scope.launch { suspendResult { state.api.deletePlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }) else null,
+            onComplete = if (plan.status == "planned") ({ scope.launch { suspendResult { state.api.completePlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }) else null
+        )
         return
     }
     if (selectedWorkout != null) {
@@ -930,11 +992,44 @@ fun TrainerWorkspaceFullScreen(state: AstraState) {
         return
     }
     if (selectedExercise != null) {
-        MobileExerciseDetailScreen(selectedExercise!!, onBack = { selectedExercise = null })
+        val exercise = selectedExercise!!
+        MobileExerciseDetailScreen(
+            exercise,
+            allExercises = exercises,
+            onBack = { selectedExercise = null },
+            onEdit = { item -> selectedExercise = null; editingExercise = item; showExerciseEditor = true },
+            onDelete = { item -> scope.launch { suspendResult { state.api.deleteExercise(item.id) }.onSuccess { load(); selectedExercise = null }.onFailure { error = it.message } } },
+            onShareClient = { item -> shareType = "exercise"; shareId = item.id }
+        )
+        return
+    }
+    if (selectedComplex != null) {
+        val complex = selectedComplex!!
+        TrainerComplexDetailScreen(
+            complex = complex,
+            onBack = { selectedComplex = null },
+            onEdit = { selectedComplex = null; editingComplex = complex; showComplexEditor = true },
+            onSchedule = { selectedComplex = null; planFromComplex = complex; editingPlan = null; showPlanEditor = true },
+            onDelete = {
+                scope.launch {
+                    suspendResult { state.api.deleteComplex(complex.id) }
+                        .onSuccess { load(); selectedComplex = null }
+                        .onFailure { error = it.message }
+                }
+            },
+            onShareClient = { shareType = "workout_complex"; shareId = complex.id }
+        )
         return
     }
     if (selectedEquipment != null) {
-        MobileEquipmentDetailScreen(selectedEquipment!!, onBack = { selectedEquipment = null })
+        val item = selectedEquipment!!
+        MobileEquipmentDetailScreen(
+            item,
+            onBack = { selectedEquipment = null },
+            onEdit = { selectedEquipment = null; editingEquipment = item; showEquipmentEditor = true },
+            onDelete = { scope.launch { suspendResult { state.api.deleteEquipment(item.id) }.onSuccess { load(); selectedEquipment = null }.onFailure { error = it.message } } },
+            onShareClient = { shareType = "workout_equipment"; shareId = item.id }
+        )
         return
     }
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -942,34 +1037,374 @@ fun TrainerWorkspaceFullScreen(state: AstraState) {
         else Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) { TextButton({ section = 0 }) { Text("‹ Разделы") }; Spacer(Modifier.weight(1f)); Text(listOf("", "Клиенты", "Планы тренировок", "История тренировок", "Упражнения", "Комплексы", "Тренажёры", "Инвентарь")[section], fontWeight = FontWeight.Bold) }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp)) }
         if (section == 0) {
-            LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Box(Modifier.weight(1f)) { MobileTrainerTile("Клиенты", clients.size, AstraTheme.blue) { section = 1 } }; Box(Modifier.weight(1f)) { MobileTrainerTile("Планы", planned.size, AstraTheme.green) { section = 2 } } } }
-                item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Box(Modifier.weight(1f)) { MobileTrainerTile("История", history.size, AstraTheme.blue) { section = 3 } }; Box(Modifier.weight(1f)) { MobileTrainerTile("Упражнения", exercises.size, AstraTheme.blue) { section = 4 } } } }
-                item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Box(Modifier.weight(1f)) { MobileTrainerTile("Комплексы", complexes.size, AstraTheme.blue) { section = 5 } }; Box(Modifier.weight(1f)) { MobileTrainerTile("Тренажёры", machines.size, AstraTheme.green) { section = 6 } } } }
+            LazyColumn(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                item { Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { Box(Modifier.weight(1f)) { MobileTrainerTile("Клиенты", clients.size, AstraTheme.blue) { section = 1 } }; Box(Modifier.weight(1f)) { MobileTrainerTile("Планы", planned.size, AstraTheme.green) { section = 2 } } } }
+                item { Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { Box(Modifier.weight(1f)) { MobileTrainerTile("История", historyPlans.size, AstraTheme.blue) { section = 3 } }; Box(Modifier.weight(1f)) { MobileTrainerTile("Упражнения", exercises.size, AstraTheme.blue) { section = 4 } } } }
+                item { Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { Box(Modifier.weight(1f)) { MobileTrainerTile("Комплексы", complexes.size, AstraTheme.blue) { section = 5 } }; Box(Modifier.weight(1f)) { MobileTrainerTile("Тренажёры", machines.size, AstraTheme.green) { section = 6 } } } }
                 item { MobileTrainerTile("Инвентарь", freeEquipment.size, Color(0xFFB56A16)) { section = 7 } }
                 item { Text("Все плитки открывают соответствующие разделы, а карточки элементов — подробности.", color = AstraTheme.muted, fontSize = 12.sp) }
             }
-        } else when (section) {
+        } else {
+            MobileTrainerSectionGrid(
+                section = section,
+                clients = clients,
+                planned = planned,
+                history = history,
+                historyPlans = historyPlans,
+                exercises = exercises,
+                complexes = complexes,
+                machines = machines,
+                freeEquipment = freeEquipment,
+                onClient = { selectedClient = it },
+                onPlan = { selectedPlan = it },
+                onWorkout = { selectedWorkout = it },
+                onExercise = { selectedExercise = it },
+                onComplex = { selectedComplex = it },
+                onEquipment = { selectedEquipment = it },
+                onEditExercise = { editingExercise = it; showExerciseEditor = true },
+                onDeleteExercise = { item -> scope.launch { suspendResult { state.api.deleteExercise(item.id) }.onSuccess { load() }.onFailure { error = it.message } } },
+                onShareClient = { type, id -> shareType = type; shareId = id },
+                onEditComplex = { editingComplex = it; showComplexEditor = true },
+                onScheduleComplex = { planFromComplex = it; editingPlan = null; showPlanEditor = true },
+                onDeleteComplex = { item -> scope.launch { suspendResult { state.api.deleteComplex(item.id) }.onSuccess { load() }.onFailure { error = it.message } } },
+                onEditEquipment = { editingEquipment = it; showEquipmentEditor = true },
+                onDeleteEquipment = { item -> scope.launch { suspendResult { state.api.deleteEquipment(item.id) }.onSuccess { load() }.onFailure { error = it.message } } },
+                onCompletePlan = { plan -> scope.launch { suspendResult { state.api.completePlan(plan.id) }.onSuccess { load() }.onFailure { error = it.message } } },
+                onEditPlan = { plan -> editingPlan = plan; planFromComplex = null; showPlanEditor = true },
+                onRepeatPlan = { plan -> editingPlan = plan.copy(id = 0, scheduledAt = todayTime()); planFromComplex = null; showPlanEditor = true },
+                onCancelPlan = { plan -> scope.launch { suspendResult { state.api.cancelPlan(plan.id) }.onSuccess { load() }.onFailure { error = it.message } } },
+                onDeletePlan = { plan -> scope.launch { suspendResult { state.api.deletePlan(plan.id) }.onSuccess { load() }.onFailure { error = it.message } } }
+            )
+            if (section < 0) when (section) {
             1 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(clients, key = { it.id }) { client -> MobileCard(Modifier.clickable { selectedClient = client }) { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Person, null, tint = AstraTheme.blue); Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text(client.name, fontWeight = FontWeight.Bold); Text(client.email, color = AstraTheme.muted, fontSize = 12.sp); client.nextWorkout?.let { Text("Ближайшая тренировка: ${it.scheduledAt}", color = AstraTheme.green, fontSize = 11.sp) } }; Text("›", fontSize = 22.sp, color = AstraTheme.muted) } } } }
             2 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(planned, key = { it.id }) { plan -> MobileCard(Modifier.clickable { selectedPlan = plan }) { Column(Modifier.padding(14.dp)) { Text(plan.displayName, fontWeight = FontWeight.Bold); Text(plan.scheduledAt, color = AstraTheme.muted, fontSize = 12.sp); Text("${plan.items.size} упражнений · ${plan.status}", color = AstraTheme.muted, fontSize = 12.sp) } } } }
             3 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(history, key = { it.id }) { workout -> MobileCard(Modifier.clickable { selectedWorkout = workout }) { Column(Modifier.padding(14.dp)) { Text(workout.name, fontWeight = FontWeight.Bold); Text("${workout.date} · ${workout.sets.shown(" подходов")} × ${workout.reps.shown(" повторений")}", color = AstraTheme.muted, fontSize = 12.sp) } } } }
             4 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(exercises, key = { it.id }) { exercise -> MobileCard(Modifier.clickable { selectedExercise = exercise }) { Column(Modifier.padding(14.dp)) { Text(exercise.name, fontWeight = FontWeight.Bold); Text("${exercise.muscleGroup ?: "Другое"} · ${exercise.defaultSets.shown(" подхода")} × ${exercise.defaultReps.shown(" повторений")}", color = AstraTheme.muted, fontSize = 12.sp) } } } }
-            5 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(complexes, key = { it.id }) { complex -> MobileCard(Modifier.clickable { selectedComplex = complex }) { Column(Modifier.padding(14.dp)) { Text(complex.name, fontWeight = FontWeight.Bold); Text("${complex.items.size} упражнений", color = AstraTheme.muted, fontSize = 12.sp); complex.comment?.let { Text(it, fontSize = 12.sp) } } } } }
+            5 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(complexes, key = { it.id }) { complex -> MobileCard(Modifier.clickable { selectedComplex = complex }) { Column(Modifier.padding(14.dp)) { Text(complex.name, fontWeight = FontWeight.Bold); Text("${complex.items.size} упражнений", color = AstraTheme.muted, fontSize = 12.sp); complex.comment.displayOrNull()?.let { Text(it, fontSize = 12.sp) } } } } }
             6 -> TrainerEquipmentList(machines, selectedEquipment = { selectedEquipment = it })
             else -> TrainerEquipmentList(freeEquipment, selectedEquipment = { selectedEquipment = it })
         }
+        }
     }
     selectedClient?.let { TrainerClientChatScreen(state, it) { selectedClient = null } }
+    if (showPlanEditor) WorkoutPlanEditorDialog(editingPlan, planFromComplex, exercises, { body -> scope.launch { suspendResult { if (editingPlan == null || editingPlan!!.id == 0) state.api.createPlan(body) else state.api.updatePlan(editingPlan!!.id, body) }.onSuccess { load(); showPlanEditor = false; editingPlan = null; planFromComplex = null }.onFailure { error = it.message } } }, { showPlanEditor = false; editingPlan = null; planFromComplex = null })
+    if (showComplexEditor) WorkoutComplexEditorDialog(editingComplex, exercises, { body -> scope.launch { suspendResult { if (editingComplex == null) state.api.createComplex(body) else state.api.updateComplex(editingComplex!!.id, body) }.onSuccess { load(); showComplexEditor = false; editingComplex = null }.onFailure { error = it.message } } }, { showComplexEditor = false; editingComplex = null })
+    if (showExerciseEditor) ExerciseEditorDialog(editingExercise, { body -> scope.launch { suspendResult { if (editingExercise == null) state.api.createExercise(body) else state.api.updateExercise(editingExercise!!.id, body) }.onSuccess { load(); showExerciseEditor = false; editingExercise = null }.onFailure { error = it.message } } }, if (editingExercise != null) ({ scope.launch { suspendResult { state.api.deleteExercise(editingExercise!!.id) }.onSuccess { load(); showExerciseEditor = false; editingExercise = null }.onFailure { error = it.message } } }) else null) { showExerciseEditor = false; editingExercise = null }
+    if (showEquipmentEditor) EquipmentEditorDialog(editingEquipment, { body -> scope.launch { suspendResult { if (editingEquipment == null) state.api.createEquipment(body) else state.api.updateEquipment(editingEquipment!!.id, body) }.onSuccess { load(); showEquipmentEditor = false; editingEquipment = null }.onFailure { error = it.message } } }, if (editingEquipment != null) ({ scope.launch { suspendResult { state.api.deleteEquipment(editingEquipment!!.id) }.onSuccess { load(); showEquipmentEditor = false; editingEquipment = null }.onFailure { error = it.message } } }) else null) { showEquipmentEditor = false; editingEquipment = null }
+    if (shareType != null && shareId != null) ShareToClientDialog(shareClients, { clientId -> val type = shareType!!; val id = shareId!!; scope.launch { suspendResult { state.api.shareToClient(clientId, type, id) }.onFailure { error = it.message }; shareType = null; shareId = null } }, { shareType = null; shareId = null })
     selectedExercise?.let { exercise -> AlertDialog(onDismissRequest = { selectedExercise = null }, title = { Text(exercise.name) }, text = { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(exercise.muscleGroup ?: "Другое", color = AstraTheme.muted); Text("Единица: ${exercise.unit ?: "—"}"); Text("Подходы: ${exercise.defaultSets.shown()}"); Text("Повторения: ${exercise.defaultReps.shown()}") } }, confirmButton = { TextButton({ selectedExercise = null }) { Text("Закрыть") } }) }
-    selectedComplex?.let { complex -> AlertDialog(onDismissRequest = { selectedComplex = null }, title = { Text(complex.name) }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(5.dp)) { complex.comment?.let { Text(it) }; Text("Упражнения", fontWeight = FontWeight.Bold); complex.items.forEach { Text("${it.name} · ${it.sets.shown(" подхода")} · ${it.durationMinutes.shown(" мин")}") } } }, confirmButton = { TextButton({ selectedComplex = null }) { Text("Закрыть") } }) }
-    selectedEquipment?.let { item -> AlertDialog(onDismissRequest = { selectedEquipment = null }, title = { Text(item.name) }, text = { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(if (item.kind == "machine") "Тренажёр" else "Инвентарь", color = AstraTheme.muted); item.description?.let { Text(it) } } }, confirmButton = { TextButton({ selectedEquipment = null }) { Text("Закрыть") } }) }
+    selectedEquipment?.let { item -> AlertDialog(onDismissRequest = { selectedEquipment = null }, title = { Text(item.name) }, text = { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(if (item.kind == "machine") "Тренажёр" else "Инвентарь", color = AstraTheme.muted); item.description.displayOrNull()?.let { Text(it) } } }, confirmButton = { TextButton({ selectedEquipment = null }) { Text("Закрыть") } }) }
+}
+
+@Composable
+private fun MobileWorkoutEntityActions(
+    onEdit: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null,
+    onShareTrainer: (() -> Unit)? = null,
+    onShareClient: (() -> Unit)? = null
+) {
+    if (onEdit == null && onDelete == null && onShareTrainer == null && onShareClient == null) return
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+        onEdit?.let { action -> IconButton(onClick = action, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.Edit, "Редактировать", modifier = Modifier.size(17.dp)) } }
+        onDelete?.let { action -> IconButton(onClick = action, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.Delete, "Удалить", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(17.dp)) } }
+        onShareTrainer?.let { action -> IconButton(onClick = action, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.Send, "Отправить тренеру", tint = AstraTheme.blue, modifier = Modifier.size(17.dp)) } }
+        onShareClient?.let { action -> IconButton(onClick = action, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.Send, "Отправить клиенту", tint = AstraTheme.green, modifier = Modifier.size(17.dp)) } }
+    }
+}
+
+@Composable
+private fun MobileWorkoutCategoryGrid(
+    category: Int,
+    plans: List<WorkoutPlan>,
+    exercises: List<Exercise>,
+    complexes: List<WorkoutComplex>,
+    equipment: List<WorkoutEquipment>,
+    logs: List<WorkoutEntry>,
+    historyPlans: List<WorkoutPlan>,
+    onPlan: (WorkoutPlan) -> Unit,
+    onExercise: (Exercise) -> Unit,
+    onComplex: (WorkoutComplex) -> Unit,
+    onEquipment: (WorkoutEquipment) -> Unit,
+    onWorkout: (WorkoutEntry) -> Unit,
+    canManage: Boolean,
+    hasTrainer: Boolean,
+    onAddExercise: () -> Unit,
+    onEditExercise: (Exercise) -> Unit,
+    onDeleteExercise: (Exercise) -> Unit,
+    onShareClient: (String, Int) -> Unit,
+    onShareTrainer: (String, Int) -> Unit,
+    onEditComplex: (WorkoutComplex) -> Unit,
+    onScheduleComplex: (WorkoutComplex) -> Unit,
+    onDeleteComplex: (WorkoutComplex) -> Unit,
+    onEditEquipment: (WorkoutEquipment) -> Unit,
+    onDeleteEquipment: (WorkoutEquipment) -> Unit,
+    onCompletePlan: (WorkoutPlan) -> Unit = {},
+    onEditPlan: (WorkoutPlan) -> Unit = {},
+    onRepeatPlan: (WorkoutPlan) -> Unit = {},
+    onCancelPlan: (WorkoutPlan) -> Unit = {},
+    onDeletePlan: (WorkoutPlan) -> Unit = {}
+) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        if (category == 3) {
+            MobileItemGrid(historyPlans) { plan ->
+                MobileCard(Modifier.heightIn(min = 145.dp).clickable { onPlan(plan) }) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text(plan.displayName, fontWeight = FontWeight.Bold, maxLines = 3)
+                        Text(plan.scheduledAt, color = AstraTheme.muted, fontSize = 12.sp)
+                        Text("${plan.items.size} \u0443\u043F\u0440\u0430\u0436\u043D\u0435\u043D\u0438\u0439", color = AstraTheme.blue, fontSize = 12.sp)
+                        Text(plan.historyStatus, color = AstraTheme.muted, fontSize = 11.sp)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(onClick = { onRepeatPlan(plan) }) { Text("Повторить", fontSize = 11.sp) }
+                            if (plan.status == "canceled") TextButton(onClick = { onDeletePlan(plan) }) { Text("Удалить", fontSize = 11.sp, color = MaterialTheme.colorScheme.error) }
+                        }
+                    }
+                }
+            }
+        } else {
+            when (category) {
+            0 -> MobileItemGrid(plans.filter { it.status == "planned" }) { plan ->
+                MobileCard(Modifier.heightIn(min = 150.dp).clickable { onPlan(plan) }) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text(plan.displayName, fontWeight = FontWeight.Bold, maxLines = 3)
+                        Text(plan.scheduledAt, color = AstraTheme.muted, fontSize = 12.sp)
+                        Text("${plan.items.size} упражнений", color = AstraTheme.blue, fontSize = 12.sp)
+                        Text(plan.status, color = AstraTheme.muted, fontSize = 11.sp)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                            if (plan.status == "planned") {
+                                IconButton(onClick = { onCompletePlan(plan) }, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.CheckCircle, "Выполнено", tint = AstraTheme.green, modifier = Modifier.size(18.dp)) }
+                                if (canManage) IconButton(onClick = { onEditPlan(plan) }, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.Edit, "Редактировать", modifier = Modifier.size(17.dp)) }
+                                TextButton(onClick = { onCancelPlan(plan) }) { Text("Отменить", fontSize = 11.sp) }
+                            } else {
+                                TextButton(onClick = { onRepeatPlan(plan) }) { Text("Повторить", fontSize = 11.sp) }
+                                if (plan.status == "canceled") IconButton(onClick = { onDeletePlan(plan) }, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.Delete, "Удалить", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(17.dp)) }
+                            }
+                        }
+                    }
+                }
+            }
+            1 -> {
+                Text("СПРАВОЧНИК", color = AstraTheme.blue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text("Упражнения", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                OutlinedTextField(exerciseSearch, { exerciseSearch = it }, label = { Text("Найти упражнение") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                val groups = listOf("Все группы") + exercises.map { it.muscleGroup.displayOr("Другое") }.distinct().sorted()
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    groups.forEach { group ->
+                        if (group == selectedMuscleGroup) Button(onClick = { selectedMuscleGroup = group }, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) { Text(group, fontSize = 11.sp) }
+                        else OutlinedButton(onClick = { selectedMuscleGroup = group }, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) { Text(group, fontSize = 11.sp) }
+                    }
+                }
+                val visibleExercises = exercises.filter { exercise ->
+                    val searchable = listOfNotNull(exercise.name, exercise.description, exercise.note, exercise.code).joinToString(" ")
+                    (selectedMuscleGroup == "Все группы" || exercise.muscleGroup.displayOr("Другое") == selectedMuscleGroup) && (exerciseSearch.isBlank() || searchable.contains(exerciseSearch, ignoreCase = true))
+                }
+                MobileItemGrid(visibleExercises) { exercise ->
+                    MobileCard(Modifier.heightIn(min = 190.dp).clickable { onExercise(exercise) }) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Icon(Icons.Default.FitnessCenter, null, tint = AstraTheme.green)
+                            Text(exercise.muscleGroup.displayOr("Другое"), color = AstraTheme.green, fontSize = 10.sp, maxLines = 1)
+                            exercise.code.displayOrNull()?.let { Text(it, color = AstraTheme.muted, fontSize = 10.sp) }
+                            Text(exercise.name, fontWeight = FontWeight.Bold, maxLines = 3)
+                            Text(exercise.description.displayOr(exercise.note.displayOr("Описание упражнения пока не добавлено")), color = AstraTheme.muted, fontSize = 11.sp, maxLines = 3)
+                            Text("${exercise.defaultSets.shown()} × ${exercise.defaultReps.shown()}", color = AstraTheme.blue, fontSize = 11.sp)
+                            if (exercise.photos.isNotEmpty() || exercise.video.displayOrNull() != null) Text(listOfNotNull(exercise.photos.takeIf { it.isNotEmpty() }?.let { "Фото: ${it.size}" }, exercise.video.displayOrNull()?.let { "Видео" }).joinToString(" · "), color = AstraTheme.muted, fontSize = 10.sp)
+                            MobileWorkoutEntityActions(
+                                onEdit = if (canManage) ({ onEditExercise(exercise) }) else null,
+                                onDelete = if (canManage) ({ onDeleteExercise(exercise) }) else null,
+                                onShareTrainer = if (hasTrainer && !canManage) ({ onShareTrainer("exercise", exercise.id) }) else null,
+                                onShareClient = if (canManage) ({ onShareClient("exercise", exercise.id) }) else null
+                            )
+                        }
+                    }
+                }
+                if (canManage) MobileItemGrid(listOf(Unit)) {
+                    MobileCard(Modifier.heightIn(min = 125.dp).clickable(onClick = onAddExercise)) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Text("+", color = AstraTheme.green, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                            Text("Добавить новое упражнение", fontWeight = FontWeight.Bold)
+                            Text("Создать карточку в справочнике", color = AstraTheme.muted, fontSize = 11.sp)
+                        }
+                    }
+                }
+            }
+            2 -> {
+                Text("Оборудование", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                MobileItemGrid(equipment) { item ->
+                    MobileCard(Modifier.heightIn(min = 145.dp).clickable { onEquipment(item) }) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Icon(Icons.Default.FitnessCenter, null, tint = AstraTheme.amber)
+                            Text(item.name, fontWeight = FontWeight.Bold, maxLines = 3)
+                            Text(item.description.displayOr(if (item.kind == "machine") "Тренажёр" else "Инвентарь"), color = AstraTheme.muted, fontSize = 12.sp, maxLines = 3)
+                            MobileWorkoutEntityActions(
+                                onEdit = if (canManage) ({ onEditEquipment(item) }) else null,
+                                onDelete = if (canManage) ({ onDeleteEquipment(item) }) else null,
+                                onShareTrainer = if (hasTrainer && !canManage) ({ onShareTrainer("workout_equipment", item.id) }) else null,
+                                onShareClient = if (canManage) ({ onShareClient("workout_equipment", item.id) }) else null
+                            )
+                        }
+                    }
+                }
+                Text("Комплексы", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                MobileItemGrid(complexes) { complex ->
+                    MobileCard(Modifier.heightIn(min = 145.dp).clickable { onComplex(complex) }) {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Icon(Icons.Default.Book, null, tint = AstraTheme.blue)
+                            Text(complex.name, fontWeight = FontWeight.Bold, maxLines = 3)
+                            Text("${complex.items.size} упражнений", color = AstraTheme.blue, fontSize = 12.sp)
+                            complex.comment.displayOrNull()?.let { Text(it, color = AstraTheme.muted, fontSize = 11.sp, maxLines = 2) }
+                            MobileWorkoutEntityActions(
+                                onEdit = if (canManage) ({ onEditComplex(complex) }) else null,
+                                onDelete = if (canManage) ({ onDeleteComplex(complex) }) else null,
+                                onShareTrainer = if (hasTrainer && !canManage) ({ onShareTrainer("workout_complex", complex.id) }) else null,
+                                onShareClient = if (canManage) ({ onShareClient("workout_complex", complex.id) }) else null
+                            )
+                            TextButton(onClick = { onScheduleComplex(complex) }) { Text("Запланировать", fontSize = 11.sp) }
+                        }
+                    }
+                }
+            }
+            else -> MobileItemGrid(logs) { workout ->
+                MobileCard(Modifier.heightIn(min = 145.dp).clickable { onWorkout(workout) }) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text(workout.name, fontWeight = FontWeight.Bold, maxLines = 3)
+                        Text(workout.date, color = AstraTheme.muted, fontSize = 12.sp)
+                        Text("${workout.sets.shown()} × ${workout.reps.shown()}", color = AstraTheme.blue, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MobileTrainerSectionGrid(
+    section: Int,
+    clients: List<ClientSummary>,
+    planned: List<WorkoutPlan>,
+    history: List<WorkoutEntry>,
+    historyPlans: List<WorkoutPlan>,
+    exercises: List<Exercise>,
+    complexes: List<WorkoutComplex>,
+    machines: List<WorkoutEquipment>,
+    freeEquipment: List<WorkoutEquipment>,
+    onClient: (ClientSummary) -> Unit,
+    onPlan: (WorkoutPlan) -> Unit,
+    onWorkout: (WorkoutEntry) -> Unit,
+    onExercise: (Exercise) -> Unit,
+    onComplex: (WorkoutComplex) -> Unit,
+    onEquipment: (WorkoutEquipment) -> Unit,
+    onEditExercise: (Exercise) -> Unit,
+    onDeleteExercise: (Exercise) -> Unit,
+    onShareClient: (String, Int) -> Unit,
+    onEditComplex: (WorkoutComplex) -> Unit,
+    onScheduleComplex: (WorkoutComplex) -> Unit,
+    onDeleteComplex: (WorkoutComplex) -> Unit,
+    onEditEquipment: (WorkoutEquipment) -> Unit,
+    onDeleteEquipment: (WorkoutEquipment) -> Unit,
+    onCompletePlan: (WorkoutPlan) -> Unit,
+    onEditPlan: (WorkoutPlan) -> Unit,
+    onRepeatPlan: (WorkoutPlan) -> Unit,
+    onCancelPlan: (WorkoutPlan) -> Unit,
+    onDeletePlan: (WorkoutPlan) -> Unit
+) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        when (section) {
+            1 -> MobileItemGrid(clients) { client ->
+                MobileCard(Modifier.heightIn(min = 145.dp).clickable { onClient(client) }) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Icon(Icons.Default.Person, null, tint = AstraTheme.blue)
+                        Text(client.name, fontWeight = FontWeight.Bold, maxLines = 3)
+                        Text(client.email, color = AstraTheme.muted, fontSize = 12.sp, maxLines = 2)
+                        client.nextWorkout?.let { Text(it.scheduledAt, color = AstraTheme.green, fontSize = 11.sp, maxLines = 2) }
+                        if (client.unreadMessages > 0) Text("${client.unreadMessages} новых сообщений", color = AstraTheme.amber, fontSize = 11.sp)
+                    }
+                }
+            }
+            2 -> MobileItemGrid(planned) { plan ->
+                MobileCard(Modifier.heightIn(min = 145.dp).clickable { onPlan(plan) }) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text(plan.displayName, fontWeight = FontWeight.Bold, maxLines = 3)
+                        Text(plan.scheduledAt, color = AstraTheme.muted, fontSize = 12.sp)
+                        Text("${plan.items.size} упражнений", color = AstraTheme.blue, fontSize = 12.sp)
+                        Text(plan.status, color = AstraTheme.muted, fontSize = 11.sp)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { onCompletePlan(plan) }, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.CheckCircle, "Выполнено", tint = AstraTheme.green, modifier = Modifier.size(18.dp)) }
+                            IconButton(onClick = { onEditPlan(plan) }, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.Edit, "Редактировать", modifier = Modifier.size(17.dp)) }
+                            TextButton(onClick = { onCancelPlan(plan) }) { Text("Отменить", fontSize = 11.sp) }
+                        }
+                    }
+                }
+            }
+            3 -> MobileItemGrid(historyPlans) { plan ->
+                MobileCard(Modifier.heightIn(min = 145.dp).clickable { onPlan(plan) }) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text(plan.displayName, fontWeight = FontWeight.Bold, maxLines = 3)
+                        Text(plan.scheduledAt, color = AstraTheme.muted, fontSize = 12.sp)
+                        Text("${plan.items.size} \u0443\u043F\u0440\u0430\u0436\u043D\u0435\u043D\u0438\u0439", color = AstraTheme.blue, fontSize = 12.sp)
+                        Text(plan.historyStatus, color = AstraTheme.muted, fontSize = 11.sp)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                            TextButton(onClick = { onRepeatPlan(plan) }) { Text("Повторить", fontSize = 11.sp) }
+                            if (plan.status == "canceled") IconButton(onClick = { onDeletePlan(plan) }, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.Delete, "Удалить", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(17.dp)) }
+                        }
+                    }
+                }
+            }
+            4 -> MobileItemGrid(exercises) { exercise ->
+                MobileCard(Modifier.heightIn(min = 145.dp).clickable { onExercise(exercise) }) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Icon(Icons.Default.FitnessCenter, null, tint = AstraTheme.green)
+                        Text(exercise.name, fontWeight = FontWeight.Bold, maxLines = 3)
+                        Text(exercise.muscleGroup ?: "Другое", color = AstraTheme.muted, fontSize = 12.sp, maxLines = 2)
+                        Text(exercise.description.displayOr(exercise.note.displayOr("Описание упражнения пока не добавлено")), color = AstraTheme.muted, fontSize = 11.sp, maxLines = 3)
+                        MobileWorkoutEntityActions(onEdit = { onEditExercise(exercise) }, onDelete = { onDeleteExercise(exercise) }, onShareClient = { onShareClient("exercise", exercise.id) })
+                    }
+                }
+            }
+            5 -> MobileItemGrid(complexes) { complex ->
+                MobileCard(Modifier.heightIn(min = 145.dp).clickable { onComplex(complex) }) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Icon(Icons.Default.Book, null, tint = AstraTheme.blue)
+                        Text(complex.name, fontWeight = FontWeight.Bold, maxLines = 3)
+                        Text("${complex.items.size} упражнений", color = AstraTheme.blue, fontSize = 12.sp)
+                        MobileWorkoutEntityActions(onEdit = { onEditComplex(complex) }, onDelete = { onDeleteComplex(complex) }, onShareClient = { onShareClient("workout_complex", complex.id) })
+                        TextButton(onClick = { onScheduleComplex(complex) }) { Text("Запланировать", fontSize = 11.sp) }
+                    }
+                }
+            }
+            6 -> MobileItemGrid(machines) { item ->
+                MobileCard(Modifier.heightIn(min = 145.dp).clickable { onEquipment(item) }) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Icon(Icons.Default.FitnessCenter, null, tint = AstraTheme.green)
+                        Text(item.name, fontWeight = FontWeight.Bold, maxLines = 3)
+                        Text(item.description.displayOr("Тренажёр"), color = AstraTheme.muted, fontSize = 12.sp, maxLines = 3)
+                        MobileWorkoutEntityActions(onEdit = { onEditEquipment(item) }, onDelete = { onDeleteEquipment(item) }, onShareClient = { onShareClient("workout_equipment", item.id) })
+                    }
+                }
+            }
+            else -> MobileItemGrid(freeEquipment) { item ->
+                MobileCard(Modifier.heightIn(min = 145.dp).clickable { onEquipment(item) }) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Icon(Icons.Default.FitnessCenter, null, tint = AstraTheme.amber)
+                        Text(item.name, fontWeight = FontWeight.Bold, maxLines = 3)
+                        Text(item.description.displayOr("Инвентарь"), color = AstraTheme.muted, fontSize = 12.sp, maxLines = 3)
+                        MobileWorkoutEntityActions(onEdit = { onEditEquipment(item) }, onDelete = { onDeleteEquipment(item) }, onShareClient = { onShareClient("workout_equipment", item.id) })
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
 private fun MobileTrainerTile(title: String, count: Int, tint: Color, onClick: () -> Unit) { MobileCard(Modifier.clickable(onClick = onClick)) { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) { Text(title, color = tint, fontWeight = FontWeight.Bold); Text(count.toString(), fontSize = 22.sp, fontWeight = FontWeight.Bold); Text("Открыть раздел ›", color = AstraTheme.muted, fontSize = 11.sp) } } }
 
 @Composable
-private fun TrainerEquipmentList(items: List<WorkoutEquipment>, selectedEquipment: (WorkoutEquipment) -> Unit) { LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(items, key = { it.id }) { item -> MobileCard(Modifier.clickable { selectedEquipment(item) }) { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.FitnessCenter, null, tint = AstraTheme.green); Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text(item.name, fontWeight = FontWeight.Bold); Text(item.description ?: if (item.kind == "machine") "Тренажёр" else "Инвентарь", color = AstraTheme.muted, fontSize = 12.sp) }; Text("›", fontSize = 22.sp, color = AstraTheme.muted) } } } } }
+private fun TrainerEquipmentList(items: List<WorkoutEquipment>, selectedEquipment: (WorkoutEquipment) -> Unit) { LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(items, key = { it.id }) { item -> MobileCard(Modifier.clickable { selectedEquipment(item) }) { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.FitnessCenter, null, tint = AstraTheme.green); Spacer(Modifier.width(10.dp)); Column(Modifier.weight(1f)) { Text(item.name, fontWeight = FontWeight.Bold); Text(item.description.displayOr(if (item.kind == "machine") "Тренажёр" else "Инвентарь"), color = AstraTheme.muted, fontSize = 12.sp) }; Text("›", fontSize = 22.sp, color = AstraTheme.muted) } } } } }
 
 @Composable
 fun TrainerWorkspaceScreen(state: AstraState) {
@@ -1089,7 +1524,7 @@ fun InformationScreen(state: AstraState) {
         }
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp)) }
         if (filtered.isEmpty()) EmptyMessage("Статей пока нет", "Материалы появятся здесь после публикации в веб-версии.")
-        else LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        else LazyVerticalGrid(columns = GridCells.Fixed(2), modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(filtered.size, key = { filtered[it].id }) { index ->
                 val article = filtered[index]
                 ArticleTile(article, isAdmin, canManage, hasTrainer, onOpen = { selected = article }, onPin = { toggleFlag(article, "is_pinned") }, onHide = { toggleFlag(article, "is_hidden") }, onEdit = { editing = article; showEditor = true }, onShareClient = { shareToClient(article) }, onShareTrainer = { shareToTrainer(article) })
@@ -1244,6 +1679,8 @@ private fun MobileWorkoutsDashboardScreen(state: AstraState) {
     var clients by remember { mutableStateOf<List<ClientSummary>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val canManage = state.user?.isAdmin == true || state.user?.isTrainer == true
+    var hasTrainer by remember { mutableStateOf(false) }
 
     suspend fun load() {
         plans = suspendResult { state.api.plans() }.getOrDefault(emptyList())
@@ -1253,12 +1690,17 @@ private fun MobileWorkoutsDashboardScreen(state: AstraState) {
         equipment = suspendResult { state.api.workoutEquipment() }.getOrDefault(emptyList())
     }
 
+    val historyPlans = plans.filter { it.isHistory }.sortedByDescending { it.completedAt ?: it.scheduledAt }
+
     LaunchedEffect(Unit) { load() }
+    LaunchedEffect(canManage) {
+        if (!canManage) hasTrainer = suspendResult { state.api.myTrainerChat() }.getOrNull()?.trainer != null
+    }
     LaunchedEffect(shareType) { if (shareType != null && clients.isEmpty()) clients = suspendResult { state.api.clients() }.getOrDefault(emptyList()) }
 
     if (selectedPlan != null) {
         val plan = selectedPlan!!
-        TrainerPlanDetailScreen(plan, onBack = { selectedPlan = null }, onEdit = { selectedPlan = null; editingPlan = plan; planFromComplex = null; showPlanEditor = true }, onRepeat = { selectedPlan = null; editingPlan = plan.copy(id = 0, scheduledAt = todayTime()); planFromComplex = null; showPlanEditor = true }, onCancel = { scope.launch { suspendResult { state.api.cancelPlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }, onDelete = { scope.launch { suspendResult { state.api.deletePlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } })
+        TrainerPlanDetailScreen(plan, onBack = { selectedPlan = null }, onEdit = if (canManage) ({ selectedPlan = null; editingPlan = plan; planFromComplex = null; showPlanEditor = true }) else null, onRepeat = { selectedPlan = null; editingPlan = plan.copy(id = 0, scheduledAt = todayTime()); planFromComplex = null; showPlanEditor = true }, onCancel = if (plan.status == "planned") ({ scope.launch { suspendResult { state.api.cancelPlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }) else null, onDelete = if (plan.status == "canceled") ({ scope.launch { suspendResult { state.api.deletePlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }) else null, onComplete = if (plan.status == "planned") ({ scope.launch { suspendResult { state.api.completePlan(plan.id) }.onSuccess { load(); selectedPlan = null }.onFailure { error = it.message } } }) else null)
         return
     }
     if (selectedWorkout != null) {
@@ -1267,11 +1709,47 @@ private fun MobileWorkoutsDashboardScreen(state: AstraState) {
         return
     }
     if (selectedExercise != null) {
-        MobileExerciseDetailScreen(selectedExercise!!, onBack = { selectedExercise = null })
+        val exercise = selectedExercise!!
+        MobileExerciseDetailScreen(
+            exercise,
+            allExercises = exercises,
+            onBack = { selectedExercise = null },
+            onEdit = if (canManage) ({ item: Exercise -> selectedExercise = null; editingExercise = item; showExerciseEditor = true }) else null,
+            onDelete = if (canManage) ({ item: Exercise -> scope.launch { suspendResult { state.api.deleteExercise(item.id) }.onSuccess { load(); selectedExercise = null }.onFailure { error = it.message } } }) else null,
+            onShareTrainer = if (hasTrainer && !canManage) ({ item: Exercise -> scope.launch { suspendResult { state.api.shareToTrainer("exercise", item.id) }.onFailure { error = it.message } } }) else null,
+            onShareClient = if (canManage) ({ item: Exercise -> shareType = "exercise"; shareId = item.id }) else null
+        )
+        return
+    }
+    if (selectedComplex != null) {
+        val complex = selectedComplex!!
+        TrainerComplexDetailScreen(
+            complex = complex,
+            onBack = { selectedComplex = null },
+            onEdit = if (canManage) ({ selectedComplex = null; editingComplex = complex; showComplexEditor = true }) else null,
+            onSchedule = { selectedComplex = null; planFromComplex = complex; editingPlan = null; showPlanEditor = true },
+            onDelete = if (canManage) ({
+                scope.launch {
+                    suspendResult { state.api.deleteComplex(complex.id) }
+                        .onSuccess { load(); selectedComplex = null }
+                        .onFailure { error = it.message }
+                }
+            }) else null,
+            onShareTrainer = if (hasTrainer && !canManage) ({ scope.launch { suspendResult { state.api.shareToTrainer("workout_complex", complex.id) }.onFailure { error = it.message } } }) else null,
+            onShareClient = if (canManage) ({ shareType = "workout_complex"; shareId = complex.id }) else null
+        )
         return
     }
     if (selectedEquipment != null) {
-        MobileEquipmentDetailScreen(selectedEquipment!!, onBack = { selectedEquipment = null })
+        val item = selectedEquipment!!
+        MobileEquipmentDetailScreen(
+            item,
+            onBack = { selectedEquipment = null },
+            onEdit = if (canManage) ({ selectedEquipment = null; editingEquipment = item; showEquipmentEditor = true }) else null,
+            onDelete = if (canManage) ({ scope.launch { suspendResult { state.api.deleteEquipment(item.id) }.onSuccess { load(); selectedEquipment = null }.onFailure { error = it.message } } }) else null,
+            onShareTrainer = if (hasTrainer && !canManage) ({ scope.launch { suspendResult { state.api.shareToTrainer("workout_equipment", item.id) }.onFailure { error = it.message } } }) else null,
+            onShareClient = if (canManage) ({ shareType = "workout_equipment"; shareId = item.id }) else null
+        )
         return
     }
 
@@ -1285,33 +1763,38 @@ private fun MobileWorkoutsDashboardScreen(state: AstraState) {
                 TextButton(onClick = { showAdd = true }) { Text("Записать") }
             }
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { showWorkoutManage = true }) { Text("Управление") }
-                OutlinedButton(onClick = { editingComplex = null; showComplexEditor = true }) { Text("Новый комплекс") }
+                if (canManage) OutlinedButton(onClick = { showWorkoutManage = true }) { Text("Управление") }
+                if (canManage) OutlinedButton(onClick = { editingComplex = null; showComplexEditor = true }) { Text("Новый комплекс") }
             }
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = { editingExercise = null; showExerciseEditor = true }) { Text("Новое упражнение") }
-                OutlinedButton(onClick = { editingEquipment = null; showEquipmentEditor = true }) { Text("Новый инвентарь") }
+                if (canManage) OutlinedButton(onClick = { editingExercise = null; showExerciseEditor = true }) { Text("Новое упражнение") }
+                if (canManage) OutlinedButton(onClick = { editingEquipment = null; showEquipmentEditor = true }) { Text("Новый инвентарь") }
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
             val planned = plans.filter { it.status == "planned" }
-            LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            LazyColumn(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (planned.isNotEmpty()) {
                     item { Text("Закреплённые тренировки", fontSize = 19.sp, fontWeight = FontWeight.Bold) }
-                    items(planned.take(3), key = { "pinned-${it.id}" }) { plan ->
+                    item { MobileItemGrid(planned.take(3)) { plan ->
                         MobileCard(Modifier.clickable { selectedPlan = plan }) {
                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Text("БЛИЖАЙШАЯ ТРЕНИРОВКА", color = AstraTheme.blue, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                                 Text(plan.displayName, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 Text(plan.scheduledAt, color = AstraTheme.muted, fontSize = 12.sp)
-                                Text(plan.items.joinToString(" · ") { it.name ?: "Упражнение" }.ifBlank { "План тренировки" }, color = AstraTheme.muted, maxLines = 2)
+                                Text(plan.items.joinToString(" · ") { it.name.displayOr("Упражнение") }.ifBlank { "План тренировки" }, color = AstraTheme.muted, maxLines = 2)
                                 Text("Открыть тренировку  ›", color = AstraTheme.blue, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                    IconButton(onClick = { scope.launch { suspendResult { state.api.completePlan(plan.id) }.onSuccess { load() }.onFailure { error = it.message } } }, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.CheckCircle, "Выполнено", tint = AstraTheme.green, modifier = Modifier.size(18.dp)) }
+                                    if (canManage) IconButton(onClick = { editingPlan = plan; planFromComplex = null; showPlanEditor = true }, modifier = Modifier.size(34.dp)) { Icon(Icons.Default.Edit, "Редактировать", modifier = Modifier.size(17.dp)) }
+                                    TextButton(onClick = { scope.launch { suspendResult { state.api.cancelPlan(plan.id) }.onSuccess { load() }.onFailure { error = it.message } } }) { Text("Отменить", fontSize = 11.sp) }
+                                }
                             }
                         }
-                    }
+                    } }
                 }
                 item { Text("Разделы", fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)) }
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Box(Modifier.weight(1f)) {
                             MobileWorkoutCategoryTile("Тренировки", "Комплексы и программы", plans.size, Icons.Default.FitnessCenter, AstraTheme.blue) { category = 0 }
                         }
@@ -1321,12 +1804,12 @@ private fun MobileWorkoutsDashboardScreen(state: AstraState) {
                     }
                 }
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Box(Modifier.weight(1f)) {
                             MobileWorkoutCategoryTile("Инвентарь", "Оборудование", equipment.size, Icons.Default.Info, AstraTheme.amber) { category = 2 }
                         }
                         Box(Modifier.weight(1f)) {
-                            MobileWorkoutCategoryTile("История", "Завершённые тренировки", logs.size, Icons.Default.Book, AstraTheme.blue) { category = 3 }
+                            MobileWorkoutCategoryTile("История", "Завершённые тренировки", historyPlans.size, Icons.Default.Book, AstraTheme.blue) { category = 3 }
                         }
                     }
                 }
@@ -1338,7 +1821,38 @@ private fun MobileWorkoutsDashboardScreen(state: AstraState) {
                 Spacer(Modifier.weight(1f))
                 Text(listOf("Тренировки", "Упражнения", "Инвентарь", "История")[category!!], fontWeight = FontWeight.Bold)
             }
-            when (category) {
+            MobileWorkoutCategoryGrid(
+                category = category!!,
+                plans = plans,
+                exercises = exercises,
+                complexes = complexes,
+                equipment = equipment,
+                logs = logs,
+                historyPlans = historyPlans,
+                onPlan = { selectedPlan = it },
+                onExercise = { selectedExercise = it },
+                onComplex = { selectedComplex = it },
+                onEquipment = { selectedEquipment = it },
+                onWorkout = { selectedWorkout = it },
+                canManage = canManage,
+                hasTrainer = hasTrainer,
+                onAddExercise = { editingExercise = null; showExerciseEditor = true },
+                onEditExercise = { editingExercise = it; showExerciseEditor = true },
+                onDeleteExercise = { item -> scope.launch { suspendResult { state.api.deleteExercise(item.id) }.onSuccess { load() }.onFailure { error = it.message } } },
+                onShareClient = { type, id -> shareType = type; shareId = id },
+                onShareTrainer = { type, id -> scope.launch { suspendResult { state.api.shareToTrainer(type, id) }.onFailure { error = it.message } } },
+                onEditComplex = { editingComplex = it; showComplexEditor = true },
+                onScheduleComplex = { planFromComplex = it; editingPlan = null; showPlanEditor = true },
+                onDeleteComplex = { item -> scope.launch { suspendResult { state.api.deleteComplex(item.id) }.onSuccess { load() }.onFailure { error = it.message } } },
+                onEditEquipment = { editingEquipment = it; showEquipmentEditor = true },
+                onDeleteEquipment = { item -> scope.launch { suspendResult { state.api.deleteEquipment(item.id) }.onSuccess { load() }.onFailure { error = it.message } } },
+                onCompletePlan = { plan -> scope.launch { suspendResult { state.api.completePlan(plan.id) }.onSuccess { load() }.onFailure { error = it.message } } },
+                onEditPlan = { plan -> editingPlan = plan; planFromComplex = null; showPlanEditor = true },
+                onRepeatPlan = { plan -> editingPlan = plan.copy(id = 0, scheduledAt = todayTime()); planFromComplex = null; showPlanEditor = true },
+                onCancelPlan = { plan -> scope.launch { suspendResult { state.api.cancelPlan(plan.id) }.onSuccess { load() }.onFailure { error = it.message } } },
+                onDeletePlan = { plan -> scope.launch { suspendResult { state.api.deletePlan(plan.id) }.onSuccess { load() }.onFailure { error = it.message } } }
+            )
+            if (category == null) when (category) {
                 0 -> LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(plans, key = { "plan-${it.id}" }) { plan ->
                         MobileCard(Modifier.clickable { selectedPlan = plan }) {
@@ -1377,7 +1891,7 @@ private fun MobileWorkoutsDashboardScreen(state: AstraState) {
                                 Spacer(Modifier.width(10.dp))
                                 Column(Modifier.weight(1f)) {
                                     Text(item.name, fontWeight = FontWeight.Bold)
-                                    Text(item.description ?: if (item.kind == "machine") "Тренажёр" else "Инвентарь", color = AstraTheme.muted, fontSize = 12.sp)
+                                    Text(item.description.displayOr(if (item.kind == "machine") "Тренажёр" else "Инвентарь"), color = AstraTheme.muted, fontSize = 12.sp)
                                 }
                                 Text("›", fontSize = 22.sp, color = AstraTheme.muted)
                             }
@@ -1389,7 +1903,7 @@ private fun MobileWorkoutsDashboardScreen(state: AstraState) {
                             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(complex.name, fontWeight = FontWeight.Bold)
                                 Text("${complex.items.size} упражнений", color = AstraTheme.muted, fontSize = 12.sp)
-                                complex.comment?.let { Text(it, color = AstraTheme.muted, fontSize = 12.sp) }
+                                complex.comment.displayOrNull()?.let { Text(it, color = AstraTheme.muted, fontSize = 12.sp) }
                             }
                         }
                     }
@@ -1435,20 +1949,11 @@ private fun MobileWorkoutsDashboardScreen(state: AstraState) {
             }
         }, confirmButton = { TextButton({ selectedExercise = null }) { Text("Закрыть") } })
     }
-    selectedComplex?.let { complex ->
-        AlertDialog(onDismissRequest = { selectedComplex = null }, title = { Text(complex.name) }, text = {
-            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                complex.comment?.let { Text(it) }
-                Text("Упражнения", fontWeight = FontWeight.Bold)
-                complex.items.forEach { Text("${it.name} · ${it.sets.shown(" подхода")} · ${it.durationMinutes.shown(" мин")}") }
-            }
-        }, confirmButton = { TextButton({ selectedComplex = null }) { Text("Закрыть") } })
-    }
     selectedEquipment?.let { item ->
         AlertDialog(onDismissRequest = { selectedEquipment = null }, title = { Text(item.name) }, text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(if (item.kind == "machine") "Тренажёр" else "Инвентарь", color = AstraTheme.muted)
-                item.description?.let { Text(it) }
+                item.description.displayOrNull()?.let { Text(it) }
             }
         }, confirmButton = { TextButton({ selectedEquipment = null }) { Text("Закрыть") } })
     }
@@ -1525,29 +2030,70 @@ private fun WorkoutDetailRow(index: Int, title: String, value: String) {
 }
 
 @Composable
-private fun MobileExerciseDetailScreen(exercise: Exercise, onBack: () -> Unit, onEdit: (() -> Unit)? = null, onDelete: (() -> Unit)? = null, onShareTrainer: (() -> Unit)? = null, onShareClient: (() -> Unit)? = null) {
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        WorkoutDetailHeader("Упражнение", onBack)
-        LazyColumn(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item { WorkoutDetailHero(Icons.Default.FitnessCenter, AstraTheme.green) }
-            item {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(exercise.name, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-                    Text(exercise.muscleGroup ?: "Другое", color = AstraTheme.muted)
+private fun MobileExerciseDetailScreen(exercise: Exercise, allExercises: List<Exercise> = emptyList(), onBack: () -> Unit, onEdit: ((Exercise) -> Unit)? = null, onDelete: ((Exercise) -> Unit)? = null, onShareTrainer: ((Exercise) -> Unit)? = null, onShareClient: ((Exercise) -> Unit)? = null) {
+    var currentIndex by remember(exercise.id) { mutableStateOf(allExercises.indexOfFirst { it.id == exercise.id }.coerceAtLeast(0)) }
+    val current = allExercises.getOrNull(currentIndex) ?: exercise
+    val total = allExercises.size.coerceAtLeast(1)
+    val progress = ((currentIndex + 1).toFloat() / total.toFloat()).coerceIn(0f, 1f)
+    val nextExercise = { if (currentIndex < allExercises.lastIndex) currentIndex += 1 else onBack() }
+    val previousExercise = { if (currentIndex > 0) currentIndex -= 1 else onBack() }
+    val currentEdit: (() -> Unit)? = onEdit?.let { callback -> { callback(current) } }
+    val currentDelete: (() -> Unit)? = onDelete?.let { callback -> { callback(current) } }
+    val currentShareTrainer: (() -> Unit)? = onShareTrainer?.let { callback -> { callback(current) } }
+    val currentShareClient: (() -> Unit)? = onShareClient?.let { callback -> { callback(current) } }
+
+    Column(Modifier.fillMaxSize().background(Color(0xFF0A0908)).verticalScroll(rememberScrollState()).padding(top = 12.dp, bottom = 16.dp)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.weight(1f).height(6.dp).clip(RoundedCornerShape(3.dp)).background(Color.White.copy(alpha = .13f))) {
+                Box(Modifier.fillMaxWidth(progress).fillMaxHeight().background(AstraTheme.blue))
+            }
+            Box(
+                Modifier
+                    .width(88.dp)
+                    .height(27.dp)
+                    .clip(RoundedCornerShape(50.dp))
+                    .background(Color.White.copy(alpha = .04f))
+                    .border(1.dp, Color.White.copy(alpha = .08f), RoundedCornerShape(50.dp))
+                    .clickable(onClick = onBack),
+                contentAlignment = Alignment.Center
+            ) { Text("Пропустить", color = AstraTheme.blue, fontSize = 11.sp, fontWeight = FontWeight.SemiBold) }
+        }
+        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            WorkoutDetailHero(Icons.Default.FitnessCenter, AstraTheme.green)
+            Text(current.muscleGroup.displayOr("Другое"), color = AstraTheme.green, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            current.code.displayOrNull()?.let { Text(it, color = Color.White.copy(alpha = .55f), fontSize = 12.sp) }
+            Text(current.name, color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold, maxLines = 3)
+            Text(current.description.displayOr(current.note.displayOr("Описание упражнения пока не добавлено")), color = Color.White.copy(alpha = .68f), fontSize = 14.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                WorkoutDetailBadge("${current.defaultSets.shown()} подходов", AstraTheme.blue)
+                WorkoutDetailBadge("${current.defaultReps.shown()} повторений", AstraTheme.blue)
+                current.unit.displayOrNull()?.let { WorkoutDetailBadge(it, AstraTheme.green) }
+            }
+            if (current.targetRir.displayOrNull() != null) Text("Целевой RIR: ${current.targetRir}", color = Color.White.copy(alpha = .68f), fontSize = 13.sp)
+            Text("Техника и варианты", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+            if (current.variants.isEmpty()) {
+                Text("Варианты выполнения пока не добавлены.", color = Color.White.copy(alpha = .62f), fontSize = 13.sp)
+            } else current.variants.forEachIndexed { index, variant ->
+                MobileCard {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text(variant.name.displayOr("Вариант ${index + 1}"), fontWeight = FontWeight.Bold)
+                        variant.machine.displayOrNull()?.let { Text("Тренажёр: $it", color = AstraTheme.muted, fontSize = 12.sp) }
+                        variant.equipment.displayOrNull()?.let { Text("Инвентарь: $it", color = AstraTheme.muted, fontSize = 12.sp) }
+                        variant.description.displayOrNull()?.let { Text(it, fontSize = 13.sp) }
+                        variant.technique.displayOrNull()?.let { Text("Техника: $it", color = AstraTheme.muted, fontSize = 12.sp) }
+                        variant.tips.displayOrNull()?.let { Text("Советы: $it", color = AstraTheme.muted, fontSize = 12.sp) }
+                    }
                 }
             }
-            item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    WorkoutDetailBadge(exercise.muscleGroup ?: "Другое", AstraTheme.green)
-                    exercise.unit?.takeIf { it.isNotBlank() }?.let { WorkoutDetailBadge(it, AstraTheme.blue) }
-                }
+            if (current.photos.isNotEmpty() || current.video.displayOrNull() != null) {
+                Text("Медиа", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+                Text(listOfNotNull(current.photos.takeIf { it.isNotEmpty() }?.let { "Фото: ${it.size}" }, current.video.displayOrNull()?.let { "Видео доступно" }).joinToString(" · "), color = Color.White.copy(alpha = .68f), fontSize = 13.sp)
             }
-            item { Text("Параметры упражнения", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)) }
-            item { WorkoutDetailRow(1, "Единица нагрузки", exercise.unit ?: "—") }
-            item { WorkoutDetailRow(2, "Подходы", exercise.defaultSets.shown()) }
-            item { WorkoutDetailRow(3, "Повторения", exercise.defaultReps.shown()) }
-            if (onEdit != null || onDelete != null) item { Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { onEdit?.let { OutlinedButton(onClick = it) { Text("edit") } }; onDelete?.let { OutlinedButton(onClick = it) { Text("delete") } } } }
-            item { Spacer(Modifier.height(16.dp)) }
+            MobileWorkoutEntityActions(onEdit = currentEdit, onDelete = currentDelete, onShareTrainer = currentShareTrainer, onShareClient = currentShareClient)
+        }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 22.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = previousExercise, modifier = Modifier.weight(1f).height(44.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)) { Text("Назад") }
+            Button(onClick = nextExercise, modifier = Modifier.weight(1f).height(44.dp), shape = RoundedCornerShape(22.dp), colors = ButtonDefaults.buttonColors(containerColor = AstraTheme.blue, contentColor = Color.White)) { Text("Далее") }
         }
     }
 }
@@ -1569,7 +2115,8 @@ private fun MobileEquipmentDetailScreen(item: WorkoutEquipment, onBack: () -> Un
             item { Row { WorkoutDetailBadge(kind, tint) } }
             item { Text("Описание", fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp)) }
             item { WorkoutDetailRow(1, "Тип", kind) }
-            item { WorkoutDetailRow(2, "Описание", item.description ?: "—") }
+            item { WorkoutDetailRow(2, "Описание", item.description.displayOr("—")) }
+            item { MobileWorkoutEntityActions(onEdit = onEdit, onDelete = onDelete, onShareTrainer = onShareTrainer, onShareClient = onShareClient) }
             item { Spacer(Modifier.height(16.dp)) }
         }
     }
@@ -1591,15 +2138,15 @@ fun MobileWorkoutsScreen(state: AstraState) {
         when (section) {
             0 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { if (plans.isNotEmpty()) item { Text("Планы", fontSize = 18.sp, fontWeight = FontWeight.Bold) }; items(plans, key = { "p${it.id}" }) { plan -> MobileCard { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(plan.displayName, fontWeight = FontWeight.Bold); Text(plan.scheduledAt, color = AstraTheme.muted, fontSize = 12.sp); Text("${plan.items.size} упражнений · ${plan.status}", color = AstraTheme.muted, fontSize = 12.sp) }; if (plan.status == "planned") TextButton({ kotlinx.coroutines.MainScope().launch { state.api.completePlan(plan.id); load() } }) { Text("Готово") } } } }; item { Text("Журнал", fontSize = 18.sp, fontWeight = FontWeight.Bold) }; items(logs, key = { "l${it.id}" }) { log -> MobileCard(Modifier.clickable { selectedWorkout = log }) { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text(log.name, fontWeight = FontWeight.Bold); Text("${log.date} · ${log.sets.shown(" подходов")} × ${log.reps.shown(" повторений")}", color = AstraTheme.muted, fontSize = 12.sp) }; Text("›", fontSize = 22.sp, color = AstraTheme.muted) } } } }
             1 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(exercises, key = { it.id }) { exercise -> MobileCard { Column(Modifier.padding(14.dp)) { Text(exercise.name, fontWeight = FontWeight.Bold); Text("${exercise.muscleGroup ?: "Другое"} · ${exercise.defaultSets.shown(" подхода")} × ${exercise.defaultReps.shown(" повторений")}", color = AstraTheme.muted, fontSize = 12.sp) } } } }
-            2 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(complexes, key = { it.id }) { complex -> MobileCard { Column(Modifier.padding(14.dp)) { Text(complex.name, fontWeight = FontWeight.Bold); Text("${complex.items.size} упражнений", color = AstraTheme.muted, fontSize = 12.sp); complex.comment?.let { Text(it, fontSize = 12.sp) } } } } }
-            else -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(equipment, key = { it.id }) { item -> MobileCard { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.FitnessCenter, null, tint = AstraTheme.green); Spacer(Modifier.width(10.dp)); Column { Text(item.name, fontWeight = FontWeight.Bold); Text(if (item.kind == "machine") "Тренажёр" else "Инвентарь", color = AstraTheme.muted, fontSize = 12.sp); item.description?.let { Text(it, fontSize = 12.sp) } } } } } }
+            2 -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(complexes, key = { it.id }) { complex -> MobileCard { Column(Modifier.padding(14.dp)) { Text(complex.name, fontWeight = FontWeight.Bold); Text("${complex.items.size} упражнений", color = AstraTheme.muted, fontSize = 12.sp); complex.comment.displayOrNull()?.let { Text(it, fontSize = 12.sp) } } } } }
+            else -> LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(equipment, key = { it.id }) { item -> MobileCard { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.FitnessCenter, null, tint = AstraTheme.green); Spacer(Modifier.width(10.dp)); Column { Text(item.name, fontWeight = FontWeight.Bold); Text(if (item.kind == "machine") "Тренажёр" else "Инвентарь", color = AstraTheme.muted, fontSize = 12.sp); item.description.displayOrNull()?.let { Text(it, fontSize = 12.sp) } } } } } }
         }
     }
     if (showAdd) MobileAddWorkoutDialog(exercises, { date, exercise, weight, sets, reps, rir -> kotlinx.coroutines.MainScope().launch { state.api.addWorkout(date, exercise.id, weight, sets, reps, rir); load(); showAdd = false } }, { showAdd = false })
 }
 
 @Composable
-private fun TrainerPlanDetailScreen(plan: WorkoutPlan, onBack: () -> Unit, onEdit: () -> Unit = {}, onRepeat: () -> Unit = {}, onCancel: () -> Unit = {}, onDelete: () -> Unit = {}) {
+private fun TrainerPlanDetailScreen(plan: WorkoutPlan, onBack: () -> Unit, onEdit: (() -> Unit)? = null, onRepeat: () -> Unit = {}, onCancel: (() -> Unit)? = null, onDelete: (() -> Unit)? = null, onComplete: (() -> Unit)? = null) {
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }
@@ -1611,8 +2158,17 @@ private fun TrainerPlanDetailScreen(plan: WorkoutPlan, onBack: () -> Unit, onEdi
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                         Text(plan.displayName, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         Text(plan.scheduledAt, color = AstraTheme.muted)
-                        Text(plan.status, color = AstraTheme.muted)
-                        Row(horizontalArrangement = Arrangement.spacedBy(5.dp)) { TextButton(onClick = onEdit) { Text("Изменить") }; TextButton(onClick = onRepeat) { Text("Повторить") }; if (plan.status == "planned") TextButton(onClick = onCancel) { Text("Отменить") }; TextButton(onClick = onDelete) { Text("Удалить") } }
+                        Text(if (plan.isHistory) plan.historyStatus else plan.status, color = AstraTheme.muted)
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            if (plan.status == "planned") {
+                                onComplete?.let { TextButton(onClick = it) { Text("Выполнено") } }
+                                onEdit?.let { TextButton(onClick = it) { Text("Изменить") } }
+                                onCancel?.let { TextButton(onClick = it) { Text("Отменить") } }
+                            } else {
+                                TextButton(onClick = onRepeat) { Text("Повторить") }
+                                if (plan.status == "canceled") onDelete?.let { TextButton(onClick = it) { Text("Удалить", color = MaterialTheme.colorScheme.error) } }
+                            }
+                        }
                     }
                 }
             }
@@ -1620,8 +2176,56 @@ private fun TrainerPlanDetailScreen(plan: WorkoutPlan, onBack: () -> Unit, onEdi
             items(plan.items) { item ->
                 MobileCard {
                     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(item.name ?: "Упражнение", fontWeight = FontWeight.Bold)
+                        Text(item.name.displayOr("Упражнение"), fontWeight = FontWeight.Bold)
                         Text("${item.sets.shown(" подхода")} · ${item.duration.shown(" мин")}", color = AstraTheme.muted, fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrainerComplexDetailScreen(
+    complex: WorkoutComplex,
+    onBack: () -> Unit,
+    onEdit: (() -> Unit)? = null,
+    onSchedule: () -> Unit = {},
+    onDelete: (() -> Unit)? = null,
+    onShareTrainer: (() -> Unit)? = null,
+    onShareClient: (() -> Unit)? = null
+) {
+    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, contentDescription = "Назад") }
+            Text("Комплекс", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            item {
+                MobileCard {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Text(complex.name, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                        complex.comment.displayOrNull()?.let { Text(it, color = AstraTheme.muted) }
+                        Text("${complex.items.size} упражнений", color = AstraTheme.blue, fontSize = 12.sp)
+                        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            onEdit?.let { TextButton(onClick = it) { Text("Изменить") } }
+                            TextButton(onClick = onSchedule) { Text("Запланировать") }
+                            onDelete?.let { TextButton(onClick = it) { Text("Удалить") } }
+                        }
+                        MobileWorkoutEntityActions(onShareTrainer = onShareTrainer, onShareClient = onShareClient)
+                    }
+                }
+            }
+            item { Text("Упражнения", fontSize = 18.sp, fontWeight = FontWeight.Bold) }
+            if (complex.items.isEmpty()) {
+                item { Text("В комплексе пока нет упражнений.", color = AstraTheme.muted) }
+            } else {
+                items(complex.items, key = { "complex-item-${it.id}" }) { item ->
+                    MobileCard {
+                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(item.name.displayOr("Упражнение"), fontWeight = FontWeight.Bold)
+                            Text("${item.sets.shown(" подхода")} · ${item.durationMinutes.shown(" мин")}", color = AstraTheme.muted, fontSize = 12.sp)
+                        }
                     }
                 }
             }
@@ -1657,7 +2261,7 @@ private fun TrainerWorkoutDetailScreen(workout: WorkoutEntry, onBack: () -> Unit
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Нагрузка", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Text("Вес: ${workout.weight.shown(" кг")}")
-                        workout.comment?.let { Text(it, color = AstraTheme.muted) }
+                        workout.comment.displayOrNull()?.let { Text(it, color = AstraTheme.muted) }
                     }
                 }
             }

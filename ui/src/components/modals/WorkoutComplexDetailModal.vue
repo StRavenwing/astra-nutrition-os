@@ -62,10 +62,12 @@ function itemMetric(item: WorkoutPlanItem) {
         <span v-if="complex.video">Видео добавлено</span>
       </div>
 
+      <div v-if="props.canManage" class="modal-extra-actions">
+        <SendToClientButton :item-type="'workout_complex'" :item-id="complex.id" :can-manage="props.canManage" />
+      </div>
       <div class="actions">
         <button type="button" @click="emit('close')">Закрыть</button>
-        <button v-if="props.canManage && !props.readOnly" type="button" class="primary" @click="emit('edit', complex)">Редактировать</button>
-        <SendToClientButton :item-type="'workout_complex'" :item-id="complex.id" :can-manage="props.canManage" />
+        <button v-if="props.canManage && !props.readOnly" type="button" @click="emit('edit', complex)">Редактировать</button>
       </div>
     </div>
   </ModalDialog>

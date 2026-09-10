@@ -240,4 +240,4 @@ fun WorkoutEntryEditorDialog(existing: WorkoutEntry?, exercises: List<Exercise>,
 }
 
 @Composable
-fun EditField(label: String, value: String, onValueChange: (String) -> Unit, placeholder: String? = null) { OutlinedTextField(value, onValueChange, label = { Text(label) }, placeholder = { placeholder?.let { Text(it) } }, singleLine = false, modifier = Modifier.fillMaxWidth()) }
+fun EditField(label: String, value: String, placeholder: String? = null, onValueChange: (String) -> Unit) { OutlinedTextField(value, onValueChange, label = { Text(label) }, placeholder = { placeholder?.let { Text(it) } }, singleLine = false, modifier = Modifier.fillMaxWidth()) }

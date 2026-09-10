@@ -74,7 +74,7 @@ struct MainTabView: View {
             ProductsView().tabItem { Label("Продукты", systemImage: "carrot.fill") }.tag(AppTab.products)
             RecipesView().tabItem { Label("Рецепты", systemImage: "book.closed.fill") }.tag(AppTab.recipes)
             ProgressScreen().tabItem { Label("Прогресс", systemImage: "chart.line.uptrend.xyaxis") }.tag(AppTab.progress)
-            WorkoutsView().tabItem { Label("Тренировки", systemImage: "bolt.fill") }.tag(AppTab.workouts)
+            FitnessWorkoutsDashboardView().tabItem { Label("Тренировки", systemImage: "bolt.fill") }.tag(AppTab.workouts)
             MoreView(tab: $tab).tabItem { Label("Ещё", systemImage: "ellipsis.circle.fill") }.tag(AppTab.settings)
         }
         .background(AstraTheme.canvas)
@@ -157,6 +157,26 @@ struct RecipeRow: View {
                 Spacer()
                 Text("\(recipe.kcalPerServing.display) ккал").font(.caption.weight(.bold)).foregroundStyle(AstraTheme.blue)
             }
+        }
+    }
+}
+
+private struct MobileRecipeCard: View {
+    let recipe: Recipe
+
+    var body: some View {
+        AstraCard {
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: "fork.knife.circle.fill").foregroundStyle(AstraTheme.green)
+                Text(recipe.name).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(3)
+                Text(recipe.category).font(.caption).foregroundStyle(AstraTheme.muted).lineLimit(2)
+                Spacer(minLength: 2)
+                Text("Б \(recipe.proteinPerServingG.display) г · \(recipe.kcalPerServing.display) ккал")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(AstraTheme.blue)
+                    .lineLimit(2)
+            }
+            .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
         }
     }
 }
@@ -329,14 +349,21 @@ struct ProductsView: View {
 
     var body: some View {
         NavigationStack {
-            List(filtered) { product in
-                HStack(spacing: 12) {
-                    Image(systemName: "carrot.fill").foregroundStyle(AstraTheme.green)
-                    VStack(alignment: .leading) { Text(product.name).font(.headline); Text("\(product.category ?? "Без категории") · \(product.kcal.display) ккал").font(.caption).foregroundStyle(AstraTheme.muted) }
-                    Spacer(); Text("Б \(product.proteinG.display) г").font(.caption.weight(.bold)).foregroundStyle(AstraTheme.blue)
-                }.padding(.vertical, 4)
+            ScrollView { MobileItemGrid(filtered) { product in
+                AstraCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Image(systemName: "carrot.fill").foregroundStyle(AstraTheme.green)
+                        Text(product.name).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(3)
+                        Text("\(product.category ?? "Без категории") · \(product.kcal.display) ккал").font(.caption).foregroundStyle(AstraTheme.muted).lineLimit(2)
+                        Spacer(minLength: 2)
+                        Text("Б \(product.proteinG.display) г").font(.caption.weight(.bold)).foregroundStyle(AstraTheme.blue)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+                }
+            }
             }
             .searchable(text: $search, prompt: "Найти продукт")
+            .padding(.horizontal, 20)
             .overlay { if products.isEmpty { if let error { Text(error).foregroundStyle(.red) } else { ProgressView() } } }
             .refreshable { await load() }
             .task { await load() }
@@ -356,18 +383,19 @@ struct RecipesView: View {
 
     var body: some View {
         NavigationStack {
-            List(filtered) { recipe in
+            ScrollView { MobileItemGrid(filtered) { recipe in
                 Button { selected = recipe } label: {
-                    RecipeRow(recipe: recipe).contentShape(Rectangle())
+                    MobileRecipeCard(recipe: recipe).contentShape(Rectangle())
                 }.buttonStyle(.plain)
             }
-            .listStyle(.plain)
+            }
             .searchable(text: $search, prompt: "Найти рецепт")
+            .padding(.horizontal, 20)
             .overlay { if recipes.isEmpty { if let error { Text(error).foregroundStyle(.red) } else { ProgressView() } } }
             .refreshable { await load() }
             .task { await load() }
             .navigationTitle("Рецепты")
-            .sheet(item: $selected) { RecipeDetailView(recipe: $0) }
+            .sheet(item: $selected) { RecipeDetailMobileView(recipe: $0) }
         }
     }
     private func load() async { do { recipes = try await session.api.recipes(); error = nil } catch { error = error.localizedDescription } }
@@ -460,30 +488,51 @@ struct ProgressScreen: View {
     @State private var entries: [ProgressEntry] = []
     @State private var showAdd = false
     @State private var error: String?
+    @State private var selectedPeriod = "Месяц"
     private let periods = ["Неделя", "Месяц", "3 месяца", "Год"]
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 6) { ForEach(periods, id: \.self) { period in Text(period).font(.caption.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 9).background(period == "Месяц" ? AstraTheme.blue : AstraTheme.surface).foregroundStyle(period == "Месяц" ? Color.white : AstraTheme.ink).clipShape(Capsule()).overlay(Capsule().stroke(AstraTheme.line, lineWidth: 1)) } }
+                    HStack(spacing: 6) {
+                        ForEach(periods, id: \.self) { period in
+                            Button { selectedPeriod = period } label: {
+                                Text(period)
+                                    .font(.caption.weight(.semibold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.72)
+                                    .allowsTightening(true)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 38)
+                                    .background(period == selectedPeriod ? AstraTheme.blue : AstraTheme.surface)
+                                    .foregroundStyle(period == selectedPeriod ? Color.white : AstraTheme.ink)
+                                    .clipShape(Capsule())
+                                    .overlay(Capsule().stroke(AstraTheme.line, lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
                     let latest = entries.first
-                    let weights = entries.compactMap(\.weightKg).prefix(8).reversed()
+                    let periodEntries = filteredProgressEntries
+                    let chartEntries = periodEntries.sorted { (progressDate($0.measuredAt) ?? .distantPast) < (progressDate($1.measuredAt) ?? .distantPast) }.filter { $0.weightKg != nil }.suffix(30)
+                    let weights = chartEntries.compactMap(\.weightKg)
                     AstraCard {
                         VStack(alignment: .leading, spacing: 10) {
-                            HStack { VStack(alignment: .leading, spacing: 3) { Text("ДИНАМИКА ВЕСА").font(.caption2.weight(.bold)).foregroundStyle(AstraTheme.blue); Text("Последние 30 дней").font(.headline.weight(.bold)) }; Spacer(); Text("\(weights.count) замеров").font(.caption2).foregroundStyle(AstraTheme.muted) }
+                            HStack { VStack(alignment: .leading, spacing: 3) { Text("ДИНАМИКА ВЕСА").font(.caption2.weight(.bold)).foregroundStyle(AstraTheme.blue); Text("Последние \(periodDays) дней").font(.headline.weight(.bold)) }; Spacer(); Text("\(weights.count) замеров").font(.caption2).foregroundStyle(AstraTheme.muted) }
                             if weights.isEmpty { Text("Добавьте несколько замеров, чтобы увидеть динамику веса.").font(.caption).foregroundStyle(AstraTheme.muted).padding(.vertical, 28) }
-                            else { let minValue = weights.min() ?? 0; let maxValue = weights.max() ?? minValue; let range = max(maxValue - minValue, 1); HStack(alignment: .bottom, spacing: 7) { ForEach(Array(weights.enumerated()), id: \.offset) { _, value in Rectangle().fill(AstraTheme.blue.opacity(0.82)).frame(maxWidth: .infinity).frame(height: 34 + CGFloat((value - minValue) / range) * 78).clipShape(RoundedRectangle(cornerRadius: 5)) } }.frame(height: 126); HStack { Text(entries.last?.measuredAt ?? "").font(.caption2).foregroundStyle(AstraTheme.muted); Spacer(); Text(entries.first?.measuredAt ?? "").font(.caption2).foregroundStyle(AstraTheme.muted) } }
+                            else { ProgressLineChartMobile(values: Array(weights)); HStack { Text(chartEntries.first?.measuredAt ?? "").font(.caption2).foregroundStyle(AstraTheme.muted); Spacer(); Text(chartEntries.last?.measuredAt ?? "").font(.caption2).foregroundStyle(AstraTheme.muted) } }
                         }
                     }
                     HStack(spacing: 10) { ProgressMetricMobile(label: "Вес", value: latest?.weightKg.display ?? "— кг"); ProgressMetricMobile(label: "ИМТ", value: latest?.bmi.display ?? "—"); ProgressMetricMobile(label: "Талия", value: latest?.waistCm.display ?? "— см") }
-                    AstraCard { VStack(alignment: .leading, spacing: 9) { HStack { Text("Последние 30 дней").font(.headline.weight(.bold)); Spacer(); Text("\(entries.count) всего").font(.caption2).foregroundStyle(AstraTheme.muted) }; HStack(spacing: 5) { ForEach(0..<16, id: \.self) { index in RoundedRectangle(cornerRadius: 4).fill(index < min(entries.count, 16) ? AstraTheme.blue : AstraTheme.line).frame(maxWidth: .infinity).frame(height: 14) } } } }
-                    HStack(spacing: 10) { ProgressMetricMobile(label: "Калории", value: latest?.kcalTarget.display ?? "— ккал"); ProgressMetricMobile(label: "Белок", value: latest?.proteinTargetG.display ?? "— г"); ProgressMetricMobile(label: "Самочувствие", value: latest?.wellbeingScore.display ?? "— / 5") }
+                    AstraCard { VStack(alignment: .leading, spacing: 9) { HStack { Text("Последние \(periodDays) дней").font(.headline.weight(.bold)); Spacer(); Text("\(periodEntries.count) всего").font(.caption2).foregroundStyle(AstraTheme.muted) }; HStack(spacing: 5) { ForEach(0..<16, id: \.self) { index in RoundedRectangle(cornerRadius: 4).fill(index < min(periodEntries.count, 16) ? AstraTheme.blue : AstraTheme.line).frame(maxWidth: .infinity).frame(height: 14) } } } }
+                    HStack(spacing: 10) { ProgressMetricMobile(label: "Калории", value: averageProgressMobile(periodEntries.map { $0.kcalTarget }, suffix: " ккал")); ProgressMetricMobile(label: "Белок", value: averageProgressMobile(periodEntries.map { $0.proteinTargetG }, suffix: " г")); ProgressMetricMobile(label: "Самочувствие", value: averageProgressMobile(periodEntries.map { $0.wellbeingScore }, suffix: " / 5")) }
                     HStack(alignment: .bottom) { VStack(alignment: .leading, spacing: 3) { Text("ИСТОРИЯ ЗАМЕРОВ").font(.caption2.weight(.bold)).foregroundStyle(AstraTheme.blue); Text("Открывайте карточку, чтобы посмотреть детали").font(.headline.weight(.bold)) }; Spacer(); Button { showAdd = true } label: { Label("Добавить", systemImage: "plus") }.buttonStyle(.bordered) }
                     if entries.isEmpty { Text(error ?? "Замеров пока нет").foregroundStyle(error == nil ? AstraTheme.muted : AstraTheme.danger).frame(maxWidth: .infinity).padding(32) }
-                    else { LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) { ForEach(entries) { item in NavigationLink(value: item) { ProgressTileMobile(item: item) }.buttonStyle(.plain) } } }
+                    else { LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) { ForEach(entries) { item in NavigationLink(value: item) { ProgressTileMobile(item: item) }.buttonStyle(.plain) } } }
                     AstraCard { VStack(alignment: .leading, spacing: 4) { Text("ПОДСКАЗКА").font(.caption2.weight(.bold)).foregroundStyle(AstraTheme.blue); Text("Добавляйте замеры примерно в одно и то же время").font(.subheadline.weight(.bold)); Text("Так динамика веса и объёмов будет сравниваться точнее.").font(.caption).foregroundStyle(AstraTheme.muted) } }
-                }.padding()
+                }.padding(.horizontal, 20).padding(.vertical, 16)
             }
             .background(AstraTheme.canvas)
             .navigationTitle("Прогресс")
@@ -494,7 +543,80 @@ struct ProgressScreen: View {
             .sheet(isPresented: $showAdd) { ProgressEditorMobileView(existing: nil) { await load() } }
         }
     }
+    private var periodDays: Int {
+        switch selectedPeriod {
+        case "Неделя": return 7
+        case "3 месяца": return 90
+        case "Год": return 365
+        default: return 30
+        }
+    }
+
+    private var filteredProgressEntries: [ProgressEntry] {
+        let dates = entries.compactMap { progressDate($0.measuredAt) }
+        guard let anchor = dates.max(), let start = Calendar.current.date(byAdding: .day, value: -(periodDays - 1), to: anchor) else { return [] }
+        return entries.filter { entry in
+            guard let date = progressDate(entry.measuredAt) else { return false }
+            return date >= start && date <= anchor
+        }
+    }
+
     private func load() async { do { entries = try await session.api.progress(); error = nil } catch { error = error.localizedDescription } }
+}
+
+private func progressDate(_ value: String) -> Date? {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.dateFormat = "yyyy-MM-dd"
+    return formatter.date(from: String(value.prefix(10)))
+}
+
+private func averageProgressMobile(_ values: [Double?], suffix: String) -> String {
+    let numbers = values.compactMap { $0 }
+    guard !numbers.isEmpty else { return "—" }
+    return "\((numbers.reduce(0, +) / Double(numbers.count)).compact)\(suffix)"
+}
+
+private struct ProgressLineChartMobile: View {
+    let values: [Double]
+
+    var body: some View {
+        Canvas { context, size in
+            guard !values.isEmpty else { return }
+            let minValue = (values.min() ?? 0) - 1
+            let maxValue = (values.max() ?? minValue) + 1
+            let range = max(maxValue - minValue, 1)
+            let points = values.enumerated().map { index, value in
+                let x = values.count == 1 ? size.width / 2 : size.width * CGFloat(index) / CGFloat(values.count - 1)
+                let y = size.height - size.height * CGFloat((value - minValue) / range)
+                return CGPoint(x: x, y: y)
+            }
+
+            for fraction in [CGFloat(0), 0.5, 1] {
+                var grid = Path()
+                let y = size.height * fraction
+                grid.move(to: CGPoint(x: 0, y: y))
+                grid.addLine(to: CGPoint(x: size.width, y: y))
+                context.stroke(grid, with: .color(AstraTheme.ink.opacity(0.12)), lineWidth: 1)
+            }
+
+            var area = Path()
+            area.move(to: CGPoint(x: points[0].x, y: size.height))
+            points.forEach { area.addLine(to: $0) }
+            area.addLine(to: CGPoint(x: points[points.count - 1].x, y: size.height))
+            area.closeSubpath()
+            context.fill(area, with: .color(AstraTheme.blue.opacity(0.10)))
+
+            var line = Path()
+            line.move(to: points[0])
+            points.dropFirst().forEach { line.addLine(to: $0) }
+            context.stroke(line, with: .color(AstraTheme.blue), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+
+            let last = points[points.count - 1]
+            context.fill(Path(ellipseIn: CGRect(x: last.x - 6, y: last.y - 6, width: 12, height: 12)), with: .color(AstraTheme.blue))
+        }
+        .frame(height: 126)
+    }
 }
 
 private struct ProgressMetricMobile: View {

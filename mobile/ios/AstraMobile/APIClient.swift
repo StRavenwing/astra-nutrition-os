@@ -127,6 +127,7 @@ final class APIClient {
     func deleteEquipment(id: Int) async throws -> DeleteResponse { try await request("workout-equipment/\(id)", method: "DELETE") }
     func createComplex(_ payload: JSONPayload) async throws -> WorkoutComplex { try await request("workout-complexes", method: "POST", body: payload) }
     func updateComplex(id: Int, payload: JSONPayload) async throws -> WorkoutComplex { try await request("workout-complexes/\(id)", method: "PUT", body: payload) }
+    func deleteComplex(id: Int) async throws -> DeleteResponse { try await request("workout-complexes/\(id)", method: "DELETE") }
     func updateWorkout(id: Int, payload: JSONPayload) async throws -> WorkoutEntry { try await request("workouts/\(id)", method: "PUT", body: payload) }
     func deleteWorkout(id: Int) async throws -> DeleteResponse { try await request("workouts/\(id)", method: "DELETE") }
     func createWorkoutPlan(_ payload: JSONPayload) async throws -> WorkoutPlan { try await request("workout-plans", method: "POST", body: payload) }

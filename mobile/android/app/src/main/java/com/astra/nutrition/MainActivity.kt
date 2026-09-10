@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -74,8 +75,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
@@ -86,6 +93,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.time.LocalDate
 import org.json.JSONObject
 
 class MainActivity : ComponentActivity() {
@@ -222,6 +230,18 @@ private fun AstraCard(content: @Composable () -> Unit) {
 }
 
 @Composable
+fun <T> MobileItemGrid(values: List<T>, modifier: Modifier = Modifier, content: @Composable (T) -> Unit) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        values.chunked(2).forEach { rowValues ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                rowValues.forEach { value -> Box(Modifier.weight(1f)) { content(value) } }
+                if (rowValues.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
 private fun RowScope.Metric(label: String, value: String, color: Color) {
     Column(Modifier.weight(1f).background(color.copy(alpha = .12f), RoundedCornerShape(14.dp)).padding(12.dp)) { Text(label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AstraTheme.muted); Spacer(Modifier.height(5.dp)); Text(value, fontSize = 19.sp, fontWeight = FontWeight.Bold) }
 }
@@ -250,7 +270,26 @@ fun DashboardScreen(state: AstraState) {
 
 @Composable
 private fun RecipeListItem(recipe: Recipe, onClick: (() -> Unit)? = null) {
-    AstraCard { Row(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable { onClick() } else Modifier).padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Fastfood, null, tint = AstraTheme.green); Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(recipe.name, fontWeight = FontWeight.Bold); Text("${recipe.category} · ${recipe.protein.shown(" г белка")}", color = AstraTheme.muted, fontSize = 12.sp) }; Text(recipe.kcal.shown(" ккал"), color = AstraTheme.blue, fontWeight = FontWeight.Bold, fontSize = 12.sp) } }
+    AstraCard {
+        Column(Modifier.fillMaxWidth().then(if (onClick != null) Modifier.clickable { onClick() } else Modifier).padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Icon(Icons.Default.Fastfood, null, tint = AstraTheme.green)
+            Text(recipe.name, fontWeight = FontWeight.Bold, maxLines = 3)
+            Text(recipe.category, color = AstraTheme.muted, fontSize = 12.sp, maxLines = 2)
+            Text("Б ${recipe.protein.shown(" г")} · ${recipe.kcal.shown(" ккал")}", color = AstraTheme.blue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun MobileProductCard(product: Product) {
+    AstraCard {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+            Icon(Icons.Default.LocalGroceryStore, null, tint = AstraTheme.green)
+            Text(product.name, fontWeight = FontWeight.Bold, maxLines = 3)
+            Text(product.category ?: "Без категории", color = AstraTheme.muted, fontSize = 12.sp, maxLines = 2)
+            Text("Б ${product.protein.shown(" г")} · ${product.kcal.shown(" ккал")}", color = AstraTheme.blue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        }
+    }
 }
 
 @Composable
@@ -314,23 +353,39 @@ fun ProductsScreen(state: AstraState) {
     Page("Продукты", "Каталог с пищевой ценностью") {
         OutlinedTextField(search, { search = it }, label = { Text("Найти продукт") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
         error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(16.dp)) }
-        LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(products.filter { search.isBlank() || it.name.contains(search, true) }, key = { it.id }) { product ->
-            AstraCard { Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.LocalGroceryStore, null, tint = AstraTheme.green); Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(product.name, fontWeight = FontWeight.Bold); Text("${product.category ?: "Без категории"} · ${product.kcal.shown(" ккал")}", color = AstraTheme.muted, fontSize = 12.sp) }; Text("Б ${product.protein.shown(" г")}", color = AstraTheme.blue, fontWeight = FontWeight.Bold, fontSize = 12.sp) } }
+        MobileItemGrid(products.filter { search.isBlank() || it.name.contains(search, true) }, modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) { product ->
+            MobileProductCard(product)
         } }
     }
-}
 
 @Composable
 fun RecipesScreen(state: AstraState) {
     var recipes by remember { mutableStateOf<List<Recipe>>(emptyList()) }
     var search by rememberSaveable { mutableStateOf("") }
     var selected by remember { mutableStateOf<Recipe?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { recipes = suspendResult { state.api.recipes() }.getOrDefault(emptyList()) }
-    Page("Рецепты", "Собирай рацион из проверенных блюд") {
+    selected?.let { recipe ->
+        MobileRecipeDetailScreen(
+            state = state,
+            recipe = recipe,
+            onBack = { selected = null },
+            onShare = {
+                scope.launch {
+                    suspendResult { state.api.shareToTrainer("recipe", recipe.id) }
+                        .onFailure { error = it.message }
+                }
+            },
+            canEdit = false,
+            canShareToTrainer = state.user?.isAdmin != true && state.user?.isTrainer != true,
+            canShareToClient = false
+        )
+    } ?: Page("Рецепты", "Собирай рацион из проверенных блюд") {
         OutlinedTextField(search, { search = it }, label = { Text("Найти рецепт") }, singleLine = true, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp))
-        LazyColumn(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { items(recipes.filter { search.isBlank() || it.name.contains(search, true) }, key = { it.id }) { recipe -> RecipeListItem(recipe) { selected = recipe } } }
+        error?.let { Text(it, color = androidx.compose.material3.MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 16.dp)) }
+        MobileItemGrid(recipes.filter { search.isBlank() || it.name.contains(search, true) }, modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) { recipe -> RecipeListItem(recipe) { selected = recipe } }
     }
-    selected?.let { RecipeDetailDialog(state, it) { selected = null } }
 }
 
 @Composable
@@ -387,9 +442,22 @@ fun ProgressScreen(state: AstraState) {
     var entries by remember { mutableStateOf<List<ProgressEntry>>(emptyList()) }
     var selected by remember { mutableStateOf<ProgressEntry?>(null) }
     var showAdd by remember { mutableStateOf(false) }
+    var selectedPeriod by rememberSaveable { mutableStateOf("Месяц") }
     val scope = rememberCoroutineScope()
     suspend fun load() { entries = suspendResult { state.api.progress() }.getOrDefault(emptyList()) }
     LaunchedEffect(Unit) { load() }
+    val periodDays = when (selectedPeriod) {
+        "Неделя" -> 7
+        "3 месяца" -> 90
+        "Год" -> 365
+        else -> 30
+    }
+    val anchorDate = entries.mapNotNull { progressDate(it.date) }.maxOrNull() ?: LocalDate.now()
+    val periodStart = anchorDate.minusDays((periodDays - 1).toLong())
+    val periodEntries = entries.filter { entry ->
+        progressDate(entry.date)?.let { date -> !date.isBefore(periodStart) && !date.isAfter(anchorDate) } == true
+    }
+    val chartEntries = periodEntries.filter { it.weight != null }.sortedBy { progressDate(it.date) ?: LocalDate.MIN }.takeLast(30)
 
     selected?.let { item ->
         ProgressDetailScreen(
@@ -399,38 +467,34 @@ fun ProgressScreen(state: AstraState) {
             onChanged = { scope.launch { load(); selected = null } }
         )
     } ?: Page("Прогресс", "Измерения, которые помогают увидеть динамику") {
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("Неделя", "Месяц", "3 месяца", "Год").forEachIndexed { index, label ->
-                    OutlinedButton(onClick = { }, modifier = Modifier.weight(1f), colors = if (index == 1) androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = AstraTheme.blue.copy(alpha = .12f), contentColor = AstraTheme.blue) else androidx.compose.material3.ButtonDefaults.outlinedButtonColors()) { Text(label, fontSize = 10.sp) }
+                listOf("Неделя", "Месяц", "3 месяца", "Год").forEach { label ->
+                    OutlinedButton(
+                        onClick = { selectedPeriod = label },
+                        modifier = Modifier.weight(1f).height(40.dp),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 2.dp),
+                        colors = if (selectedPeriod == label) androidx.compose.material3.ButtonDefaults.outlinedButtonColors(containerColor = AstraTheme.blue.copy(alpha = .12f), contentColor = AstraTheme.blue) else androidx.compose.material3.ButtonDefaults.outlinedButtonColors()
+                    ) { Text(label, fontSize = 10.sp, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis) }
                 }
             }
             val latest = entries.firstOrNull()
-            val weightValues = entries.mapNotNull { it.weight }.take(8).reversed()
             AstraCard {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("ДИНАМИКА ВЕСА", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AstraTheme.blue)
-                            Text("Последние 30 дней", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            Text("Последние $periodDays дней", fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         }
-                        Text("${weightValues.size} замеров", fontSize = 11.sp, color = AstraTheme.muted)
+                        Text("${chartEntries.size} замеров", fontSize = 11.sp, color = AstraTheme.muted)
                     }
-                    if (weightValues.isEmpty()) {
+                    if (chartEntries.isEmpty()) {
                         Text("Добавьте несколько замеров, чтобы увидеть динамику веса.", color = AstraTheme.muted, fontSize = 12.sp, modifier = Modifier.padding(vertical = 26.dp))
                     } else {
-                        val min = weightValues.minOrNull() ?: 0.0
-                        val max = weightValues.maxOrNull() ?: min
-                        val range = (max - min).coerceAtLeast(1.0)
-                        Row(Modifier.fillMaxWidth().height(132.dp), horizontalArrangement = Arrangement.spacedBy(7.dp), verticalAlignment = Alignment.Bottom) {
-                            weightValues.forEach { value ->
-                                val barHeight = (34.0 + ((value - min) / range) * 78.0).dp
-                                Box(Modifier.weight(1f).height(barHeight).background(AstraTheme.blue.copy(alpha = .82f), RoundedCornerShape(6.dp)))
-                            }
-                        }
+                        ProgressLineChart(chartEntries.mapNotNull { it.weight })
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text(entries.lastOrNull()?.date.orEmpty(), fontSize = 10.sp, color = AstraTheme.muted)
-                            Text(entries.firstOrNull()?.date.orEmpty(), fontSize = 10.sp, color = AstraTheme.muted)
+                            Text(chartEntries.firstOrNull()?.date.orEmpty(), fontSize = 10.sp, color = AstraTheme.muted)
+                            Text(chartEntries.lastOrNull()?.date.orEmpty(), fontSize = 10.sp, color = AstraTheme.muted)
                         }
                     }
                 }
@@ -443,21 +507,21 @@ fun ProgressScreen(state: AstraState) {
             AstraCard {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Последние 30 дней", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                        Text("${entries.size} всего", fontSize = 11.sp, color = AstraTheme.muted)
+                        Text("Последние $periodDays дней", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                        Text("${periodEntries.size} всего", fontSize = 11.sp, color = AstraTheme.muted)
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         (0 until 16).forEach { index ->
-                            val filled = index < entries.size.coerceAtMost(16)
+                            val filled = index < periodEntries.size.coerceAtMost(16)
                             Box(Modifier.weight(1f).height(14.dp).background(if (filled) AstraTheme.blue else AstraTheme.line, RoundedCornerShape(4.dp)))
                         }
                     }
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Box(Modifier.weight(1f)) { ProgressMetric("Калории", latest?.kcalTarget.shown(" ккал"), AstraTheme.blue) }
-                Box(Modifier.weight(1f)) { ProgressMetric("Белок", latest?.proteinTarget.shown(" г"), AstraTheme.blue) }
-                Box(Modifier.weight(1f)) { ProgressMetric("Самочувствие", latest?.wellbeing.shown(" / 5"), AstraTheme.blue) }
+                Box(Modifier.weight(1f)) { ProgressMetric("Калории", averageProgress(periodEntries.map { it.kcalTarget }).shown(" ккал"), AstraTheme.blue) }
+                Box(Modifier.weight(1f)) { ProgressMetric("Белок", averageProgress(periodEntries.map { it.proteinTarget }).shown(" г"), AstraTheme.blue) }
+                Box(Modifier.weight(1f)) { ProgressMetric("Самочувствие", averageProgress(periodEntries.map { it.wellbeing }).shown(" / 5"), AstraTheme.blue) }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -470,7 +534,7 @@ fun ProgressScreen(state: AstraState) {
                 EmptyMessage("Замеров пока нет", "Добавь первый показатель.")
             } else {
                 entries.chunked(2).forEach { pair ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         pair.forEach { item -> Box(Modifier.weight(1f)) { ProgressTile(item) { selected = item } } }
                         if (pair.size == 1) Spacer(Modifier.weight(1f))
                     }
@@ -486,6 +550,55 @@ fun ProgressScreen(state: AstraState) {
         }
     }
     if (showAdd) ProgressEditorDialog(null, { body -> scope.launch { suspendResult { state.api.createProgress(body) }; load(); showAdd = false } }, { showAdd = false })
+}
+
+private fun progressDate(value: String): LocalDate? = runCatching {
+    LocalDate.parse(value.take(10))
+}.getOrNull()
+
+private fun averageProgress(values: Iterable<Double?>): Double? {
+    val numbers = values.mapNotNull { it }.toList()
+    return numbers.takeIf { it.isNotEmpty() }?.average()
+}
+
+@Composable
+private fun ProgressLineChart(values: List<Double>) {
+    Canvas(Modifier.fillMaxWidth().height(132.dp)) {
+        if (values.isEmpty()) return@Canvas
+
+        val minValue = (values.minOrNull() ?: 0.0) - 1.0
+        val maxValue = (values.maxOrNull() ?: minValue) + 1.0
+        val range = (maxValue - minValue).coerceAtLeast(1.0)
+        val points = values.mapIndexed { index, value ->
+            val x = if (values.size == 1) size.width / 2f else size.width * index / values.lastIndex.toFloat()
+            val y = size.height - size.height * ((value - minValue) / range).toFloat()
+            Offset(x, y)
+        }
+        val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = .12f)
+        listOf(0f, .5f, 1f).forEach { fraction ->
+            val y = size.height * fraction
+            drawLine(gridColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
+        }
+
+        val area = Path().apply {
+            moveTo(points.first().x, size.height)
+            points.forEach { lineTo(it.x, it.y) }
+            lineTo(points.last().x, size.height)
+            close()
+        }
+        drawPath(area, AstraTheme.blue.copy(alpha = .10f))
+
+        val line = Path().apply {
+            moveTo(points.first().x, points.first().y)
+            points.drop(1).forEach { lineTo(it.x, it.y) }
+        }
+        drawPath(
+            line,
+            AstraTheme.blue,
+            style = Stroke(width = 4f, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        )
+        drawCircle(AstraTheme.blue, radius = 6f, center = points.last())
+    }
 }
 
 @Composable
@@ -701,9 +814,23 @@ private fun DiaryFoodPickerScreen(products: List<Product>, recipes: List<Recipe>
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("Выберите запись", fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Нажмите на карточку, чтобы указать количество", color = AstraTheme.muted, fontSize = 12.sp) }; TextButton(onBack) { Text("Отмена") } }
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxSize()) {
-                    if (tab == "Блюда" || tab == "Все") items(filteredRecipes, key = { "recipe-${it.id}" }) { recipe -> AstraCard { Row(Modifier.fillMaxWidth().clickable { onSelect(null, recipe) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.Restaurant, null, tint = AstraTheme.blue); Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(recipe.name, fontWeight = FontWeight.Bold); Text("${recipe.category} · ${recipe.kcal.shown(" ккал")} · Б ${recipe.protein.shown(" г")}", color = AstraTheme.muted, fontSize = 12.sp) }; Box(Modifier.size(28.dp).background(AstraTheme.blue.copy(alpha = .12f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) { Text("+", color = AstraTheme.blue, fontWeight = FontWeight.Bold) } } } }
-                    if (tab == "Продукты" || tab == "Все") items(filteredProducts, key = { "product-${it.id}" }) { product -> AstraCard { Row(Modifier.fillMaxWidth().clickable { onSelect(product, null) }.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { Icon(Icons.Default.LocalGroceryStore, null, tint = AstraTheme.blue); Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(product.name, fontWeight = FontWeight.Bold); Text("${product.category ?: "Без категории"} · ${product.kcal.shown(" ккал")} · Б ${product.protein.shown(" г")}", color = AstraTheme.muted, fontSize = 12.sp) }; Box(Modifier.size(28.dp).background(AstraTheme.blue.copy(alpha = .12f), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) { Text("+", color = AstraTheme.blue, fontWeight = FontWeight.Bold) } } } }
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (tab == "Блюда" || tab == "Все") MobileItemGrid(filteredRecipes) { recipe ->
+                        AstraCard { Column(Modifier.fillMaxWidth().clickable { onSelect(null, recipe) }.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Icon(Icons.Default.Restaurant, null, tint = AstraTheme.blue)
+                            Text(recipe.name, fontWeight = FontWeight.Bold, maxLines = 3)
+                            Text("${recipe.category} · ${recipe.kcal.shown(" ккал")}", color = AstraTheme.muted, fontSize = 12.sp, maxLines = 2)
+                            Text("Б ${recipe.protein.shown(" г")}", color = AstraTheme.blue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        } }
+                    }
+                    if (tab == "Продукты" || tab == "Все") MobileItemGrid(filteredProducts) { product ->
+                        AstraCard { Column(Modifier.fillMaxWidth().clickable { onSelect(product, null) }.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                            Icon(Icons.Default.LocalGroceryStore, null, tint = AstraTheme.blue)
+                            Text(product.name, fontWeight = FontWeight.Bold, maxLines = 3)
+                            Text("${product.category ?: "Без категории"} · ${product.kcal.shown(" ккал")}", color = AstraTheme.muted, fontSize = 12.sp, maxLines = 2)
+                            Text("Б ${product.protein.shown(" г")}", color = AstraTheme.blue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        } }
+                    }
             }
         }
     }

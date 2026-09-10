@@ -11,10 +11,12 @@ data class DiaryEntry(val id: Int, val date: String, val meal: String?, val reci
 data class ProgressEntry(val id: Int, val date: String, val weight: Double?, val desiredWeight: Double?, val height: Double?, val bmi: Double?, val bodyFat: Double?, val muscleMass: Double?, val kcalTarget: Double?, val proteinTarget: Double?, val fatTarget: Double?, val carbsTarget: Double?, val waist: Double?, val chest: Double?, val hips: Double?, val sleep: Double?, val wellbeing: Double?, val comment: String?)
 data class WorkoutPlanItem(val id: Int?, val exerciseId: Int, val name: String?, val muscleGroup: String?, val weight: Double?, val sets: Double?, val duration: Double?, val speed: Double?, val variantId: Int? = null)
 data class WorkoutPlan(val id: Int, val scheduledAt: String, val duration: Double?, val status: String, val completedAt: String?, val items: List<WorkoutPlanItem>, val name: String? = null)
-val WorkoutPlan.displayName: String get() = name?.trim()?.takeIf { it.isNotEmpty() } ?: "Тренировка"
+val WorkoutPlan.isHistory: Boolean get() = status == "archived" || status == "canceled"
+val WorkoutPlan.historyStatus: String get() = if (status == "canceled") "\u041E\u0442\u043C\u0435\u043D\u0435\u043D\u0430" else "\u041F\u0440\u043E\u0439\u0434\u0435\u043D\u0430"
+val WorkoutPlan.displayName: String get() = name.displayOr("Тренировка")
 data class WorkoutEntry(val id: Int, val date: String, val exerciseId: Int, val name: String, val muscleGroup: String?, val weight: Double?, val sets: Double?, val reps: Double?, val rir: String?, val comment: String?)
 data class ExerciseVariant(val machine: String?, val equipment: String?, val description: String?, val technique: String?, val tips: String?, val name: String? = null, val id: Int? = null)
-data class Exercise(val id: Int, val name: String, val muscleGroup: String?, val unit: String?, val defaultSets: Double?, val defaultReps: Double?, val targetRir: String? = null, val note: String? = null, val description: String? = null, val photos: List<String> = emptyList(), val video: String? = null, val variants: List<ExerciseVariant> = emptyList())
+data class Exercise(val id: Int, val name: String, val muscleGroup: String?, val unit: String?, val defaultSets: Double?, val defaultReps: Double?, val targetRir: String? = null, val note: String? = null, val description: String? = null, val photos: List<String> = emptyList(), val video: String? = null, val variants: List<ExerciseVariant> = emptyList(), val code: String? = null)
 data class WorkoutEquipment(val id: Int, val kind: String, val name: String, val description: String?, val photo: String?)
 data class WorkoutComplexItem(val id: Int, val exerciseId: Int, val exerciseCode: String?, val name: String, val muscleGroup: String?, val defaultUnit: String?, val workingWeight: Double?, val sets: Double?, val durationMinutes: Double?, val speedKmh: Double?)
 data class WorkoutComplex(val id: Int, val name: String, val comment: String?, val photos: List<String>, val video: String?, val items: List<WorkoutComplexItem>)
@@ -33,6 +35,10 @@ data class ClientToday(val date: String, val entries: List<DiaryEntry>, val tota
 data class ClientDetail(val id: Int, val name: String, val email: String, val nextWorkout: ClientNextWorkout?, val unreadMessages: Int, val progress: List<ProgressEntry>, val today: ClientToday, val workouts: List<WorkoutEntry>, val workoutPlans: List<WorkoutPlan>)
 
 class AstraException(message: String) : Exception(message)
+
+fun String?.displayOr(fallback: String): String = this?.trim()?.takeIf { it.isNotEmpty() && !it.equals("null", ignoreCase = true) } ?: fallback
+
+fun String?.displayOrNull(): String? = this?.trim()?.takeIf { it.isNotEmpty() && !it.equals("null", ignoreCase = true) }
 
 fun Double?.shown(suffix: String = ""): String = if (this == null) "—" else {
     val value = if (this % 1.0 == 0.0) this.toInt().toString() else "%.1f".format(this)

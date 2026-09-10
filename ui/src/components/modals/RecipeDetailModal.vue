@@ -101,12 +101,6 @@ function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; car
           <button type="button" @click="cancelSubmission">Отменить отправку</button>
         </div>
       </div>
-      <div v-if="canEdit" class="recipe-actions">
-        <button type="button" class="edit-recipe" @click="$emit('edit', recipe.id)">✎ Редактировать</button>
-        <button type="button" class="danger-button" @click="removeRecipe">Удалить</button>
-      </div>
-      <SendToClientButton :item-type="'recipe'" :item-id="recipe.id" :can-manage="props.canManage" />
-
       <h3 class="macro-heading">КБЖУ на порцию</h3>
       <div class="recipe-kpis">
         <div v-for="item in macroItems({ kcal: recipe.kcal_per_serving, protein: recipe.protein_per_serving_g, fat: recipe.fat_per_serving_g, carbs: recipe.carbs_per_serving_g })" :key="item.label">
@@ -155,6 +149,15 @@ function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; car
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div v-if="props.canManage" class="modal-extra-actions">
+        <SendToClientButton :item-type="'recipe'" :item-id="recipe.id" :can-manage="props.canManage" />
+      </div>
+      <div class="actions recipe-detail-actions">
+        <button v-if="canEdit" type="button" class="danger-button" @click="removeRecipe">Удалить</button>
+        <button type="button" @click="$emit('close')">Закрыть</button>
+        <button v-if="canEdit" type="button" @click="$emit('edit', recipe.id)">✎ Редактировать</button>
       </div>
     </div>
   </ModalDialog>

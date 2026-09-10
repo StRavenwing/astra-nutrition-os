@@ -215,7 +215,12 @@ async function createSection() {
       </div>
       <div v-if="selectedArticle.links?.length || selectedArticle.video" class="article-links"><a v-for="link in selectedArticle.links" :key="link.url" :href="link.url" target="_blank" rel="noreferrer">{{ link.title }}</a><a v-if="selectedArticle.video" :href="selectedArticle.video" target="_blank" rel="noreferrer">Видео</a></div>
       <div v-if="props.isAdmin" class="article-detail-actions"><button type="button" class="edit-article-button" @click="editArticle(selectedArticle)">Редактировать</button><button type="button" class="article-pin-button" @click="toggleFlag(selectedArticle, 'is_pinned')">{{ selectedArticle.is_pinned ? 'Открепить' : 'Закрепить' }}</button><button type="button" class="article-visibility-button" :class="{ 'article-return-button': selectedArticle.is_hidden }" @click="toggleFlag(selectedArticle, 'is_hidden')">{{ selectedArticle.is_hidden ? 'Вернуть' : 'Скрыть' }}</button></div>
-      <SendToClientButton :item-type="'article'" :item-id="selectedArticle.id" :can-manage="props.canManage" />
+      <div v-if="props.canManage" class="modal-extra-actions">
+        <SendToClientButton :item-type="'article'" :item-id="selectedArticle.id" :can-manage="props.canManage" />
+      </div>
+      <div class="actions article-modal-actions">
+        <button type="button" @click="closeArticle">Закрыть</button>
+      </div>
     </article>
   </ModalDialog>
 

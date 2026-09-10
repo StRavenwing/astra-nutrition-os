@@ -52,6 +52,30 @@ struct AstraCard<Content: View>: View {
     }
 }
 
+struct MobileItemGrid<Item: Identifiable, Content: View>: View {
+    let items: [Item]
+    let content: (Item) -> Content
+
+    init(_ items: [Item], @ViewBuilder content: @escaping (Item) -> Content) {
+        self.items = items
+        self.content = content
+    }
+
+    var body: some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.flexible(), spacing: 12),
+                GridItem(.flexible(), spacing: 12)
+            ],
+            spacing: 12
+        ) {
+            ForEach(items) { item in
+                content(item)
+            }
+        }
+    }
+}
+
 struct MetricTile: View {
     let label: String
     let value: String
@@ -76,4 +100,13 @@ extension Double {
 
 extension Optional where Wrapped == Double {
     var display: String { map(\.compact) ?? "—" }
+}
+
+extension Optional where Wrapped == String {
+    var displayOrNil: String? {
+        guard let value = self?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty, value.lowercased() != "null" else { return nil }
+        return value
+    }
+
+    func displayOr(_ fallback: String) -> String { displayOrNil ?? fallback }
 }

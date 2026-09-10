@@ -139,10 +139,11 @@ async function remove(id: number) {
           <div><dt>ИМТ</dt><dd>{{ fmtValue(latest.bmi) }}</dd></div>
           <div><dt>Самочувствие</dt><dd>{{ wellbeingLabel }}</dd></div>
         </dl>
-        <button v-if="!props.readOnly" type="button" class="primary card-primary progress-latest-edit" @click="emit('edit', latest.id)">Редактировать</button>
-        <button type="button" class="icon-action progress-details-link" aria-label="Открыть подробности текущего замера" title="Открыть подробности текущего замера" @click="emit('edit', latest.id)">↗</button>
-        <SendToClientButton :item-type="'progress'" :item-id="latest.id" :can-manage="props.canManage" />
-        <SendToTrainerButton :item-type="'progress'" :item-id="latest.id" :can-send="props.hasTrainer && !props.canManage && !props.readOnly" />
+        <div class="progress-latest-actions">
+          <button v-if="!props.readOnly" type="button" class="primary card-primary progress-latest-edit" @click="emit('edit', latest.id)">Редактировать</button>
+          <SendToClientButton :item-type="'progress'" :item-id="latest.id" :can-manage="props.canManage" compact />
+          <SendToTrainerButton :item-type="'progress'" :item-id="latest.id" :can-send="props.hasTrainer && !props.canManage && !props.readOnly" compact />
+        </div>
       </aside>
     </div>
     <div v-else class="panel empty">Замеров пока нет</div>

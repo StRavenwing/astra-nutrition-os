@@ -199,12 +199,6 @@ async function removeEquipment(id: number) {
           </div>
           <h3>{{ planTitle(plan) }}</h3>
           <p>{{ planSummary(plan) }}</p>
-          <div class="planned-plan-items">
-            <div v-for="item in plan.items" :key="item.id || item.exercise_id">
-              <b>{{ item.name }}</b>
-              <small>{{ planMetric(item) }}</small>
-            </div>
-          </div>
           <div class="workout-tile-actions workout-card-actions planned-tile-actions">
             <button type="button" class="icon-action edit-workout" aria-label="Редактировать тренировку" title="Редактировать тренировку" @click.stop="emit('editPlan', plan)">✎</button>
             <button type="button" class="icon-action danger-icon delete-workout" aria-label="Отменить тренировку" title="Отменить тренировку" @click.stop="cancelPlan(plan.id)">×</button>

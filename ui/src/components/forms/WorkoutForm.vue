@@ -78,11 +78,9 @@ async function remove() {
         <div class="field"><label>Тренажёр / филиал</label><input v-model="form.machine_location"></div>
         <div class="field"><label>Комментарий</label><input v-model="form.comment"></div>
       </div>
-      <div v-if="props.workoutLogId" class="destructive-zone">
-        <button type="button" class="danger-button" @click="remove">Удалить тренировку</button>
-      </div>
       <p id="form-error">{{ error }}</p>
       <div class="actions">
+        <button v-if="props.workoutLogId" type="button" class="danger-button" @click="remove">Удалить тренировку</button>
         <button type="button" @click="$emit('cancel')">Отмена</button>
         <button type="submit" class="primary">Сохранить</button>
       </div>

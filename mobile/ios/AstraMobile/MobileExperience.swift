@@ -109,14 +109,27 @@ struct DashboardMobileView: View {
                             Spacer()
                             Button("Открыть каталог") { onNavigate(.catalog) }.font(.caption.weight(.bold))
                         }
-                        ForEach(dashboard.top) { recipe in
-                            Button { onNavigate(.catalog) } label: { RecipeRow(recipe: recipe) }.buttonStyle(.plain)
+                        MobileItemGrid(dashboard.top) { recipe in
+                            Button { onNavigate(.catalog) } label: {
+                                AstraCard {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Image(systemName: "fork.knife.circle.fill").foregroundStyle(AstraTheme.green)
+                                        Text(recipe.name).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(3)
+                                        Text(recipe.category).font(.caption).foregroundStyle(AstraTheme.muted).lineLimit(2)
+                                        Text("Б \(recipe.proteinPerServingG.display) г · \(recipe.kcalPerServing.display) ккал")
+                                            .font(.caption.weight(.bold))
+                                            .foregroundStyle(AstraTheme.blue)
+                                            .lineLimit(2)
+                                    }
+                                    .frame(maxWidth: .infinity, minHeight: 150, alignment: .topLeading)
+                                }
+                            }.buttonStyle(.plain)
                         }
                     } else if error == nil {
                         ProgressView().frame(maxWidth: .infinity).padding(40)
                     }
                     if let error { Text(error).foregroundStyle(.red) }
-                }.padding()
+                }.padding(.horizontal, 20).padding(.vertical, 16)
             }
             .background(AstraTheme.canvas)
             .refreshable { await load() }
@@ -157,6 +170,7 @@ struct LegacyProfileReferenceView: View {
 
     private var latest: ProgressEntry? { progress.first }
     private var initial: String { String((session.user?.name ?? "A").prefix(1)).uppercased() }
+    private var plannedPlanCount: Int { plans.filter { $0.status == "planned" }.count }
 
     var body: some View {
         NavigationStack {
@@ -180,7 +194,7 @@ struct LegacyProfileReferenceView: View {
                             Text("Замеры и цели").font(.headline)
                             profileMetric("Вес", latest?.weightKg.display.map { "\($0) кг" } ?? "Не задан")
                             profileMetric("Калории", latest?.kcalTarget.display.map { "\($0) ккал в день" } ?? "Не заданы")
-                            profileMetric("Тренировки", plans.isEmpty ? "Нет планов" : "\(plans.count) запланировано")
+                            profileMetric("Тренировки", plannedPlanCount == 0 ? "Нет планов" : "\(plannedPlanCount) запланировано")
                         }
                     }
 
@@ -276,6 +290,7 @@ struct ProfileReferenceView: View {
     private var latest: ProgressEntry? { progress.first }
     private var canManage: Bool { session.user?.isAdmin == true || session.user?.isTrainer == true }
     private var initial: String { String((session.user?.name ?? "A").prefix(1)).uppercased() }
+    private var plannedPlanCount: Int { plans.filter { $0.status == "planned" }.count }
 
     var body: some View {
         NavigationStack {
@@ -299,7 +314,7 @@ struct ProfileReferenceView: View {
                                 ProfileMetricRow(title: "Вес", value: latest?.weightKg.display.map { "\($0) кг" } ?? "Не задан")
                                 ProfileMetricRow(title: "Желаемый вес", value: latest?.desiredWeightKg.display.map { "\($0) кг" } ?? "Не задан")
                                 ProfileMetricRow(title: "Калории", value: latest?.kcalTarget.display.map { "\($0) ккал в день" } ?? "Не заданы")
-                                ProfileMetricRow(title: "Тренировки", value: plans.isEmpty ? "Нет планов" : "\(plans.count) запланировано")
+                                ProfileMetricRow(title: "Тренировки", value: plannedPlanCount == 0 ? "Нет планов" : "\(plannedPlanCount) запланировано")
                                 Button("Открыть прогресс") { tab = .progress }.buttonStyle(.borderedProminent).frame(maxWidth: .infinity).padding(.top, 10)
                             }
                         }
@@ -493,7 +508,7 @@ struct CatalogMobileView: View {
                             catalogCategoryTile(name)
                         }
                     }
-                    .padding(.horizontal)
+                    .padding(.horizontal, 20)
                     .padding(.bottom, 8)
                 }
                 if mode == 0 {
@@ -506,7 +521,7 @@ struct CatalogMobileView: View {
                                 .buttonStyle(.plain)
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, 20)
                         .padding(.bottom)
                     }
                 } else {
@@ -519,7 +534,7 @@ struct CatalogMobileView: View {
                                 .buttonStyle(.plain)
                             }
                         }
-                        .padding(.horizontal)
+                        .padding(.horizontal, 20)
                         .padding(.bottom)
                     }
                 }
@@ -739,32 +754,60 @@ struct RecipeDetailMobileView: View {
     }
 
     private var canManage: Bool { session.user?.isAdmin == true || session.user?.isTrainer == true }
-    private var canEdit: Bool { session.user?.isAdmin == true || recipe.collection == "local" }
+    private var canEdit: Bool { onEdit != nil && (session.user?.isAdmin == true || recipe.collection == "local") }
     private var isRevision: Bool { recipe.moderationStatus == "revision" && recipe.isSubmitter == true }
+    private var recipeCoverAccent: Color {
+        let category = recipe.category.lowercased()
+        if category.contains("breakfast") || category.contains("завтрак") { return Color(red: 111 / 255, green: 130 / 255, blue: 255 / 255) }
+        if category.contains("dessert") || category.contains("десерт") { return Color(red: 200 / 255, green: 135 / 255, blue: 49 / 255) }
+        if category.contains("salad") || category.contains("салат") || category.contains("drink") || category.contains("напит") { return Color(red: 75 / 255, green: 157 / 255, blue: 176 / 255) }
+        if category.contains("wrap") || category.contains("врап") || category.contains("garnish") || category.contains("гарнир") { return Color(red: 50 / 255, green: 154 / 255, blue: 99 / 255) }
+        if category.contains("sauce") || category.contains("соус") || category.contains("snack") || category.contains("перекус") { return Color(red: 111 / 255, green: 130 / 255, blue: 255 / 255) }
+        return Color(red: 50 / 255, green: 154 / 255, blue: 99 / 255)
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                AstraCard {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Image(systemName: "fork.knife.circle.fill")
-                            .font(.system(size: 34))
-                            .foregroundStyle(AstraTheme.blue)
-                        Text(recipe.name)
-                            .font(.title2.weight(.bold))
-                            .foregroundStyle(AstraTheme.ink)
-                        Text(recipe.category)
-                            .font(.subheadline)
-                            .foregroundStyle(AstraTheme.muted)
+                ZStack(alignment: .topLeading) {
+                    LinearGradient(
+                        colors: [recipeCoverAccent.opacity(0.24), Color(red: 10.0 / 255.0, green: 9.0 / 255.0, blue: 8.0 / 255.0)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    Text("✦")
+                        .font(.system(size: 88, weight: .light))
+                        .foregroundStyle(recipeCoverAccent)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+                        .padding(.leading, 28)
+                    Button { dismiss() } label: {
+                        Image(systemName: "arrow.left")
+                            .foregroundStyle(.white)
+                            .frame(width: 36, height: 36)
+                            .background(Color.black.opacity(0.5))
+                            .clipShape(Circle())
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 16)
+                    .padding(.leading, 16)
                 }
+                .frame(height: 240)
 
-                HStack(spacing: 8) {
-                    recipeInfoPill(recipe.category)
-                    if let servings = recipe.servings { recipeInfoPill("\(servings.display) порц.") }
-                    if let status = recipe.status, !status.isEmpty { recipeInfoPill(status) }
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(recipe.name)
+                        .font(.system(size: 26, weight: .bold))
+                        .foregroundStyle(AstraTheme.ink)
+                        .lineLimit(3)
+                    Text(recipe.category)
+                        .font(.subheadline)
+                        .foregroundStyle(AstraTheme.muted)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            recipeInfoPill(recipe.category)
+                            if let servings = recipe.servings { recipeInfoPill("\(servings.display) порц.") }
+                        }
+                    }
                 }
+                .padding(.horizontal, 20)
 
                 AstraCard {
                     HStack(spacing: 8) {
@@ -774,24 +817,54 @@ struct RecipeDetailMobileView: View {
                         recipeMetric("Угл.", recipe.carbsPerServingG.display, AstraTheme.ink)
                     }
                 }
+                .padding(.horizontal, 20)
 
-                Text("Ингредиенты")
-                    .font(.headline)
-                    .foregroundStyle(AstraTheme.ink)
+                HStack {
+                    Text("Ингредиенты")
+                        .font(.headline)
+                        .foregroundStyle(AstraTheme.ink)
+                    Spacer()
+                    if canEdit {
+                        Button { dismiss(); onEdit?() } label: {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(AstraTheme.blue)
+                                .frame(width: 32, height: 32)
+                                .background(AstraTheme.surface)
+                                .clipShape(Circle())
+                        }
+                        Button { confirmDelete = true } label: {
+                            Image(systemName: "trash")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(AstraTheme.danger)
+                                .frame(width: 32, height: 32)
+                                .background(AstraTheme.surface)
+                                .clipShape(Circle())
+                        }
+                    }
+                }
+                .padding(.horizontal, 20)
+
                 if let error {
-                    Text(error).font(.footnote).foregroundStyle(AstraTheme.danger)
+                    Text(error).font(.footnote).foregroundStyle(AstraTheme.danger).padding(.horizontal, 20)
                 } else if let detail {
-                    AstraCard {
-                        VStack(alignment: .leading, spacing: 14) {
-                            ForEach(detail.ingredients) { ingredient in
-                                HStack(alignment: .firstTextBaseline) {
-                                    Text(ingredient.name).foregroundStyle(AstraTheme.ink)
-                                    Spacer(minLength: 10)
-                                    Text("\(ingredient.quantity.display) \(ingredient.unit ?? "")")
-                                        .font(.subheadline)
-                                        .foregroundStyle(AstraTheme.muted)
-                                }
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(detail.ingredients) { ingredient in
+                            HStack(alignment: .firstTextBaseline) {
+                                Text(ingredient.name)
+                                    .foregroundStyle(AstraTheme.ink)
+                                    .lineLimit(2)
+                                Spacer(minLength: 10)
+                                Text("\(ingredient.quantity.display) \(ingredient.unit ?? "")")
+                                    .font(.subheadline)
+                                    .foregroundStyle(AstraTheme.muted)
                             }
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 10)
+                            Rectangle()
+                                .fill(AstraTheme.line)
+                                .frame(height: 1)
+                                .padding(.horizontal, 20)
                         }
                     }
                 } else {
@@ -800,12 +873,11 @@ struct RecipeDetailMobileView: View {
                 }
 
                 recipeActions
+                    .padding(.horizontal, 20)
             }
-            .padding()
         }
-        .background(AstraTheme.canvas)
-        .navigationTitle("Блюдо")
-        .navigationBarTitleDisplayMode(.inline)
+        .background(Color(red: 10.0 / 255.0, green: 9.0 / 255.0, blue: 8.0 / 255.0))
+        .toolbar(.hidden, for: .navigationBar)
         .task {
             do { detail = try await session.api.recipe(id: recipe.id) }
             catch { error = error.localizedDescription }
@@ -829,47 +901,40 @@ struct RecipeDetailMobileView: View {
 
     @ViewBuilder
     private var recipeActions: some View {
-        AstraCard {
-            VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 10) {
+            if canManage {
+                Button("Отправить клиенту") { loadClientsAndPresent() }
+                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.bordered)
+            } else if hasTrainer {
+                Button("Отправить тренеру") { sendToTrainer() }
+                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.bordered)
+            }
+            if isRevision {
                 if canEdit {
-                    Button("Редактировать") { dismiss(); onEdit?() }
+                    Button("Отправить повторно") { submitRecipe() }
+                        .frame(maxWidth: .infinity)
+                        .buttonStyle(.borderedProminent)
+                } else {
+                    Button("Отправить повторно") { submitRecipe() }
                         .frame(maxWidth: .infinity)
                         .buttonStyle(.borderedProminent)
                 }
-                HStack(spacing: 8) {
-                    if canManage {
-                        Button("Отправить клиенту") { loadClientsAndPresent() }
-                            .buttonStyle(.bordered)
-                    } else if hasTrainer {
-                        Button("Отправить тренеру") { sendToTrainer() }
-                            .buttonStyle(.bordered)
-                    }
-                    if canEdit {
-                        Button("Удалить", role: .destructive) { confirmDelete = true }
-                            .buttonStyle(.bordered)
-                    }
-                }
-                if isRevision {
-                    if canEdit {
-                        Button("Отправить повторно") { submitRecipe() }
-                            .buttonStyle(.bordered)
-                    } else {
-                        Button("Отправить повторно") { submitRecipe() }
-                            .frame(maxWidth: .infinity)
-                            .buttonStyle(.borderedProminent)
-                    }
-                    Button("Отменить отправку") { cancelSubmission() }
-                        .buttonStyle(.bordered)
-                } else if recipe.submissionRequested == true {
-                    Button("Отменить отправку") { cancelSubmission() }
-                        .buttonStyle(.bordered)
-                } else if recipe.collection == "local" && canEdit {
-                    Button("Отправить на проверку") { submitRecipe() }
-                        .buttonStyle(.bordered)
-                }
-                if let actionMessage { Text(actionMessage).font(.caption).foregroundStyle(AstraTheme.green) }
-                if let actionError { Text(actionError).font(.caption).foregroundStyle(AstraTheme.danger) }
+                Button("Отменить отправку") { cancelSubmission() }
+                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.bordered)
+            } else if recipe.submissionRequested == true {
+                Button("Отменить отправку") { cancelSubmission() }
+                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.bordered)
+            } else if recipe.collection == "local" && canEdit {
+                Button("Отправить на проверку") { submitRecipe() }
+                    .frame(maxWidth: .infinity)
+                    .buttonStyle(.bordered)
             }
+            if let actionMessage { Text(actionMessage).font(.caption).foregroundStyle(AstraTheme.green) }
+            if let actionError { Text(actionError).font(.caption).foregroundStyle(AstraTheme.danger) }
         }
     }
 
@@ -1113,7 +1178,7 @@ struct TrainerClientDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack { Text("Запланированные тренировки").font(.headline); Spacer(); Text("\(detail.workoutPlans.filter { $0.status == \"planned\" }.count)").foregroundStyle(AstraTheme.blue) }
             ForEach(detail.workoutPlans.filter { $0.status == "planned" }) { plan in
-                Button { selectedPlan = plan } label: { AstraCard { HStack { VStack(alignment: .leading) { Text(plan.displayName).font(.subheadline.weight(.semibold)); Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted); Text(plan.items.compactMap(\.name).joined(separator: " · ")).font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); Image(systemName: "chevron.right").foregroundStyle(AstraTheme.muted) } } }.buttonStyle(.plain)
+                Button { selectedPlan = plan } label: { AstraCard { HStack { VStack(alignment: .leading) { Text(plan.displayName).font(.subheadline.weight(.semibold)); Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted); Text(plan.items.compactMap { $0.name.displayOrNil }.joined(separator: " · ")).font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); Image(systemName: "chevron.right").foregroundStyle(AstraTheme.muted) } } }.buttonStyle(.plain)
             }
             if detail.workoutPlans.filter({ $0.status == "planned" }).isEmpty { Text("Планов пока нет.").font(.caption).foregroundStyle(AstraTheme.muted) }
         }
@@ -1205,10 +1270,22 @@ struct TrainerWorkspaceFullView: View {
     @State private var selectedEquipment: WorkoutEquipment?
     @State private var selectedPlan: WorkoutPlan?
     @State private var selectedWorkout: WorkoutEntry?
+    @State private var editingComplex: WorkoutComplex?
+    @State private var planSourceComplex: WorkoutComplex?
+    @State private var editingPlan: WorkoutPlan?
+    @State private var showComplexEditor = false
+    @State private var showPlanEditor = false
+    @State private var editingExercise: Exercise?
+    @State private var editingEquipment: WorkoutEquipment?
+    @State private var showExerciseEditor = false
+    @State private var showEquipmentEditor = false
+    @State private var shareType: String?
+    @State private var shareId: Int?
     @State private var error: String?
 
     private var planned: [WorkoutPlan] { plans.filter { $0.status == "planned" } }
     private var completed: [WorkoutEntry] { history }
+    private var completedPlans: [WorkoutPlan] { plans.filter { $0.isHistory }.sorted { ($0.completedAt ?? $0.scheduledAt) > ($1.completedAt ?? $1.scheduledAt) } }
     private var machines: [WorkoutEquipment] { equipment.filter { $0.kind == "machine" } }
     private var freeEquipment: [WorkoutEquipment] { equipment.filter { $0.kind != "machine" } }
 
@@ -1218,7 +1295,7 @@ struct TrainerWorkspaceFullView: View {
                 if section != .dashboard {
                     HStack { Button { section = .dashboard } label: { Label("Разделы", systemImage: "chevron.left") }; Spacer(); Text(section.title).font(.headline); Spacer() }.padding(.horizontal).padding(.top, 8)
                 }
-                if section == .dashboard { dashboard } else { sectionContent }
+                if section == .dashboard { dashboard } else { sectionGridContent }
             }
             .background(AstraTheme.canvas)
             .navigationTitle("Тренер")
@@ -1226,9 +1303,98 @@ struct TrainerWorkspaceFullView: View {
             .task { await load() }
             .refreshable { await load() }
             .sheet(item: $selectedClient) { TrainerClientChatView(client: $0) }
-            .navigationDestination(item: $selectedExercise) { TrainerExerciseDetailView(exercise: $0) }
-            .navigationDestination(item: $selectedComplex) { TrainerComplexDetailView(complex: $0) }
-            .navigationDestination(item: $selectedEquipment) { TrainerEquipmentDetailView(item: $0) }
+            .navigationDestination(item: $selectedExercise) { exercise in
+                TrainerExerciseDetailView(
+                    exercise: exercise,
+                    exercises: exercises,
+                    onEdit: { item in editingExercise = item; selectedExercise = nil; showExerciseEditor = true },
+                    onDelete: { item in Task { do { _ = try await session.api.deleteExercise(id: item.id); await load(); selectedExercise = nil } catch { error = error.localizedDescription } } },
+                    onShareClient: { item in prepareShare(type: "exercise", id: item.id) }
+                )
+            }
+            .navigationDestination(item: $selectedComplex) { complex in
+                TrainerComplexDetailView(
+                    complex: complex,
+                    onEdit: { editingComplex = complex; selectedComplex = nil; showComplexEditor = true },
+                    onSchedule: { planSourceComplex = complex; editingPlan = nil; selectedComplex = nil; showPlanEditor = true },
+                    onDelete: {
+                        Task {
+                            do {
+                                _ = try await session.api.deleteComplex(id: complex.id)
+                                await load()
+                                selectedComplex = nil
+                            } catch {
+                                error = error.localizedDescription
+                            }
+                        }
+                    },
+                    onShareClient: { prepareShare(type: "workout_complex", id: complex.id) }
+                )
+            }
+            .navigationDestination(item: $selectedEquipment) { item in
+                TrainerEquipmentDetailView(
+                    item: item,
+                    onEdit: { editingEquipment = item; selectedEquipment = nil; showEquipmentEditor = true },
+                    onDelete: { Task { do { _ = try await session.api.deleteEquipment(id: item.id); await load(); selectedEquipment = nil } catch { error = error.localizedDescription } } },
+                    onShareClient: { prepareShare(type: "workout_equipment", id: item.id) }
+                )
+            }
+            .sheet(isPresented: $showPlanEditor) {
+                WorkoutPlanEditorMobileView(initial: editingPlan, complex: planSourceComplex, exercises: exercises) { payload in
+                    Task {
+                        do {
+                            if let editingPlan, editingPlan.id > 0 { _ = try await session.api.updateWorkoutPlan(id: editingPlan.id, payload: payload) }
+                            else { _ = try await session.api.createWorkoutPlan(payload) }
+                            await load()
+                        } catch { error = error.localizedDescription }
+                    }
+                }
+            }
+            .sheet(isPresented: $showComplexEditor) {
+                WorkoutComplexEditorMobileView(initial: editingComplex, exercises: exercises) { payload in
+                    Task {
+                        do {
+                            if let editingComplex { _ = try await session.api.updateComplex(id: editingComplex.id, payload: payload) }
+                            else { _ = try await session.api.createComplex(payload) }
+                            await load()
+                        } catch { error = error.localizedDescription }
+                    }
+                }
+            }
+            .sheet(isPresented: $showExerciseEditor) {
+                ExerciseEditorMobileView(existing: editingExercise, onSave: { payload in
+                    Task {
+                        do {
+                            if let editingExercise { _ = try await session.api.updateExercise(id: editingExercise.id, payload: payload) }
+                            else { _ = try await session.api.createExercise(payload) }
+                            await load()
+                        } catch { error = error.localizedDescription }
+                    }
+                }, onDelete: editingExercise == nil ? nil : {
+                    if let editingExercise { Task { do { _ = try await session.api.deleteExercise(id: editingExercise.id); await load() } catch { error = error.localizedDescription } } }
+                })
+            }
+            .sheet(isPresented: $showEquipmentEditor) {
+                EquipmentEditorMobileView(existing: editingEquipment, onSave: { payload in
+                    Task {
+                        do {
+                            if let editingEquipment { _ = try await session.api.updateEquipment(id: editingEquipment.id, payload: payload) }
+                            else { _ = try await session.api.createEquipment(payload) }
+                            await load()
+                        } catch { error = error.localizedDescription }
+                    }
+                }, onDelete: editingEquipment == nil ? nil : {
+                    if let editingEquipment { Task { do { _ = try await session.api.deleteEquipment(id: editingEquipment.id); await load() } catch { error = error.localizedDescription } } }
+                })
+            }
+            .sheet(item: Binding(get: { shareType.map { ShareSelection(type: $0, id: shareId ?? 0) } }, set: { _ in shareType = nil; shareId = nil })) { selection in
+                ShareClientMobileView(clients: clients) { clientId in
+                    Task {
+                        do { _ = try await session.api.shareToClient(clientId: clientId, itemType: selection.type, itemId: selection.id) }
+                        catch { error = error.localizedDescription }
+                    }
+                }
+            }
 #if false
             .sheet(isPresented: $showWorkoutManage) { WorkoutManagementMobileView(plans: plans, logs: logs, exercises: exercises, complexes: complexes, equipment: equipment, onEditPlan: { editingPlan = $0; planSourceComplex = nil; showPlanEditor = true }, onRepeatPlan: { plan in editingPlan = WorkoutPlan(id: 0, scheduledAt: plan.scheduledAt, durationMinutes: plan.durationMinutes, status: "planned", completedAt: nil, items: plan.items, name: plan.name); planSourceComplex = nil; showPlanEditor = true }, onCancelPlan: { plan in Task { do { _ = try await session.api.cancelWorkoutPlan(id: plan.id); await load() } catch { error = error.localizedDescription } } }, onDeletePlan: { plan in Task { do { _ = try await session.api.deleteWorkoutPlan(id: plan.id); await load() } catch { error = error.localizedDescription } } }, onEditWorkout: { editingWorkout = $0; showWorkoutEditor = true }, onRepeatWorkout: { workout in editingPlan = WorkoutPlan(id: 0, scheduledAt: workout.performedAt, durationMinutes: nil, status: "planned", completedAt: nil, items: [WorkoutPlanItem(id: nil, exerciseId: workout.exerciseId, name: workout.name, muscleGroup: workout.muscleGroup, workingWeight: workout.workingWeight, sets: workout.sets, durationMinutes: nil, speedKmh: nil)]); planSourceComplex = nil; showPlanEditor = true }, onDeleteWorkout: { workout in Task { do { _ = try await session.api.deleteWorkout(id: workout.id); await load() } catch { error = error.localizedDescription } } }, onEditExercise: { editingExercise = $0; showExerciseEditor = true }, onDeleteExercise: { exercise in Task { do { _ = try await session.api.deleteExercise(id: exercise.id); await load() } catch { error = error.localizedDescription } } }, onEditComplex: { editingComplex = $0; showComplexEditor = true }, onScheduleComplex: { planSourceComplex = $0; editingPlan = nil; showPlanEditor = true }, onEditEquipment: { editingEquipment = $0; showEquipmentEditor = true }, onDeleteEquipment: { item in Task { do { _ = try await session.api.deleteEquipment(id: item.id); await load() } catch { error = error.localizedDescription } } }, onShare: { type, id in Task { _ = try? await session.api.shareToTrainer(itemType: type, itemId: id); clients = (try? await session.api.clients()) ?? []; shareType = type; shareId = id } }) }
             .sheet(isPresented: $showPlanEditor) { WorkoutPlanEditorMobileView(initial: editingPlan, complex: planSourceComplex, exercises: exercises) { payload in Task { do { if let editingPlan, editingPlan.id > 0 { _ = try await session.api.updateWorkoutPlan(id: editingPlan.id, payload: payload) } else { _ = try await session.api.createWorkoutPlan(payload) }; await load() } catch { error = error.localizedDescription } } } }
@@ -1238,7 +1404,16 @@ struct TrainerWorkspaceFullView: View {
             .sheet(isPresented: $showEquipmentEditor) { EquipmentEditorMobileView(existing: editingEquipment, onSave: { payload in Task { do { if let editingEquipment { _ = try await session.api.updateEquipment(id: editingEquipment.id, payload: payload) } else { _ = try await session.api.createEquipment(payload) }; await load() } catch { error = error.localizedDescription } } }, onDelete: editingEquipment == nil ? nil : { if let editingEquipment { Task { do { _ = try await session.api.deleteEquipment(id: editingEquipment.id); await load() } catch { error = error.localizedDescription } } } }) }
             .sheet(item: Binding(get: { shareType.map { ShareSelection(type: $0, id: shareId ?? 0) } }, set: { _ in shareType = nil; shareId = nil })) { selection in ShareClientMobileView(clients: clients) { clientId in Task { do { _ = try await session.api.shareToClient(clientId: clientId, itemType: selection.type, itemId: selection.id) } catch { error = error.localizedDescription } } } }
 #endif
-            .navigationDestination(item: $selectedPlan) { TrainerPlanDetailView(plan: $0) }
+            .navigationDestination(item: $selectedPlan) { plan in
+                TrainerPlanDetailView(
+                    plan: plan,
+                    onEdit: { editingPlan = plan; planSourceComplex = nil; selectedPlan = nil; showPlanEditor = true },
+                    onRepeat: { editingPlan = WorkoutPlan(id: 0, scheduledAt: plan.scheduledAt, durationMinutes: plan.durationMinutes, status: "planned", completedAt: nil, items: plan.items, name: plan.name); planSourceComplex = nil; selectedPlan = nil; showPlanEditor = true },
+                    onCancel: plan.status == "planned" ? { Task { do { _ = try await session.api.cancelWorkoutPlan(id: plan.id); await load(); selectedPlan = nil } catch { error = error.localizedDescription } } } : nil,
+                    onDelete: plan.status == "canceled" ? { Task { do { _ = try await session.api.deleteWorkoutPlan(id: plan.id); await load(); selectedPlan = nil } catch { error = error.localizedDescription } } } : nil,
+                    onComplete: plan.status == "planned" ? { Task { do { _ = try await session.api.completeWorkoutPlan(id: plan.id); await load(); selectedPlan = nil } catch { error = error.localizedDescription } } } : nil
+                )
+            }
             .navigationDestination(item: $selectedWorkout) { TrainerWorkoutDetailView(workout: $0) }
         }
     }
@@ -1250,14 +1425,14 @@ struct TrainerWorkspaceFullView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                 trainerTile(.clients, value: "\(clients.count)")
                 trainerTile(.planned, value: "\(planned.count)")
-                trainerTile(.history, value: "\(completed.count)")
+                trainerTile(.history, value: "\(completedPlans.count)")
                 trainerTile(.exercises, value: "\(exercises.count)")
                 trainerTile(.complexes, value: "\(complexes.count)")
                 trainerTile(.machines, value: "\(machines.count)")
                 trainerTile(.equipment, value: "\(freeEquipment.count)")
             }
             Text("Все карточки открывают соответствующий раздел и детали элементов.").font(.caption).foregroundStyle(AstraTheme.muted)
-        }.padding() }
+        }.padding(.horizontal, 20).padding(.vertical, 16) }
     }
 
     @ViewBuilder private var sectionContent: some View {
@@ -1268,21 +1443,161 @@ struct TrainerWorkspaceFullView: View {
         case .planned:
             List(planned) { plan in Button { selectedPlan = plan } label: { HStack { VStack(alignment: .leading) { Text(plan.displayName).font(.headline); Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted); Text("\(plan.items.count) упражнений · \(plan.status)").font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); Image(systemName: "chevron.right") } }.buttonStyle(.plain) }
         case .history:
-            List(completed) { workout in Button { selectedWorkout = workout } label: { HStack { VStack(alignment: .leading) { Text(workout.name).font(.headline); Text("\(workout.performedAt) · \(workout.sets.display) подходов × \(workout.reps.display) повторений").font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); Image(systemName: "chevron.right") } }.buttonStyle(.plain) }
+            List(completedPlans) { plan in Button { selectedPlan = plan } label: { HStack { VStack(alignment: .leading) { Text(plan.displayName).font(.headline); Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted); Text("\(plan.items.count) упражнений · \(plan.historyStatus)").font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); Image(systemName: "chevron.right") } }.buttonStyle(.plain) }
         case .exercises:
             List(exercises) { exercise in Button { selectedExercise = exercise } label: { trainerListRow(icon: "figure.strengthtraining.traditional", title: exercise.name, subtitle: "\(exercise.muscleGroup ?? "Другое") · \(exercise.defaultSets.display) подхода × \(exercise.defaultReps.display) повторений") }.buttonStyle(.plain) }
         case .complexes:
             List(complexes) { complex in Button { selectedComplex = complex } label: { trainerListRow(icon: "rectangle.3.group.fill", title: complex.name, subtitle: "\(complex.items.count) упражнений") }.buttonStyle(.plain) }
         case .machines:
-            List(machines) { item in Button { selectedEquipment = item } label: { trainerListRow(icon: "figure.strengthtraining.traditional", title: item.name, subtitle: item.description ?? "Тренажёр") }.buttonStyle(.plain) }
+            List(machines) { item in Button { selectedEquipment = item } label: { trainerListRow(icon: "figure.strengthtraining.traditional", title: item.name, subtitle: item.description.displayOr("Тренажёр")) }.buttonStyle(.plain) }
         case .equipment:
-            List(freeEquipment) { item in Button { selectedEquipment = item } label: { trainerListRow(icon: "dumbbell.fill", title: item.name, subtitle: item.description ?? "Инвентарь") }.buttonStyle(.plain) }
+            List(freeEquipment) { item in Button { selectedEquipment = item } label: { trainerListRow(icon: "dumbbell.fill", title: item.name, subtitle: item.description.displayOr("Инвентарь")) }.buttonStyle(.plain) }
         case .dashboard: EmptyView()
         }
     }
 
     @ViewBuilder private func trainerTile(_ item: TrainerWorkspaceSection, value: String) -> some View { Button { section = item } label: { VStack(alignment: .leading, spacing: 8) { Image(systemName: item.icon).foregroundStyle(item == .clients ? AstraTheme.blue : AstraTheme.green); Text(item.title).font(.caption.weight(.semibold)).foregroundStyle(AstraTheme.muted).multilineTextAlignment(.leading); Text(value).font(.title2.weight(.bold)) }.frame(maxWidth: .infinity, minHeight: 100, alignment: .leading).padding(14).background(AstraTheme.surface).clipShape(RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).stroke(AstraTheme.line, lineWidth: 1)).shadow(color: AstraTheme.ink.opacity(0.06), radius: 8, y: 4) }.buttonStyle(.plain) }
     @ViewBuilder private func trainerListRow(icon: String, title: String, subtitle: String) -> some View { HStack { Image(systemName: icon).foregroundStyle(AstraTheme.green); VStack(alignment: .leading) { Text(title).font(.headline); Text(subtitle).font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); Image(systemName: "chevron.right").foregroundStyle(AstraTheme.muted) } }
+    @ViewBuilder
+    private var sectionGridContent: some View {
+        switch section {
+        case .clients:
+            ScrollView { MobileItemGrid(clients) { client in
+                Button { selectedClient = client } label: {
+                    AstraCard {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Image(systemName: "person.crop.circle.fill").foregroundStyle(AstraTheme.blue)
+                            Text(client.name).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(2)
+                            Text(client.email).font(.caption).foregroundStyle(AstraTheme.muted).lineLimit(1)
+                            if let next = client.nextWorkout { Text(next.scheduledAt).font(.caption2).foregroundStyle(AstraTheme.green).lineLimit(2) }
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
+                    }
+                }.buttonStyle(.plain)
+            }.padding(.horizontal, 20).padding(.vertical, 8) }
+        case .planned:
+            ScrollView { MobileItemGrid(planned) { plan in
+                AstraCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button { selectedPlan = plan } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(plan.displayName).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(2)
+                            Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted)
+                            Text("\(plan.items.count)").font(.title3.weight(.bold)).foregroundStyle(AstraTheme.green)
+                            Text(plan.status).font(.caption2).foregroundStyle(AstraTheme.muted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(.plain)
+                    MobileWorkoutActionButtons(
+                        onComplete: { Task { do { _ = try await session.api.completeWorkoutPlan(id: plan.id); await load() } catch { error = error.localizedDescription } } },
+                        onEdit: { editingPlan = plan; planSourceComplex = nil; showPlanEditor = true },
+                        onCancel: { Task { do { _ = try await session.api.cancelWorkoutPlan(id: plan.id); await load() } catch { error = error.localizedDescription } } }
+                    )
+                }
+            }.padding(.horizontal, 20).padding(.vertical, 8) }
+        case .history:
+            ScrollView { MobileItemGrid(completedPlans) { plan in
+                AstraCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button { selectedPlan = plan } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(plan.displayName).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(2)
+                            Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted)
+                            Text("\(plan.items.count) упражнений · \(plan.historyStatus)").font(.caption).foregroundStyle(AstraTheme.muted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                        .buttonStyle(.plain)
+                        MobileWorkoutActionButtons(
+                            onRepeat: { editingPlan = WorkoutPlan(id: 0, scheduledAt: plan.scheduledAt, durationMinutes: plan.durationMinutes, status: "planned", completedAt: nil, items: plan.items, name: plan.name); planSourceComplex = nil; showPlanEditor = true },
+                            onDelete: plan.status == "canceled" ? { Task { do { _ = try await session.api.deleteWorkoutPlan(id: plan.id); await load() } catch { error = error.localizedDescription } } } : nil
+                        )
+                    }
+                }
+            }.padding(.horizontal, 20).padding(.vertical, 8) }
+        case .exercises:
+            ScrollView { MobileItemGrid(exercises) { exercise in
+                AstraCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button { selectedExercise = exercise } label: {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Image(systemName: "figure.strengthtraining.traditional").foregroundStyle(AstraTheme.green)
+                                Text(exercise.muscleGroup.displayOr("Другое")).font(.caption2.weight(.semibold)).foregroundStyle(AstraTheme.green).lineLimit(1)
+                                if let code = exercise.code.displayOrNil { Text(code).font(.caption2).foregroundStyle(AstraTheme.muted) }
+                                Text(exercise.name).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(3)
+                                Text(exercise.description.displayOr(exercise.note.displayOr("Описание упражнения пока не добавлено"))).font(.caption).foregroundStyle(AstraTheme.muted).lineLimit(3)
+                                Text("\(exercise.defaultSets.display) × \(exercise.defaultReps.display)").font(.caption2).foregroundStyle(AstraTheme.muted)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        MobileWorkoutActionButtons(
+                            onEdit: { editingExercise = exercise; showExerciseEditor = true },
+                            onDelete: { Task { do { _ = try await session.api.deleteExercise(id: exercise.id); await load() } catch { error = error.localizedDescription } } },
+                            onShareClient: { prepareShare(type: "exercise", id: exercise.id) }
+                        )
+                    }
+                }
+            }.padding(.horizontal, 20).padding(.vertical, 8) }
+        case .complexes:
+            ScrollView { MobileItemGrid(complexes) { complex in
+                AstraCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button { selectedComplex = complex } label: {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Image(systemName: "rectangle.3.group.fill").foregroundStyle(AstraTheme.blue)
+                                Text(complex.name).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(2)
+                                Text("\(complex.items.count) упражнений").font(.caption).foregroundStyle(AstraTheme.green)
+                                if let comment = complex.comment.displayOrNil { Text(comment).font(.caption2).foregroundStyle(AstraTheme.muted).lineLimit(2) }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        MobileWorkoutActionButtons(
+                            onEdit: { editingComplex = complex; selectedComplex = nil; showComplexEditor = true },
+                            onSchedule: { planSourceComplex = complex; editingPlan = nil; selectedComplex = nil; showPlanEditor = true },
+                            onDelete: { Task { do { _ = try await session.api.deleteComplex(id: complex.id); await load() } catch { error = error.localizedDescription } } },
+                            onShareClient: { prepareShare(type: "workout_complex", id: complex.id) }
+                        )
+                    }
+                }
+            }.padding(.horizontal, 20).padding(.vertical, 8) }
+        case .machines, .equipment:
+            let values = section == .machines ? machines : freeEquipment
+            ScrollView { MobileItemGrid(values) { item in
+                AstraCard {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Button { selectedEquipment = item } label: {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Image(systemName: section == .machines ? "figure.strengthtraining.traditional" : "dumbbell.fill").foregroundStyle(AstraTheme.green)
+                                Text(item.name).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(2)
+                                Text(item.description.displayOr(item.kind)).font(.caption).foregroundStyle(AstraTheme.muted).lineLimit(3)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .buttonStyle(.plain)
+                        MobileWorkoutActionButtons(
+                            onEdit: { editingEquipment = item; selectedEquipment = nil; showEquipmentEditor = true },
+                            onDelete: { Task { do { _ = try await session.api.deleteEquipment(id: item.id); await load() } catch { error = error.localizedDescription } } },
+                            onShareClient: { prepareShare(type: "workout_equipment", id: item.id) }
+                        )
+                    }
+                }
+            }.padding(.horizontal, 20).padding(.vertical, 8) }
+        case .dashboard:
+            EmptyView()
+        }
+    }
+
+    private func prepareShare(type: String, id: Int) {
+        Task {
+            clients = (try? await session.api.clients()) ?? []
+            shareType = type
+            shareId = id
+        }
+    }
+
     private func load() async { do { async let c = session.api.clients(); async let p = session.api.workoutPlans(); async let h = session.api.workouts(); async let e = session.api.exercises(); async let x = session.api.workoutComplexes(); async let i = session.api.workoutEquipment(); clients = try await c; plans = try await p; history = try await h; exercises = try await e; complexes = try await x; equipment = try await i; error = nil } catch { error = error.localizedDescription } }
 }
 
@@ -1346,36 +1661,208 @@ private struct WorkoutReferenceRow: View {
 struct TrainerExerciseDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let exercise: Exercise
+    let exercises: [Exercise]
+    var onEdit: ((Exercise) -> Void)? = nil
+    var onDelete: ((Exercise) -> Void)? = nil
+    var onShareTrainer: ((Exercise) -> Void)? = nil
+    var onShareClient: ((Exercise) -> Void)? = nil
+    @State private var currentIndex: Int
+
+    init(exercise: Exercise, exercises: [Exercise] = [], onEdit: ((Exercise) -> Void)? = nil, onDelete: ((Exercise) -> Void)? = nil, onShareTrainer: ((Exercise) -> Void)? = nil, onShareClient: ((Exercise) -> Void)? = nil) {
+        self.exercise = exercise
+        self.exercises = exercises
+        self.onEdit = onEdit
+        self.onDelete = onDelete
+        self.onShareTrainer = onShareTrainer
+        self.onShareClient = onShareClient
+        _currentIndex = State(initialValue: max(0, exercises.firstIndex(where: { $0.id == exercise.id }) ?? 0))
+    }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                WorkoutReferenceHero(icon: "figure.strengthtraining.traditional", tint: AstraTheme.green)
-                Text(exercise.name).font(.largeTitle.weight(.bold)).foregroundStyle(AstraTheme.ink)
-                Text(exercise.muscleGroup ?? "Другое").font(.subheadline).foregroundStyle(AstraTheme.muted)
-                HStack(spacing: 8) {
-                    WorkoutReferenceBadge(title: exercise.muscleGroup ?? "Другое", tint: AstraTheme.green)
-                    if let unit = exercise.defaultUnit, !unit.isEmpty { WorkoutReferenceBadge(title: unit, tint: AstraTheme.blue) }
+        let current = exercises.indices.contains(currentIndex) ? exercises[currentIndex] : exercise
+        let total = max(exercises.count, 1)
+        let progress = min(max(Double(currentIndex + 1) / Double(total), 0), 1)
+        let next = { if currentIndex < exercises.count - 1 { currentIndex += 1 } else { dismiss() } }
+        let previous = { if currentIndex > 0 { currentIndex -= 1 } else { dismiss() } }
+
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(spacing: 12) {
+                        GeometryReader { proxy in
+                            ZStack(alignment: .leading) {
+                                Capsule().fill(Color.white.opacity(0.13))
+                                Capsule().fill(AstraTheme.blue).frame(width: proxy.size.width * CGFloat(progress))
+                            }
+                        }
+                        .frame(height: 6)
+                        Button("Пропустить") { dismiss() }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AstraTheme.blue)
+                            .frame(width: 88, height: 27)
+                            .background(Color.white.opacity(0.04))
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(Color.white.opacity(0.08), lineWidth: 1))
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        exercisePlaceholder
+                            .frame(height: 180)
+                            .frame(maxWidth: .infinity)
+                            .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                        Text(current.muscleGroup.displayOr("Другое"))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AstraTheme.green)
+                        if let code = current.code.displayOrNil { Text(code).font(.caption).foregroundStyle(.white.opacity(0.55)) }
+                        Text(current.name)
+                            .font(.system(size: 28, weight: .bold))
+                            .foregroundStyle(.white)
+                            .lineLimit(3)
+                        Text(current.description.displayOr(current.note.displayOr("Описание упражнения пока не добавлено")))
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.68))
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 28)
+
+                    HStack(spacing: 8) {
+                        WorkoutReferenceBadge(title: "\(current.defaultSets.display) подходов", tint: AstraTheme.blue)
+                        WorkoutReferenceBadge(title: "\(current.defaultReps.display) повторений", tint: AstraTheme.blue)
+                        if let unit = current.defaultUnit.displayOrNil { WorkoutReferenceBadge(title: unit, tint: AstraTheme.green) }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 16)
+
+                    if let rir = current.targetRir.displayOrNil { Text("Целевой RIR: \(rir)").font(.caption).foregroundStyle(.white.opacity(0.68)).padding(.horizontal, 20) }
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Техника и варианты").font(.headline).foregroundStyle(.white)
+                        if current.variants.isEmpty {
+                            Text("Варианты выполнения пока не добавлены.").font(.subheadline).foregroundStyle(.white.opacity(0.62))
+                        } else {
+                            ForEach(Array(current.variants.enumerated()), id: \.offset) { index, variant in
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text(variant.name.displayOr("Вариант \(index + 1)")).font(.subheadline.weight(.bold)).foregroundStyle(.white)
+                                    if let machine = variant.machine.displayOrNil { Text("Тренажёр: \(machine)").font(.caption).foregroundStyle(.white.opacity(0.68)) }
+                                    if let equipment = variant.equipment.displayOrNil { Text("Инвентарь: \(equipment)").font(.caption).foregroundStyle(.white.opacity(0.68)) }
+                                    if let description = variant.description.displayOrNil { Text(description).font(.subheadline).foregroundStyle(.white.opacity(0.82)) }
+                                    if let technique = variant.technique.displayOrNil { Text("Техника: \(technique)").font(.caption).foregroundStyle(.white.opacity(0.68)) }
+                                    if let tips = variant.tips.displayOrNil { Text("Советы: \(tips)").font(.caption).foregroundStyle(.white.opacity(0.68)) }
+                                }
+                                .padding(14)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.white.opacity(0.05))
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.top, 18)
+
+                    if !current.photos.isEmpty || current.video.displayOrNil != nil {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Медиа").font(.headline).foregroundStyle(.white)
+                            Text([current.photos.isEmpty ? nil : "Фото: \(current.photos.count)", current.video.displayOrNil == nil ? nil : "Видео доступно"].compactMap { $0 }.joined(separator: " · "))
+                                .font(.subheadline).foregroundStyle(.white.opacity(0.68))
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 18)
+                    }
+
+                    if onEdit != nil || onDelete != nil || onShareTrainer != nil || onShareClient != nil {
+                        HStack(spacing: 8) {
+                            if let onEdit { Button("Редактировать") { onEdit(current) }.buttonStyle(.borderedProminent) }
+                            if let onDelete { Button("Удалить", role: .destructive) { onDelete(current) }.buttonStyle(.bordered) }
+                            if let onShareTrainer { Button("Тренеру") { onShareTrainer(current) }.buttonStyle(.bordered) }
+                            if let onShareClient { Button("Клиенту") { onShareClient(current) }.buttonStyle(.bordered) }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 18)
+                    }
+
+                    HStack(spacing: 12) {
+                        Button("Назад", action: previous)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                            .buttonStyle(.bordered)
+                        Button("Далее", action: next)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                            .buttonStyle(.borderedProminent)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 22)
                 }
-                Text("Параметры упражнения").font(.headline).foregroundStyle(AstraTheme.ink).padding(.top, 8)
-                WorkoutReferenceRow(number: 1, title: "Единица нагрузки", value: exercise.defaultUnit ?? "—")
-                WorkoutReferenceRow(number: 2, title: "Подходы", value: exercise.defaultSets.display)
-                WorkoutReferenceRow(number: 3, title: "Повторения", value: exercise.defaultReps.display)
             }
-            .padding()
+            .scrollIndicators(.hidden)
         }
-        .background(AstraTheme.canvas)
-        .navigationTitle("Упражнение")
-        .navigationBarTitleDisplayMode(.inline)
-        .navigationBarBackButtonHidden(true)
-        .toolbar { ToolbarItem(placement: .topBarLeading) { Button { dismiss() } label: { Image(systemName: "chevron.left") } } }
+        .background(Color(red: 10.0 / 255.0, green: 9.0 / 255.0, blue: 8.0 / 255.0))
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private var exercisePlaceholder: some View {
+        LinearGradient(colors: [AstraTheme.green.opacity(0.24), Color(red: 22.0 / 255.0, green: 21.0 / 255.0, blue: 19.0 / 255.0)], startPoint: .top, endPoint: .bottom)
+            .overlay(alignment: .leading) {
+                Text("✦")
+                    .font(.system(size: 88, weight: .light))
+                    .foregroundStyle(AstraTheme.green)
+                    .padding(.leading, 28)
+            }
     }
 }
 
-struct TrainerComplexDetailView: View { @Environment(\.dismiss) private var dismiss; let complex: WorkoutComplex; var body: some View { NavigationStack { List { Section { Text(complex.name).font(.title2.weight(.bold)); if let comment = complex.comment { Text(comment) } }; Section("Упражнения") { ForEach(complex.items) { item in VStack(alignment: .leading) { Text(item.name).font(.headline); Text("\(item.sets.display) подхода · \(item.durationMinutes.display) мин").font(.caption).foregroundStyle(AstraTheme.muted) } } } }.navigationTitle("Комплекс").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } } } } } }
+struct TrainerComplexDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    let complex: WorkoutComplex
+    var onEdit: (() -> Void)? = nil
+    var onSchedule: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
+    var onShareTrainer: (() -> Void)? = nil
+    var onShareClient: (() -> Void)? = nil
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Text(complex.name).font(.title2.weight(.bold))
+                    if let comment = complex.comment.displayOrNil { Text(comment).foregroundStyle(AstraTheme.muted) }
+                    Text("\(complex.items.count) упражнений").font(.caption).foregroundStyle(AstraTheme.blue)
+                    if onEdit != nil || onSchedule != nil || onDelete != nil || onShareTrainer != nil || onShareClient != nil {
+                        HStack(spacing: 8) {
+                            if let onEdit { Button("Изменить", action: onEdit) }
+                            if let onSchedule { Button("Запланировать", action: onSchedule) }
+                            if let onDelete { Button("Удалить", role: .destructive, action: onDelete) }
+                            if let onShareTrainer { Button("Тренеру", action: onShareTrainer).buttonStyle(.borderless) }
+                            if let onShareClient { Button("Клиенту", action: onShareClient).buttonStyle(.borderless) }
+                        }
+                    }
+                }
+                Section("Упражнения") {
+                    if complex.items.isEmpty {
+                        Text("В комплексе пока нет упражнений.").foregroundStyle(AstraTheme.muted)
+                    } else {
+                        ForEach(complex.items) { item in
+                            VStack(alignment: .leading) {
+                                Text(item.name.displayOr("Упражнение")).font(.headline)
+                                Text("\(item.sets.display) подхода · \(item.durationMinutes.display) мин").font(.caption).foregroundStyle(AstraTheme.muted)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Комплекс")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } } }
+        }
+    }
+}
 struct TrainerEquipmentDetailView: View {
     @Environment(\.dismiss) private var dismiss
     let item: WorkoutEquipment
+    var onEdit: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
+    var onShareTrainer: (() -> Void)? = nil
+    var onShareClient: (() -> Void)? = nil
 
     var body: some View {
         let kind = item.kind == "machine" ? "Тренажёр" : "Инвентарь"
@@ -1388,7 +1875,15 @@ struct TrainerEquipmentDetailView: View {
                 WorkoutReferenceBadge(title: kind, tint: tint)
                 Text("Описание").font(.headline).foregroundStyle(AstraTheme.ink).padding(.top, 8)
                 WorkoutReferenceRow(number: 1, title: "Тип", value: kind)
-                WorkoutReferenceRow(number: 2, title: "Описание", value: item.description ?? "—")
+                WorkoutReferenceRow(number: 2, title: "Описание", value: item.description.displayOr("—"))
+                if onEdit != nil || onDelete != nil || onShareTrainer != nil || onShareClient != nil {
+                    HStack(spacing: 8) {
+                        if let onEdit { Button("Редактировать", action: onEdit).buttonStyle(.borderedProminent) }
+                        if let onDelete { Button("Удалить", role: .destructive, action: onDelete).buttonStyle(.bordered) }
+                        if let onShareTrainer { Button("Тренеру", action: onShareTrainer).buttonStyle(.bordered) }
+                        if let onShareClient { Button("Клиенту", action: onShareClient).buttonStyle(.bordered) }
+                    }
+                }
             }
             .padding()
         }
@@ -1399,8 +1894,48 @@ struct TrainerEquipmentDetailView: View {
         .toolbar { ToolbarItem(placement: .topBarLeading) { Button { dismiss() } label: { Image(systemName: "chevron.left") } } }
     }
 }
-struct TrainerPlanDetailView: View { @Environment(\.dismiss) private var dismiss; let plan: WorkoutPlan; var body: some View { NavigationStack { List { Section { Text(plan.displayName).font(.title2.weight(.bold)); Text(plan.scheduledAt).font(.subheadline); Text(plan.status).foregroundStyle(AstraTheme.muted) }; Section("Упражнения") { ForEach(plan.items) { item in VStack(alignment: .leading) { Text(item.name ?? "Упражнение").font(.headline); Text("\(item.sets.display) подхода · \(item.durationMinutes.display) мин").font(.caption).foregroundStyle(AstraTheme.muted) } } } }.navigationTitle("План").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } } } } } }
-struct TrainerWorkoutDetailView: View { @Environment(\.dismiss) private var dismiss; let workout: WorkoutEntry; var body: some View { NavigationStack { List { Text(workout.name).font(.title2.weight(.bold)); LabeledContent("Дата", value: workout.performedAt); LabeledContent("Подходы", value: workout.sets.display); LabeledContent("Повторения", value: workout.reps.display); LabeledContent("Вес", value: workout.workingWeight.display); if let comment = workout.comment { Text(comment) } }.navigationTitle("История").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } } } } } }
+struct TrainerPlanDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    let plan: WorkoutPlan
+    var onEdit: (() -> Void)? = nil
+    var onRepeat: (() -> Void)? = nil
+    var onCancel: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
+    var onComplete: (() -> Void)? = nil
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Text(plan.displayName).font(.title2.weight(.bold))
+                    Text(plan.scheduledAt).font(.subheadline)
+                    Text(plan.isHistory ? plan.historyStatus : plan.status).foregroundStyle(AstraTheme.muted)
+                    HStack(spacing: 8) {
+                        if plan.status == "planned" {
+                            if let onComplete { Button("Выполнено", action: onComplete) }
+                            if let onEdit { Button("Изменить", action: onEdit) }
+                            if let onCancel { Button("Отменить", action: onCancel) }
+                        } else {
+                            if let onRepeat { Button("Повторить", action: onRepeat) }
+                            if plan.status == "canceled", let onDelete { Button("Удалить", role: .destructive, action: onDelete) }
+                        }
+                    }
+                }
+                Section("Упражнения") {
+                    ForEach(plan.items) { item in
+                        VStack(alignment: .leading) {
+                            Text(item.name.displayOr("Упражнение")).font(.headline)
+                            Text("\(item.sets.display) подхода · \(item.durationMinutes.display) мин").font(.caption).foregroundStyle(AstraTheme.muted)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("План")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } } }
+        }
+    }
+}
+struct TrainerWorkoutDetailView: View { @Environment(\.dismiss) private var dismiss; let workout: WorkoutEntry; var body: some View { NavigationStack { List { Text(workout.name).font(.title2.weight(.bold)); LabeledContent("Дата", value: workout.performedAt); LabeledContent("Подходы", value: workout.sets.display); LabeledContent("Повторения", value: workout.reps.display); LabeledContent("Вес", value: workout.workingWeight.display); if let comment = workout.comment.displayOrNil { Text(comment) } }.navigationTitle("История").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } } } } } }
 
 struct InformationView: View {
     @EnvironmentObject private var session: SessionStore
@@ -1442,7 +1977,7 @@ struct InformationView: View {
                     if let error { Text(error).foregroundStyle(.red) }
                     if filtered.isEmpty && error == nil { EmptyState(title: "Статей пока нет", message: "Материалы появятся здесь после публикации в веб-версии.", icon: "text.book.closed") }
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) { ForEach(filtered) { article in articleTile(article) } }
-                }.padding()
+                }.padding(.horizontal, 20).padding(.vertical, 16)
             }.background(AstraTheme.canvas).searchable(text: $search, prompt: "Найти статью").navigationTitle("Информация").task { await load() }.refreshable { await load() }
             .navigationDestination(item: $selectedArticle) { article in
                 ArticleDetailMobileView(article: article, isAdmin: isAdmin, canManage: canManage, hasTrainer: hasTrainer, onEdit: { editingArticle = $0; showArticleEditor = true }, onChanged: replaceArticle, onDeleted: { articles.removeAll { $0.id == article.id }; selectedArticle = nil }, onShareClient: prepareShare, onShareTrainer: shareToTrainer)
@@ -1513,6 +2048,135 @@ struct ArticleEditorMobileView: View {
 
 private extension String { var plainText: String { replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression).replacingOccurrences(of: "&nbsp;", with: " ").trimmingCharacters(in: .whitespacesAndNewlines) } }
 
+private struct MobileExerciseCatalogView: View {
+    let exercises: [Exercise]
+    let canManage: Bool
+    let hasTrainer: Bool
+    let onSelect: (Exercise) -> Void
+    let onAdd: () -> Void
+    let onEdit: (Exercise) -> Void
+    let onDelete: (Exercise) -> Void
+    let onShareTrainer: (Exercise) -> Void
+    let onShareClient: (Exercise) -> Void
+
+    @State private var search = ""
+    @State private var selectedGroup = "Все группы"
+
+    private var groups: [String] { ["Все группы"] + exercises.map { $0.muscleGroup.displayOr("Другое") }.removingDuplicates().sorted { lhs, rhs in
+        if lhs == "Все группы" { return true }
+        if rhs == "Все группы" { return false }
+        return lhs.localizedCaseInsensitiveCompare(rhs) == .orderedAscending
+    } }
+    private var filtered: [Exercise] { exercises.filter { exercise in
+        let text = [exercise.name, exercise.description, exercise.note, exercise.code].compactMap { $0 }.joined(separator: " ")
+        return (selectedGroup == "Все группы" || exercise.muscleGroup.displayOr("Другое") == selectedGroup) && (search.isEmpty || text.localizedCaseInsensitiveContains(search))
+    } }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("СПРАВОЧНИК").font(.caption.weight(.bold)).foregroundStyle(AstraTheme.blue)
+                Text("Упражнения").font(.title2.weight(.bold))
+                TextField("Найти упражнение", text: $search).textFieldStyle(.roundedBorder)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(groups, id: \.self) { group in
+                            Button { selectedGroup = group } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(group).font(.caption.weight(.semibold))
+                                    Text(group == "Все группы" ? "\(exercises.count)" : "\(exercises.filter { $0.muscleGroup.displayOr("Другое") == group }.count)").font(.caption2)
+                                }
+                                .foregroundStyle(selectedGroup == group ? Color.white : AstraTheme.ink)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(selectedGroup == group ? AstraTheme.blue : AstraTheme.surface)
+                                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(AstraTheme.line, lineWidth: 1))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                MobileItemGrid(filtered) { exercise in
+                    AstraCard {
+                        VStack(alignment: .leading, spacing: 7) {
+                            Button { onSelect(exercise) } label: {
+                                VStack(alignment: .leading, spacing: 7) {
+                                    Image(systemName: "figure.strengthtraining.traditional").foregroundStyle(AstraTheme.green)
+                                    Text(exercise.muscleGroup.displayOr("Другое")).font(.caption2.weight(.semibold)).foregroundStyle(AstraTheme.green).lineLimit(1)
+                                    if let code = exercise.code.displayOrNil { Text(code).font(.caption2).foregroundStyle(AstraTheme.muted) }
+                                    Text(exercise.name).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(3)
+                                    Text(exercise.description.displayOr(exercise.note.displayOr("Описание упражнения пока не добавлено"))).font(.caption).foregroundStyle(AstraTheme.muted).lineLimit(3)
+                                    Text("\(exercise.defaultSets.display) × \(exercise.defaultReps.display)").font(.caption2).foregroundStyle(AstraTheme.blue)
+                                    if !exercise.photos.isEmpty || exercise.video.displayOrNil != nil { Text([exercise.photos.isEmpty ? nil : "Фото: \(exercise.photos.count)", exercise.video.displayOrNil == nil ? nil : "Видео"].compactMap { $0 }.joined(separator: " · ")).font(.caption2).foregroundStyle(AstraTheme.muted) }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .buttonStyle(.plain)
+                            HStack(spacing: 8) {
+                                if canManage {
+                                    Button { onEdit(exercise) } label: { Image(systemName: "pencil") }.buttonStyle(.bordered).controlSize(.mini)
+                                    Button { onDelete(exercise) } label: { Image(systemName: "trash") }.buttonStyle(.bordered).controlSize(.mini)
+                                    Button { onShareClient(exercise) } label: { Image(systemName: "person.crop.circle.badge.plus") }.buttonStyle(.bordered).controlSize(.mini)
+                                } else if hasTrainer {
+                                    Button { onShareTrainer(exercise) } label: { Image(systemName: "paperplane") }.buttonStyle(.bordered).controlSize(.mini)
+                                }
+                                Spacer()
+                            }
+                        }
+                    }
+                }
+                if canManage {
+                    Button(action: onAdd) {
+                        VStack(alignment: .leading, spacing: 7) {
+                            Image(systemName: "plus").font(.title2).foregroundStyle(AstraTheme.green)
+                            Text("Добавить новое упражнение").font(.headline)
+                            Text("Создать карточку в справочнике").font(.caption).foregroundStyle(AstraTheme.muted)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
+                        .padding(16)
+                        .background(AstraTheme.surface)
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(AstraTheme.line, lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+        }
+    }
+}
+
+private extension Array where Element: Equatable {
+    func removingDuplicates() -> [Element] { reduce(into: []) { if !$0.contains($1) { $0.append($1) } } }
+}
+
+private struct MobileWorkoutActionButtons: View {
+    var onEdit: (() -> Void)? = nil
+    var onDelete: (() -> Void)? = nil
+    var onComplete: (() -> Void)? = nil
+    var onCancel: (() -> Void)? = nil
+    var onRepeat: (() -> Void)? = nil
+    var onSchedule: (() -> Void)? = nil
+    var onShareTrainer: (() -> Void)? = nil
+    var onShareClient: (() -> Void)? = nil
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if let onComplete { Button { onComplete() } label: { Image(systemName: "checkmark.circle") }.buttonStyle(.bordered).controlSize(.mini) }
+            if let onEdit { Button { onEdit() } label: { Image(systemName: "pencil") }.buttonStyle(.bordered).controlSize(.mini) }
+            if let onCancel { Button { onCancel() } label: { Image(systemName: "xmark.circle") }.buttonStyle(.bordered).controlSize(.mini) }
+            if let onRepeat { Button { onRepeat() } label: { Image(systemName: "arrow.clockwise") }.buttonStyle(.bordered).controlSize(.mini) }
+            if let onSchedule { Button { onSchedule() } label: { Image(systemName: "calendar.badge.plus") }.buttonStyle(.bordered).controlSize(.mini) }
+            if let onDelete { Button(role: .destructive) { onDelete() } label: { Image(systemName: "trash") }.buttonStyle(.bordered).controlSize(.mini) }
+            if let onShareTrainer { Button { onShareTrainer() } label: { Image(systemName: "paperplane") }.buttonStyle(.bordered).controlSize(.mini) }
+            if let onShareClient { Button { onShareClient() } label: { Image(systemName: "person.crop.circle.badge.plus") }.buttonStyle(.bordered).controlSize(.mini) }
+            Spacer()
+        }
+    }
+}
+
 struct FitnessWorkoutsDashboardView: View {
     @EnvironmentObject private var session: SessionStore
     @State private var category: Int?
@@ -1543,19 +2207,22 @@ struct FitnessWorkoutsDashboardView: View {
     @State private var shareId: Int?
     @State private var clients: [ClientSummary] = []
     @State private var error: String?
+    @State private var hasTrainer = false
 
     private var planned: [WorkoutPlan] { plans.filter { $0.status == "planned" } }
+    private var historyPlans: [WorkoutPlan] { plans.filter { $0.isHistory }.sorted { ($0.completedAt ?? $0.scheduledAt) > ($1.completedAt ?? $1.scheduledAt) } }
+    private var canManage: Bool { session.user?.isAdmin == true || session.user?.isTrainer == true }
 
     var body: some View {
         NavigationStack {
             Group {
-                if let category { categoryPage(category) } else { overview }
+                if let category { categoryGridPage(category) } else { overview }
             }
             .background(AstraTheme.canvas)
             .navigationTitle("Тренировки")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .topBarTrailing) { Button { showAdd = true } label: { Image(systemName: "plus") } } }
-            .toolbar { ToolbarItem(placement: .topBarLeading) { Button { showWorkoutManage = true } label: { Image(systemName: "slider.horizontal.3") } } }
+            .toolbar { if canManage { ToolbarItem(placement: .topBarLeading) { Button { showWorkoutManage = true } label: { Image(systemName: "slider.horizontal.3") } } } }
             .task { await load() }
             .refreshable { await load() }
             .sheet(isPresented: $showAdd) { AddWorkoutView(exercises: exercises) { await load() } }
@@ -1566,11 +2233,64 @@ struct FitnessWorkoutsDashboardView: View {
             .sheet(isPresented: $showExerciseEditor) { ExerciseEditorMobileView(existing: editingExercise, onSave: { payload in Task { do { if let editingExercise { _ = try await session.api.updateExercise(id: editingExercise.id, payload: payload) } else { _ = try await session.api.createExercise(payload) }; await load() } catch { error = error.localizedDescription } } }, onDelete: editingExercise == nil ? nil : { if let editingExercise { Task { do { _ = try await session.api.deleteExercise(id: editingExercise.id); await load() } catch { error = error.localizedDescription } } } }) }
             .sheet(isPresented: $showEquipmentEditor) { EquipmentEditorMobileView(existing: editingEquipment, onSave: { payload in Task { do { if let editingEquipment { _ = try await session.api.updateEquipment(id: editingEquipment.id, payload: payload) } else { _ = try await session.api.createEquipment(payload) }; await load() } catch { error = error.localizedDescription } } }, onDelete: editingEquipment == nil ? nil : { if let editingEquipment { Task { do { _ = try await session.api.deleteEquipment(id: editingEquipment.id); await load() } catch { error = error.localizedDescription } } } }) }
             .sheet(item: Binding(get: { shareType.map { ShareSelection(type: $0, id: shareId ?? 0) } }, set: { _ in shareType = nil; shareId = nil })) { selection in ShareClientMobileView(clients: clients) { clientId in Task { do { _ = try await session.api.shareToClient(clientId: clientId, itemType: selection.type, itemId: selection.id) } catch { error = error.localizedDescription } } } }
-            .navigationDestination(item: $selectedPlan) { TrainerPlanDetailView(plan: $0) }
+            .navigationDestination(item: $selectedPlan) { plan in
+                TrainerPlanDetailView(
+                    plan: plan,
+                    onEdit: canManage ? { editingPlan = plan; planSourceComplex = nil; selectedPlan = nil; showPlanEditor = true } : nil,
+                    onRepeat: { editingPlan = WorkoutPlan(id: 0, scheduledAt: plan.scheduledAt, durationMinutes: plan.durationMinutes, status: "planned", completedAt: nil, items: plan.items, name: plan.name); planSourceComplex = nil; selectedPlan = nil; showPlanEditor = true },
+                    onCancel: plan.status == "planned" ? { Task { do { _ = try await session.api.cancelWorkoutPlan(id: plan.id); await load(); selectedPlan = nil } catch { error = error.localizedDescription } } } : nil,
+                    onDelete: plan.status == "canceled" ? { Task { do { _ = try await session.api.deleteWorkoutPlan(id: plan.id); await load(); selectedPlan = nil } catch { error = error.localizedDescription } } } : nil,
+                    onComplete: plan.status == "planned" ? { Task { do { _ = try await session.api.completeWorkoutPlan(id: plan.id); await load(); selectedPlan = nil } catch { error = error.localizedDescription } } } : nil
+                )
+            }
             .navigationDestination(item: $selectedWorkout) { TrainerWorkoutDetailView(workout: $0) }
-            .navigationDestination(item: $selectedExercise) { TrainerExerciseDetailView(exercise: $0) }
-            .navigationDestination(item: $selectedComplex) { TrainerComplexDetailView(complex: $0) }
-            .navigationDestination(item: $selectedEquipment) { TrainerEquipmentDetailView(item: $0) }
+            .navigationDestination(item: $selectedExercise) { exercise in
+                TrainerExerciseDetailView(
+                    exercise: exercise,
+                    exercises: exercises,
+                    onEdit: canManage ? { item in editingExercise = item; selectedExercise = nil; showExerciseEditor = true } : nil,
+                    onDelete: canManage ? { item in Task { do { _ = try await session.api.deleteExercise(id: item.id); await load(); selectedExercise = nil } catch { error = error.localizedDescription } } } : nil,
+                    onShareTrainer: hasTrainer && !canManage ? { item in Task { do { _ = try await session.api.shareToTrainer(itemType: "exercise", itemId: item.id) } catch { error = error.localizedDescription } } } : nil,
+                    onShareClient: canManage ? { item in prepareShare(type: "exercise", id: item.id) } : nil
+                )
+            }
+            .navigationDestination(item: $selectedComplex) { complex in
+                TrainerComplexDetailView(
+                    complex: complex,
+                    onEdit: canManage ? { editingComplex = complex; selectedComplex = nil; showComplexEditor = true } : nil,
+                    onSchedule: { planSourceComplex = complex; editingPlan = nil; selectedComplex = nil; showPlanEditor = true },
+                    onDelete: canManage ? {
+                        Task {
+                            do {
+                                _ = try await session.api.deleteComplex(id: complex.id)
+                                await load()
+                                selectedComplex = nil
+                            } catch {
+                                error = error.localizedDescription
+                            }
+                        }
+                    } : nil,
+                    onShareTrainer: hasTrainer && !canManage ? { Task { do { _ = try await session.api.shareToTrainer(itemType: "workout_complex", itemId: complex.id) } catch { error = error.localizedDescription } } } : nil,
+                    onShareClient: canManage ? { prepareShare(type: "workout_complex", id: complex.id) } : nil
+                )
+            }
+            .navigationDestination(item: $selectedEquipment) { item in
+                TrainerEquipmentDetailView(
+                    item: item,
+                    onEdit: canManage ? { editingEquipment = item; selectedEquipment = nil; showEquipmentEditor = true } : nil,
+                    onDelete: canManage ? { Task { do { _ = try await session.api.deleteEquipment(id: item.id); await load(); selectedEquipment = nil } catch { error = error.localizedDescription } } } : nil,
+                    onShareTrainer: hasTrainer && !canManage ? { Task { do { _ = try await session.api.shareToTrainer(itemType: "workout_equipment", itemId: item.id) } catch { error = error.localizedDescription } } } : nil,
+                    onShareClient: canManage ? { prepareShare(type: "workout_equipment", id: item.id) } : nil
+                )
+            }
+        }
+    }
+
+    private func prepareShare(type: String, id: Int) {
+        Task {
+            clients = (try? await session.api.clients()) ?? []
+            shareType = type
+            shareId = id
         }
     }
 
@@ -1581,21 +2301,29 @@ struct FitnessWorkoutsDashboardView: View {
                 if let error { Text(error).foregroundStyle(AstraTheme.danger) }
                 if !planned.isEmpty {
                     Text("Закреплённые тренировки").font(.headline)
-                    ForEach(planned.prefix(3)) { plan in
-                        Button { selectedPlan = plan } label: {
-                            AstraCard {
-                                HStack {
+                    MobileItemGrid(Array(planned.prefix(3))) { plan in
+                        AstraCard {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Button { selectedPlan = plan } label: {
+                                    HStack {
                                     VStack(alignment: .leading, spacing: 5) {
                                         Text(plan.displayName).font(.headline)
                                         Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted)
-                                        Text(plan.items.compactMap(\.name).joined(separator: " · ")).font(.caption).foregroundStyle(AstraTheme.muted)
+                                        Text(plan.items.compactMap { $0.name.displayOrNil }.joined(separator: " · ")).font(.caption).foregroundStyle(AstraTheme.muted)
                                     }
                                     Spacer()
                                     Text("\(plan.items.count) упражн.").font(.caption.weight(.bold)).foregroundStyle(AstraTheme.green)
                                     Image(systemName: "chevron.right").foregroundStyle(AstraTheme.muted)
+                                    }
                                 }
+                                .buttonStyle(.plain)
+                                MobileWorkoutActionButtons(
+                                    onComplete: { Task { do { _ = try await session.api.completeWorkoutPlan(id: plan.id); await load() } catch { error = error.localizedDescription } } },
+                                    onEdit: canManage ? { editingPlan = plan; planSourceComplex = nil; showPlanEditor = true } : nil,
+                                    onCancel: { Task { do { _ = try await session.api.cancelWorkoutPlan(id: plan.id); await load() } catch { error = error.localizedDescription } } }
+                                )
                             }
-                        }.buttonStyle(.plain)
+                        }
                     }
                 }
                 Text("Разделы").font(.headline)
@@ -1603,9 +2331,9 @@ struct FitnessWorkoutsDashboardView: View {
                     workoutCategoryTile(title: "Тренировки", subtitle: "Комплексы и программы", count: plans.count, icon: "bolt.fill", color: AstraTheme.blue) { category = 0 }
                     workoutCategoryTile(title: "Упражнения", subtitle: "Справочник упражнений", count: exercises.count, icon: "figure.strengthtraining.traditional", color: AstraTheme.green) { category = 1 }
                     workoutCategoryTile(title: "Инвентарь", subtitle: "Оборудование и комплексы", count: equipment.count, icon: "dumbbell.fill", color: AstraTheme.amber) { category = 2 }
-                    workoutCategoryTile(title: "История", subtitle: "Завершённые тренировки", count: logs.count, icon: "clock.arrow.circlepath", color: AstraTheme.blue) { category = 3 }
+                    workoutCategoryTile(title: "История", subtitle: "Завершённые тренировки", count: historyPlans.count, icon: "clock.arrow.circlepath", color: AstraTheme.blue) { category = 3 }
                 }
-            }.padding()
+            }.padding(.horizontal, 20).padding(.vertical, 16)
         }
     }
 
@@ -1620,6 +2348,133 @@ struct FitnessWorkoutsDashboardView: View {
         }.buttonStyle(.plain)
     }
 
+    @ViewBuilder private func categoryGridPage(_ value: Int) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Button { category = nil } label: { Label("Back", systemImage: "chevron.left") }
+                Spacer()
+                Text(["Workouts", "Exercises", "Equipment", "History"][value]).font(.headline)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
+            Group {
+                if value == 0 {
+                    ScrollView { MobileItemGrid(planned) { plan in
+                        AstraCard {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Button { selectedPlan = plan } label: {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(plan.displayName).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(2)
+                                    Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted)
+                                    Text("\(plan.items.count)").font(.title3.weight(.bold)).foregroundStyle(AstraTheme.green)
+                                    Text(plan.status).font(.caption2).foregroundStyle(AstraTheme.muted)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .buttonStyle(.plain)
+                            MobileWorkoutActionButtons(
+                                onComplete: plan.status == "planned" ? { Task { do { _ = try await session.api.completeWorkoutPlan(id: plan.id); await load() } catch { error = error.localizedDescription } } } : nil,
+                                onEdit: canManage ? { editingPlan = plan; planSourceComplex = nil; showPlanEditor = true } : nil,
+                                onCancel: plan.status == "planned" ? { Task { do { _ = try await session.api.cancelWorkoutPlan(id: plan.id); await load() } catch { error = error.localizedDescription } } } : nil,
+                                onRepeat: plan.isHistory ? { editingPlan = WorkoutPlan(id: 0, scheduledAt: plan.scheduledAt, durationMinutes: plan.durationMinutes, status: "planned", completedAt: nil, items: plan.items, name: plan.name); planSourceComplex = nil; showPlanEditor = true } : nil,
+                                onDelete: plan.status == "canceled" ? { Task { do { _ = try await session.api.deleteWorkoutPlan(id: plan.id); await load() } catch { error = error.localizedDescription } } } : nil
+                            )
+                            .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
+                        }
+                    }.padding(.horizontal, 20).padding(.vertical, 8) }
+                } else if value == 1 {
+                    MobileExerciseCatalogView(
+                        exercises: exercises,
+                        canManage: canManage,
+                        hasTrainer: hasTrainer,
+                        onSelect: { selectedExercise = $0 },
+                        onAdd: { editingExercise = nil; showExerciseEditor = true },
+                        onEdit: { editingExercise = $0; showExerciseEditor = true },
+                        onDelete: { exercise in Task { do { _ = try await session.api.deleteExercise(id: exercise.id); await load() } catch { error = error.localizedDescription } } },
+                        onShareTrainer: { exercise in Task { do { _ = try await session.api.shareToTrainer(itemType: "exercise", itemId: exercise.id) } catch { error = error.localizedDescription } } },
+                        onShareClient: { prepareShare(type: "exercise", id: $0.id) }
+                    )
+                } else if value == 2 {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Equipment").font(.headline)
+                            MobileItemGrid(equipment) { item in
+                                AstraCard {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Button { selectedEquipment = item } label: {
+                                            VStack(alignment: .leading, spacing: 6) {
+                                                Image(systemName: item.kind == "machine" ? "figure.strengthtraining.traditional" : "dumbbell.fill").foregroundStyle(AstraTheme.green)
+                                                Text(item.name).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(2)
+                                                Text(item.description.displayOr(item.kind)).font(.caption).foregroundStyle(AstraTheme.muted).lineLimit(3)
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        }
+                                        .buttonStyle(.plain)
+                                        MobileWorkoutActionButtons(
+                                            onEdit: canManage ? { editingEquipment = item; selectedEquipment = nil; showEquipmentEditor = true } : nil,
+                                            onDelete: canManage ? { Task { do { _ = try await session.api.deleteEquipment(id: item.id); await load() } catch { error = error.localizedDescription } } } : nil,
+                                            onShareTrainer: hasTrainer && !canManage ? { Task { do { _ = try await session.api.shareToTrainer(itemType: "workout_equipment", itemId: item.id) } catch { error = error.localizedDescription } } } : nil,
+                                            onShareClient: canManage ? { prepareShare(type: "workout_equipment", id: item.id) } : nil
+                                        )
+                                        .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
+                                    }
+                                }
+                            }
+                            Text("Complexes").font(.headline).padding(.top, 4)
+                            MobileItemGrid(complexes) { complex in
+                                AstraCard {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Button { selectedComplex = complex } label: {
+                                            VStack(alignment: .leading, spacing: 6) {
+                                                Image(systemName: "rectangle.3.group.fill").foregroundStyle(AstraTheme.blue)
+                                                Text(complex.name).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(2)
+                                                Text("\(complex.items.count) упражнений").font(.caption).foregroundStyle(AstraTheme.green)
+                                            }
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        }
+                                        .buttonStyle(.plain)
+                                        MobileWorkoutActionButtons(
+                                            onEdit: canManage ? { editingComplex = complex; selectedComplex = nil; showComplexEditor = true } : nil,
+                                            onSchedule: { planSourceComplex = complex; editingPlan = nil; selectedComplex = nil; showPlanEditor = true },
+                                            onDelete: canManage ? { Task { do { _ = try await session.api.deleteComplex(id: complex.id); await load() } catch { error = error.localizedDescription } } } : nil,
+                                            onShareTrainer: hasTrainer && !canManage ? { Task { do { _ = try await session.api.shareToTrainer(itemType: "workout_complex", itemId: complex.id) } catch { error = error.localizedDescription } } } : nil,
+                                            onShareClient: canManage ? { prepareShare(type: "workout_complex", id: complex.id) } : nil
+                                        )
+                                        .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 8)
+                    }
+                } else {
+                    ScrollView { MobileItemGrid(historyPlans) { plan in
+                        AstraCard {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Button { selectedPlan = plan } label: {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(plan.displayName).font(.headline).foregroundStyle(AstraTheme.ink).lineLimit(2)
+                                    Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted)
+                                    Text("\(plan.items.count) упражнений · \(plan.historyStatus)").font(.caption).foregroundStyle(AstraTheme.muted)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .buttonStyle(.plain)
+                                MobileWorkoutActionButtons(
+                                    onRepeat: { editingPlan = WorkoutPlan(id: 0, scheduledAt: plan.scheduledAt, durationMinutes: plan.durationMinutes, status: "planned", completedAt: nil, items: plan.items, name: plan.name); planSourceComplex = nil; showPlanEditor = true },
+                                    onDelete: plan.status == "canceled" ? { Task { do { _ = try await session.api.deleteWorkoutPlan(id: plan.id); await load() } catch { error = error.localizedDescription } } } : nil
+                                )
+                                .frame(maxWidth: .infinity, minHeight: 132, alignment: .topLeading)
+                            }
+                        }
+                    }.padding(.horizontal, 20).padding(.vertical, 8) }
+                }
+            }
+        }
+    }
+
     @ViewBuilder private func categoryPage(_ value: Int) -> some View {
         VStack(spacing: 0) {
             HStack { Button { category = nil } label: { Label("Разделы", systemImage: "chevron.left") }; Spacer(); Text(["Тренировки", "Упражнения", "Инвентарь", "История"][value]).font(.headline); Spacer() }.padding(.horizontal).padding(.vertical, 8)
@@ -1629,17 +2484,17 @@ struct FitnessWorkoutsDashboardView: View {
                 List(exercises) { exercise in Button { selectedExercise = exercise } label: { trainerListRow(icon: "figure.strengthtraining.traditional", title: exercise.name, subtitle: "\(exercise.muscleGroup ?? "Другое") · \(exercise.defaultSets.display) подхода × \(exercise.defaultReps.display) повторений") }.buttonStyle(.plain) }
             } else if value == 2 {
                 List {
-                    Section("Оборудование") { ForEach(equipment) { item in Button { selectedEquipment = item } label: { trainerListRow(icon: item.kind == "machine" ? "figure.strengthtraining.traditional" : "dumbbell.fill", title: item.name, subtitle: item.description ?? (item.kind == "machine" ? "Тренажёр" : "Инвентарь")) }.buttonStyle(.plain) } }
+                    Section("Оборудование") { ForEach(equipment) { item in Button { selectedEquipment = item } label: { trainerListRow(icon: item.kind == "machine" ? "figure.strengthtraining.traditional" : "dumbbell.fill", title: item.name, subtitle: item.description.displayOr(item.kind == "machine" ? "Тренажёр" : "Инвентарь")) }.buttonStyle(.plain) } }
                     Section("Комплексы") { ForEach(complexes) { complex in Button { selectedComplex = complex } label: { trainerListRow(icon: "rectangle.3.group.fill", title: complex.name, subtitle: "\(complex.items.count) упражнений") }.buttonStyle(.plain) } }
                 }
             } else {
-                List(logs) { workout in Button { selectedWorkout = workout } label: { HStack { VStack(alignment: .leading) { Text(workout.name).font(.headline); Text("\(workout.performedAt) · \(workout.sets.display) подходов × \(workout.reps.display) повторений").font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); Image(systemName: "chevron.right") } }.buttonStyle(.plain) }
+                List(historyPlans) { plan in Button { selectedPlan = plan } label: { HStack { VStack(alignment: .leading) { Text(plan.displayName).font(.headline); Text(plan.scheduledAt).font(.caption).foregroundStyle(AstraTheme.muted); Text("\(plan.items.count) упражнений · \(plan.historyStatus)").font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); Image(systemName: "chevron.right") } }.buttonStyle(.plain) }
             }
         }
     }
 
     @ViewBuilder private func trainerListRow(icon: String, title: String, subtitle: String) -> some View { HStack { Image(systemName: icon).foregroundStyle(AstraTheme.green); VStack(alignment: .leading) { Text(title).font(.headline); Text(subtitle).font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); Image(systemName: "chevron.right").foregroundStyle(AstraTheme.muted) } }
-    private func load() async { do { async let p = session.api.workoutPlans(); async let l = session.api.workouts(); async let e = session.api.exercises(); async let c = session.api.workoutComplexes(); async let i = session.api.workoutEquipment(); plans = try await p; logs = try await l; exercises = try await e; complexes = try await c; equipment = try await i; error = nil } catch { error = error.localizedDescription } }
+    private func load() async { do { async let p = session.api.workoutPlans(); async let l = session.api.workouts(); async let e = session.api.exercises(); async let c = session.api.workoutComplexes(); async let i = session.api.workoutEquipment(); plans = try await p; logs = try await l; exercises = try await e; complexes = try await c; equipment = try await i; if !canManage { hasTrainer = (try? await session.api.myTrainerChat()).map { $0.trainer != nil } ?? false }; error = nil } catch { error = error.localizedDescription } }
 }
 
 struct FitnessWorkoutsView: View {
@@ -1667,7 +2522,7 @@ struct FitnessWorkoutsView: View {
                     } else if section == 1 {
                         List(exercises) { exercise in VStack(alignment: .leading, spacing: 5) { Text(exercise.name).font(.headline); Text("\(exercise.muscleGroup ?? "Другое") · \(exercise.defaultSets.display) подхода × \(exercise.defaultReps.display) повторений").font(.caption).foregroundStyle(AstraTheme.muted) } }
                     } else if section == 2 {
-                        List(complexes) { complex in VStack(alignment: .leading, spacing: 5) { Text(complex.name).font(.headline); Text("\(complex.items.count) упражнений").font(.caption).foregroundStyle(AstraTheme.muted); if let comment = complex.comment { Text(comment).font(.footnote) } } }
+                        List(complexes) { complex in VStack(alignment: .leading, spacing: 5) { Text(complex.name).font(.headline); Text("\(complex.items.count) упражнений").font(.caption).foregroundStyle(AstraTheme.muted); if let comment = complex.comment.displayOrNil { Text(comment).font(.footnote) } } }
                     } else {
                         List(equipment) { item in HStack { Image(systemName: item.kind == "machine" ? "figure.strengthtraining.traditional" : "dumbbell.fill").foregroundStyle(AstraTheme.green); VStack(alignment: .leading) { Text(item.name).font(.headline); Text(item.kind == "machine" ? "Тренажёр" : "Инвентарь").font(.caption).foregroundStyle(AstraTheme.muted) } } }
                     }
@@ -1960,8 +2815,8 @@ struct DiaryFoodPickerMobileView: View {
                     HStack(spacing: 10) { Image(systemName: "magnifyingglass").foregroundStyle(AstraTheme.blue); TextField("Поиск", text: $search).textFieldStyle(.plain) }.padding(.horizontal, 16).frame(height: 42).background(AstraTheme.surface).clipShape(Capsule()).overlay(Capsule().stroke(AstraTheme.line, lineWidth: 1))
                     HStack(spacing: 8) { ForEach(tabs, id: \.self) { item in if item == "Новое" { NavigationLink { DiaryEntryEditorMobileView(initial: nil, initialDate: date, products: products, recipes: recipes, presetKind: "custom", onSaved: onSaved) } label: { diaryPickerPill(item, active: false) }.buttonStyle(.plain) } else { Button { tab = item } label: { diaryPickerPill(item, active: tab == item) }.buttonStyle(.plain) } } }
                     HStack(alignment: .top) { VStack(alignment: .leading, spacing: 3) { Text("Выберите запись").font(.headline); Text("Нажмите на карточку, чтобы указать количество").font(.caption).foregroundStyle(AstraTheme.muted) }; Spacer(); Button("Отмена") { dismiss() }.font(.caption.weight(.bold)) }
-                    if tab == "Блюда" || tab == "Все" { ForEach(filteredRecipes) { recipe in NavigationLink { DiaryEntryEditorMobileView(initial: nil, initialDate: date, products: products, recipes: recipes, presetRecipeID: recipe.id, onSaved: onSaved) } label: { diaryPickerCard(icon: "fork.knife.circle.fill", title: recipe.name, detail: "\(recipe.category) · \(recipe.kcalPerServing.display) ккал · Б \(recipe.proteinPerServingG.display) г", color: AstraTheme.blue) }.buttonStyle(.plain) } }
-                    if tab == "Продукты" || tab == "Все" { ForEach(filteredProducts) { product in NavigationLink { DiaryEntryEditorMobileView(initial: nil, initialDate: date, products: products, recipes: recipes, presetProductID: product.id, onSaved: onSaved) } label: { diaryPickerCard(icon: "carrot.fill", title: product.name, detail: "\(product.category ?? "Без категории") · \(product.kcal.display) ккал · Б \(product.proteinG.display) г", color: AstraTheme.blue) }.buttonStyle(.plain) } }
+                    if tab == "Блюда" || tab == "Все" { MobileItemGrid(filteredRecipes) { recipe in NavigationLink { DiaryEntryEditorMobileView(initial: nil, initialDate: date, products: products, recipes: recipes, presetRecipeID: recipe.id, onSaved: onSaved) } label: { diaryPickerCard(icon: "fork.knife.circle.fill", title: recipe.name, detail: "\(recipe.category) · \(recipe.kcalPerServing.display) ккал · Б \(recipe.proteinPerServingG.display) г", color: AstraTheme.blue) }.buttonStyle(.plain) } }
+                    if tab == "Продукты" || tab == "Все" { MobileItemGrid(filteredProducts) { product in NavigationLink { DiaryEntryEditorMobileView(initial: nil, initialDate: date, products: products, recipes: recipes, presetProductID: product.id, onSaved: onSaved) } label: { diaryPickerCard(icon: "carrot.fill", title: product.name, detail: "\(product.category ?? "Без категории") · \(product.kcal.display) ккал · Б \(product.proteinG.display) г", color: AstraTheme.blue) }.buttonStyle(.plain) } }
                 }
                 .padding(20)
             }

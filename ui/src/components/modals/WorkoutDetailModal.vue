@@ -46,11 +46,12 @@ const statusLabel = computed(() => {
           <span>{{ item.sets != null ? `${item.sets} подход.` : '' }}<template v-if="item.duration_minutes != null"> · {{ item.duration_minutes }} мин</template><template v-if="item.speed_kmh != null"> · {{ fmt(item.speed_kmh) }} км/ч</template></span>
         </article>
       </div>
-      <div class="workout-detail-actions">
+      <div class="actions workout-detail-actions">
+        <button v-if="plan.status === 'planned'" type="button" class="danger-button delete-workout" @click="emit('cancel', plan)">Отменить</button>
+        <button type="button" @click="emit('close')">Закрыть</button>
         <button v-if="plan.status === 'planned'" type="button" class="edit-workout" @click="emit('edit', plan)">✎ Редактировать</button>
-        <button v-if="plan.status === 'planned'" type="button" class="complete-plan" @click="emit('complete', plan)">Выполнено</button>
-        <button v-if="plan.status === 'planned'" type="button" class="delete-workout" @click="emit('cancel', plan)">Отменить</button>
-        <button v-if="plan.status !== 'planned'" type="button" class="edit-workout" @click="emit('repeat', plan)">↻ Повторить</button>
+        <button v-if="plan.status === 'planned'" type="button" class="primary" @click="emit('complete', plan)">Выполнено</button>
+        <button v-if="plan.status !== 'planned'" type="button" class="primary" @click="emit('repeat', plan)">↻ Повторить</button>
       </div>
     </div>
   </ModalDialog>
@@ -71,8 +72,7 @@ const statusLabel = computed(() => {
 .workout-detail-items small, .workout-detail-items article > span:last-child { color: var(--muted); font-size: 10px; }
 .workout-detail-items article > strong { font-size: 12px; white-space: nowrap; }
 .workout-detail-index { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: #e9ddff; color: var(--purple); font-weight: 850; }
-.workout-detail-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 18px; }
-.workout-detail-actions button { min-width: 120px; }
+.workout-detail-actions { margin-top: 18px; }
 @media (max-width: 650px) {
   .workout-detail-items article { grid-template-columns: 30px minmax(0, 1fr); }
   .workout-detail-items article > strong, .workout-detail-items article > span:last-child { grid-column: 2; }

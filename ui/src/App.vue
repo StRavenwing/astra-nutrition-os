@@ -4077,7 +4077,6 @@ body .progress-latest-card dl > div { display: flex; justify-content: space-betw
 body .progress-latest-card dt { color: #aab6c8; font-size: 11px; }
 body .progress-latest-card dd { margin: 0; color: #fff; font-size: 13px; font-weight: 800; }
 body .progress-latest-edit { width: 100%; min-height: 38px; margin-top: 24px; border: 0; border-radius: 10px; background: #bdf2d3; color: #172033; font-size: 11px; font-weight: 800; cursor: pointer; }
-body .progress-details-link { margin-top: 18px; padding: 0; border: 0; background: transparent; color: #bdf2d3; font-size: 11px; cursor: pointer; }
 body .progress-history-head { align-items: end; margin-top: 56px; }
 body .progress-history-head h3 { margin: 0 0 5px; font-size: 19px; }
 body .progress-history-head .eyebrow { margin: 0; }
@@ -4127,8 +4126,6 @@ body .workout-complex-actions .create-complex-button { flex: 1; min-height: 36px
 body .workout-complex-actions .icon-action { flex: 0 0 36px; }
 body .exercise-card-actions .primary { flex: 1; }
 body .equipment-card-actions .primary { width: 100%; }
-body .progress-latest-card .progress-details-link { width: 36px; min-width: 36px; height: 36px; min-height: 36px; margin-top: 18px; padding: 0; border: 1px solid #344057; border-radius: 10px; background: #222d42; color: #bdf2d3; font-size: 16px; }
-body .progress-latest-card .progress-details-link:hover { border-color: #bdf2d3; background: #2d3a52; }
 body .article-card-primary { width: 100%; margin-top: 12px; }
 body .article-card .article-card-actions { display: flex; justify-content: flex-end; gap: 8px; min-height: 36px; margin-top: 8px; }
 body .article-card .article-card-actions .icon-action { flex: 0 0 36px; width: 36px; min-height: 36px; height: 36px; padding: 0; }
@@ -5384,5 +5381,115 @@ body main .product-catalog-layout > .product-grid > .product-add-card.recipe-add
   body main .archive-history-groups .archive-workout-grid { grid-template-columns: 1fr !important; }
   body main .archive-history-layout > .history-statistics-card { display: grid; grid-template-columns: 1fr; gap: 8px; }
   body main .product-catalog-layout > .product-grid > .product-add-card.recipe-add-card { width: 100% !important; min-width: 0 !important; max-width: none !important; }
+}
+
+/* Modal actions: destructive actions stay left, navigation and primary actions stay right. */
+body dialog .actions {
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid #edf0f5;
+}
+body dialog .actions > .danger-button { margin-right: auto; }
+body dialog .actions > .danger-button,
+body dialog .actions > button {
+  box-sizing: border-box;
+  min-height: 40px;
+  height: 40px;
+  border-radius: 10px;
+  padding: 0 14px;
+  font-size: 11px;
+  font-weight: 800;
+}
+body dialog .actions > .danger-button {
+  border: 1px solid #f3a59a !important;
+  background: #fff0ed !important;
+  color: #d56666 !important;
+}
+body dialog .actions > button:not(.primary):not(.danger-button) {
+  border: 1px solid #e5eaf2;
+  background: #fff;
+  color: #172033;
+}
+body dialog .actions > button.primary {
+  border: 0;
+  background: #172033;
+  color: #fff;
+}
+body dialog .actions > button:hover { transform: translateY(-1px); }
+body dialog .modal-extra-actions {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #edf0f5;
+}
+body dialog .modal-extra-actions .send-client-control,
+body dialog .modal-extra-actions .send-client-button { width: 100%; }
+body dialog .modal-extra-actions .send-client-button {
+  min-height: 40px;
+  border: 1px solid #79a8ff;
+  border-radius: 10px;
+  background: #eaf2ff;
+  color: #6f82ff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+@media (max-width: 640px) {
+  body dialog .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  body dialog .actions > .danger-button {
+    order: 3;
+    width: 100%;
+    margin-right: 0;
+  }
+  body dialog .actions > button:not(.danger-button) { width: 100%; }
+  body dialog .actions > button.primary { order: 1; }
+  body dialog .actions > button:not(.primary):not(.danger-button) { order: 2; }
+}
+
+/* Current progress card: one primary action with compact sharing controls. */
+body main .progress-latest-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 32px;
+  margin-top: 24px;
+}
+body main .progress-latest-actions .progress-latest-edit {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  height: 32px;
+  min-height: 32px;
+  margin-top: 0;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 11px;
+}
+body main .progress-latest-actions > .send-client-control,
+body main .progress-latest-actions > .send-trainer-control {
+  flex: 0 0 32px;
+  width: 32px;
+  min-width: 32px;
+  margin-top: 0;
+}
+body main .progress-latest-actions .send-client-button.compact,
+body main .progress-latest-actions .send-trainer-button.compact {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+}
+@media (max-width: 650px) {
+  body main .progress-latest-actions { flex-wrap: wrap; }
+  body main .progress-latest-actions .progress-latest-edit { flex-basis: 100%; }
 }
 </style>
