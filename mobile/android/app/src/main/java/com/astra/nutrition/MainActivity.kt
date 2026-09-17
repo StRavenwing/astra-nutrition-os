@@ -759,6 +759,23 @@ private val androidMealOrder = listOf("Завтрак", "Обед", "Ужин", 
 private data class AndroidDiaryTotals(val kcal: Double, val protein: Double, val fat: Double, val carbs: Double, val cost: Double)
 private fun diaryTotalsAndroid(items: List<DiaryEntry>) = AndroidDiaryTotals(items.sumOf { it.kcal ?: 0.0 }, items.sumOf { it.protein ?: 0.0 }, items.sumOf { it.fat ?: 0.0 }, items.sumOf { it.carbs ?: 0.0 }, items.sumOf { it.cost ?: 0.0 })
 private fun Double?.diaryShown(suffix: String = ""): String { val value = this ?: 0.0; return if (value % 1.0 == 0.0) "${value.toInt()}$suffix" else "${"%.1f".format(Locale.US, value)}$suffix" }
+@Composable
+private fun DiaryAverageMetric(label: String, value: Double, unit: String, target: Double?, color: Color) {
+    val delta = target?.minus(value)?.let { kotlin.math.round(it) }
+    Column(
+        Modifier.fillMaxWidth().background(color.copy(alpha = .12f), RoundedCornerShape(12.dp)).padding(11.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Text(label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AstraTheme.muted, maxLines = 1)
+        Text(value.diaryShown(" $unit"), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = color)
+        if (target != null) {
+            Text("Цель ${target.diaryShown(" $unit")}", fontSize = 10.sp, color = AstraTheme.muted)
+            Text("${if ((delta ?: 0.0) >= 0) "−" else "+"}${kotlin.math.abs(delta ?: 0.0).diaryShown(" $unit")}", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if ((delta ?: 0.0) >= 0) AstraTheme.green else AstraTheme.danger)
+        } else {
+            Text("Цель не задана", fontSize = 10.sp, color = AstraTheme.muted)
+        }
+    }
+}
 private fun daysInMonthAndroid(year: Int, month: Int): Int = Calendar.getInstance().apply { set(year, month, 1) }.getActualMaximum(Calendar.DAY_OF_MONTH)
 private fun firstDayOffsetAndroid(year: Int, month: Int): Int = ((Calendar.getInstance().apply { set(year, month, 1) }.get(Calendar.DAY_OF_WEEK) + 5) % 7)
 private fun shiftMonthAndroid(value: String, delta: Int): String { val parts = value.split('-').map { it.toInt() }; val calendar = Calendar.getInstance().apply { set(parts[0], parts[1] - 1, 1); add(Calendar.MONTH, delta) }; return "%04d-%02d".format(Locale.US, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH) + 1) }
@@ -769,10 +786,11 @@ fun DiaryCalendarScreen(state: AstraState) {
     var entries by remember { mutableStateOf<List<DiaryEntry>>(emptyList()) }
     var products by remember { mutableStateOf<List<Product>>(emptyList()) }
     var recipes by remember { mutableStateOf<List<Recipe>>(emptyList()) }
+    var progress by remember { mutableStateOf<List<ProgressEntry>>(emptyList()) }
     var month by rememberSaveable { mutableStateOf(today().take(7)) }
     var editingDate by rememberSaveable { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    suspend fun load() { suspendResult { entries = state.api.diary(); products = state.api.products(); recipes = state.api.recipes(); error = null }.onFailure { error = it.message } }
+    suspend fun load() { suspendResult { entries = state.api.diary(); products = state.api.products(); recipes = state.api.recipes(); progress = state.api.progress(); error = null }.onFailure { error = it.message } }
     LaunchedEffect(Unit) { load() }
     val date = editingDate
     if (date != null) DiaryDayEditorScreen(state, date, entries.filter { it.date == date }, products, recipes, { editingDate = null }, { load() })
@@ -784,8 +802,38 @@ fun DiaryCalendarScreen(state: AstraState) {
         val monthIndex = parts.getOrElse(1) { 1 } - 1
         val days = daysInMonthAndroid(year, monthIndex)
         val offset = firstDayOffsetAndroid(year, monthIndex)
-        val filledDays = entries.filter { it.date.startsWith(month) }.map { it.date }.toSet().size
+        val monthEntries = entries.filter { it.date.startsWith(month) }
+        val monthTotals = diaryTotalsAndroid(monthEntries)
+        val filledDays = monthEntries.map { it.date }.toSet().size
+        val averageDays = filledDays.coerceAtLeast(1)
+        val latestProgress = progress.firstOrNull()
+        val calculationWeight = listOf(latestProgress?.desiredWeight, latestProgress?.weight).firstOrNull { it != null && it > 0 }
+        val proteinTarget = latestProgress?.proteinTarget ?: calculationWeight?.times(2)
+        val fatTarget = latestProgress?.fatTarget ?: calculationWeight
+        val carbsTarget = latestProgress?.carbsTarget ?: calculationWeight?.times(3)
+        val kcalTarget = latestProgress?.kcalTarget ?: if (proteinTarget != null && fatTarget != null && carbsTarget != null) proteinTarget * 4 + fatTarget * 9 + carbsTarget * 4 else null
         LazyColumn(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            item {
+                AstraCard {
+                    Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.Top) {
+                            Column(Modifier.weight(1f)) {
+                                Text("СРЕДНИЕ ПОКАЗАТЕЛИ МЕСЯЦА", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AstraTheme.green)
+                                Text("Питание в среднем за заполненный день", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                            }
+                            Text("$filledDays заполненных дней", fontSize = 10.sp, color = AstraTheme.muted, textAlign = TextAlign.End)
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Box(Modifier.weight(1f)) { DiaryAverageMetric("Калории", monthTotals.kcal / averageDays, "ккал", kcalTarget, AstraTheme.blue) }
+                            Box(Modifier.weight(1f)) { DiaryAverageMetric("Белок", monthTotals.protein / averageDays, "г", proteinTarget, AstraTheme.green) }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Box(Modifier.weight(1f)) { DiaryAverageMetric("Жиры", monthTotals.fat / averageDays, "г", fatTarget, AstraTheme.amber) }
+                            Box(Modifier.weight(1f)) { DiaryAverageMetric("Углеводы", monthTotals.carbs / averageDays, "г", carbsTarget, AstraTheme.blue) }
+                        }
+                    }
+                }
+            }
             item { AstraCard { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("FOOD CALENDAR", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AstraTheme.green); Text("Сегодня · ${today()}", fontSize = 20.sp, fontWeight = FontWeight.Bold) }; Button({ editingDate = today() }) { Text("Сегодня") } }; Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { Metric("Заполнено дней", filledDays.toString(), AstraTheme.green); Metric("Ккал", todayTotals.kcal.diaryShown(), AstraTheme.blue); Metric("Белок", todayTotals.protein.diaryShown(" г"), AstraTheme.green) }; Text("${todayEntries.size} записей · ${todayTotals.fat.diaryShown(" г жиров")} · ${todayTotals.carbs.diaryShown(" г углеводов")}", color = AstraTheme.muted, fontSize = 12.sp) } } }
             item { AstraCard { Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("ТЕКУЩИЙ ДЕНЬ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AstraTheme.blue); Text("Питание по приёмам", fontSize = 18.sp, fontWeight = FontWeight.Bold) }; TextButton({ editingDate = today() }) { Text("Изменить") } }; if (todayEntries.isEmpty()) Text("Записей пока нет — откройте день и добавьте блюдо или продукт.", color = AstraTheme.muted) else for (meal in androidMealOrder) { val mealEntries = todayEntries.filter { it.meal == meal }; if (mealEntries.isNotEmpty()) Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) { Text(meal.take(1), modifier = Modifier.size(30.dp).background(AstraTheme.green.copy(alpha = .14f), RoundedCornerShape(10.dp)).padding(7.dp), color = AstraTheme.green, fontWeight = FontWeight.Bold); Column(Modifier.weight(1f).padding(horizontal = 10.dp)) { Text(meal, fontWeight = FontWeight.Bold); Text(mealEntries.joinToString(" · ") { it.name ?: "Без названия" }, color = AstraTheme.muted, fontSize = 12.sp) }; Text(diaryTotalsAndroid(mealEntries).kcal.diaryShown(" ккал"), color = AstraTheme.blue, fontWeight = FontWeight.Bold, fontSize = 12.sp) } } } } }
             item { Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("КАЛЕНДАРЬ ПИТАНИЯ", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = AstraTheme.green); Text("Нажмите на день для редактирования", fontSize = 18.sp, fontWeight = FontWeight.Bold) }; TextButton({ month = shiftMonthAndroid(month, -1) }) { Text("‹") }; TextButton({ month = today().take(7) }) { Text("Сегодня") }; TextButton({ month = shiftMonthAndroid(month, 1) }) { Text("›") } } }

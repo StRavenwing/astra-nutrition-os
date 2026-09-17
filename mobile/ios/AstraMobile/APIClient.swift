@@ -101,6 +101,7 @@ final class APIClient {
     func workoutEquipment() async throws -> [WorkoutEquipment] { try await request("workout-equipment") }
     func workoutComplexes() async throws -> [WorkoutComplex] { try await request("workout-complexes") }
     func categories(kind: String) async throws -> [ContentCategory] { try await request("categories?kind=\(kind.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? kind)") }
+    func createCategory(_ payload: JSONPayload) async throws -> ContentCategory { try await request("categories", method: "POST", body: payload) }
     func articleSections() async throws -> [ArticleSection] { try await request("article-sections") }
     func articles() async throws -> [Article] { try await request("articles") }
     func myTrainer() async throws -> TrainerInfoResponse { try await request("clients/me/trainer") }

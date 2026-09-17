@@ -1,4 +1,84 @@
 import SwiftUI
+import Foundation
+import PhotosUI
+import UniformTypeIdentifiers
+
+private func mobileDataURL(_ data: Data, contentType: UTType?, fallbackMimeType: String) -> String {
+    let mimeType = contentType?.preferredMIMEType ?? fallbackMimeType
+    return "data:\(mimeType);base64,\(data.base64EncodedString())"
+}
+
+private struct MobileImagePickerButton: View {
+    let label: String
+    let enabled: Bool
+    let maxSelectionCount: Int
+    let onPicked: ([String]) -> Void
+    let onError: (String) -> Void
+    @State private var selection: [PhotosPickerItem] = []
+
+    init(label: String, enabled: Bool = true, maxSelectionCount: Int = 6, onPicked: @escaping ([String]) -> Void, onError: @escaping (String) -> Void) {
+        self.label = label
+        self.enabled = enabled
+        self.maxSelectionCount = maxSelectionCount
+        self.onPicked = onPicked
+        self.onError = onError
+    }
+
+    var body: some View {
+        PhotosPicker(selection: $selection, maxSelectionCount: maxSelectionCount, matching: .images) {
+            Text(label).lineLimit(1)
+        }
+        .buttonStyle(.bordered)
+        .disabled(!enabled)
+        .onChange(of: selection) { _, newItems in
+            guard !newItems.isEmpty else { return }
+            Task {
+                do {
+                    var values: [String] = []
+                    for item in newItems {
+                        guard let data = try await item.loadTransferable(type: Data.self) else { continue }
+                        values.append(mobileDataURL(data, contentType: item.supportedContentTypes.first, fallbackMimeType: "image/jpeg"))
+                    }
+                    if values.isEmpty { throw MobileMediaError.emptySelection }
+                    await MainActor.run { onPicked(values); selection = [] }
+                } catch {
+                    await MainActor.run { onError(error.localizedDescription); selection = [] }
+                }
+            }
+        }
+    }
+}
+
+private struct MobileVideoPickerButton: View {
+    let label: String
+    let onPicked: (String) -> Void
+    let onError: (String) -> Void
+    @State private var selection: PhotosPickerItem?
+
+    var body: some View {
+        PhotosPicker(selection: $selection, matching: .videos) {
+            Text(label).lineLimit(1)
+        }
+        .buttonStyle(.bordered)
+        .onChange(of: selection) { _, newItem in
+            guard let newItem else { return }
+            Task {
+                do {
+                    guard let data = try await newItem.loadTransferable(type: Data.self) else { throw MobileMediaError.emptySelection }
+                    let value = mobileDataURL(data, contentType: newItem.supportedContentTypes.first, fallbackMimeType: "video/mp4")
+                    await MainActor.run { onPicked(value); selection = nil }
+                } catch {
+                    await MainActor.run { onError(error.localizedDescription); selection = nil }
+                }
+            }
+        }
+    }
+}
+
+private enum MobileMediaError: LocalizedError {
+    case emptySelection
+    var errorDescription: String? { "Не удалось прочитать выбранный файл" }
+}
 
 private struct MobileMenuItem: Identifiable {
     let id: AppTab
@@ -57,8 +137,8 @@ struct MobileMainView: View {
         case .trainer: TrainerView()
         case .diary: DiaryCalendarView()
         case .workouts: FitnessWorkoutsDashboardView()
-        case .products: ProductsView()
-        case .recipes: RecipesView()
+        case .products: CatalogMobileView(initialMode: 0)
+        case .recipes: CatalogMobileView(initialMode: 1)
         case .information: InformationView()
         case .settings: ProfileReferenceView(tab: $tab)
         case .catalog: CatalogMobileView()
@@ -476,7 +556,7 @@ struct MoreMobileView: View {
 
 struct CatalogMobileView: View {
     @EnvironmentObject private var session: SessionStore
-    @State private var mode = 0
+    @State private var mode: Int
     @State private var products: [Product] = []
     @State private var recipes: [Recipe] = []
     @State private var productCategories: [ContentCategory] = []
@@ -488,10 +568,19 @@ struct CatalogMobileView: View {
     @State private var editingRecipe: Recipe?
     @State private var showProductEditor = false
     @State private var showRecipeEditor = false
+    @State private var showCategoryEditor = false
     @State private var showCatalogManage = false
     @State private var shareType: String?
     @State private var shareId: Int?
     @State private var clients: [ClientSummary] = []
+
+    init(initialMode: Int = 0) {
+        _mode = State(initialValue: initialMode)
+    }
+
+    private var canManageProducts: Bool { session.user?.isAdmin == true }
+    private var canManageRecipes: Bool { session.user?.isAdmin == true || session.user?.isTrainer == true }
+    private var canManageCatalog: Bool { canManageProducts || canManageRecipes }
 
     private var productCategoryNames: [String] { ["Все"] + productCategories.map(\.name) }
     private var recipeCategoryNames: [String] { ["Все"] + recipeCategories.map(\.name) }
@@ -542,13 +631,14 @@ struct CatalogMobileView: View {
             .searchable(text: $search, prompt: "Поиск в каталоге")
             .navigationTitle("Каталог")
             .onChange(of: mode) { _, _ in category = "Все" }
-            .toolbar { ToolbarItemGroup(placement: .topBarTrailing) { Button { showCatalogManage = true } label: { Image(systemName: "slider.horizontal.3") }; Button { editingRecipe = nil; showRecipeEditor = true } label: { Image(systemName: "plus") } } }
+            .toolbar { ToolbarItemGroup(placement: .topBarTrailing) { if session.user != nil { Button { showCategoryEditor = true } label: { Image(systemName: "folder.badge.plus") } }; if canManageCatalog { Button { showCatalogManage = true } label: { Image(systemName: "slider.horizontal.3") } }; Button { editingRecipe = nil; showRecipeEditor = true } label: { Image(systemName: "plus") }; if mode == 0 && canManageProducts { Button { editingProduct = nil; showProductEditor = true } label: { Image(systemName: "carrot") } } } }
             .overlay { if products.isEmpty && recipes.isEmpty && error == nil { ProgressView() } }
             .task { await load() }
             .refreshable { await load() }
             .sheet(isPresented: $showProductEditor) { ProductEditorMobileView(existing: editingProduct, onSave: { payload in Task { do { if let editingProduct { _ = try await session.api.updateProduct(id: editingProduct.id, payload: payload) } else { _ = try await session.api.createProduct(payload) }; await load() } catch { error = error.localizedDescription } } }, onDelete: editingProduct == nil ? nil : { if let editingProduct { Task { do { _ = try await session.api.deleteProduct(id: editingProduct.id); await load() } catch { error = error.localizedDescription } } } }) }
             .sheet(isPresented: $showRecipeEditor) { RecipeEditorMobileView(existing: editingRecipe, products: products, onSave: { payload in Task { do { if let editingRecipe { _ = try await session.api.updateRecipe(id: editingRecipe.id, payload: payload) } else { _ = try await session.api.createRecipe(payload) }; await load() } catch { error = error.localizedDescription } } }, onDelete: editingRecipe == nil ? nil : { if let editingRecipe { Task { do { _ = try await session.api.deleteRecipe(id: editingRecipe.id); await load() } catch { error = error.localizedDescription } } } }) }
-            .sheet(isPresented: $showCatalogManage) { CatalogManagementMobileView(products: products, recipes: recipes, onEditProduct: { editingProduct = $0; showProductEditor = true }, onDeleteProduct: { product in Task { do { _ = try await session.api.deleteProduct(id: product.id); await load() } catch { error = error.localizedDescription } } }, onEditRecipe: { editingRecipe = $0; showRecipeEditor = true }, onDeleteRecipe: { recipe in Task { do { _ = try await session.api.deleteRecipe(id: recipe.id); await load() } catch { error = error.localizedDescription } } }, onShare: { type, id in shareType = type; shareId = id; Task { clients = (try? await session.api.clients()) ?? [] } }) }
+            .sheet(isPresented: $showCategoryEditor) { CategoryEditorMobileView(kind: mode == 0 ? "product" : "recipe", isAdmin: session.user?.isAdmin == true) { payload in Task { do { _ = try await session.api.createCategory(payload); await load(); showCategoryEditor = false } catch { error = error.localizedDescription } } } }
+            .sheet(isPresented: $showCatalogManage) { CatalogManagementMobileView(products: products, recipes: recipes, canEditProduct: canManageProducts ? { _ in true } : { _ in false }, canDeleteProduct: canManageProducts ? { _ in true } : { _ in false }, canEditRecipe: canManageRecipes ? { recipe in session.user?.isAdmin == true || recipe.collection == "local" } : { _ in false }, canDeleteRecipe: canManageRecipes ? { recipe in session.user?.isAdmin == true || recipe.collection == "local" } : { _ in false }, onEditProduct: { editingProduct = $0; showProductEditor = true }, onDeleteProduct: { product in Task { do { _ = try await session.api.deleteProduct(id: product.id); await load() } catch { error = error.localizedDescription } } }, onEditRecipe: { editingRecipe = $0; showRecipeEditor = true }, onDeleteRecipe: { recipe in Task { do { _ = try await session.api.deleteRecipe(id: recipe.id); await load() } catch { error = error.localizedDescription } } }, onShare: { type, id in shareType = type; shareId = id; Task { clients = (try? await session.api.clients()) ?? [] } }) }
             .sheet(item: Binding(get: { shareType.map { ShareSelection(type: $0, id: shareId ?? 0) } }, set: { _ in shareType = nil; shareId = nil })) { selection in ShareClientMobileView(clients: clients) { clientId in Task { do { _ = try await session.api.shareToClient(clientId: clientId, itemType: selection.type, itemId: selection.id) } catch { error = error.localizedDescription } } } }
         }
     }
@@ -2041,9 +2131,10 @@ struct ArticleEditorMobileView: View {
     @State private var tags = ""
     @State private var video = ""
     @State private var links = ""
-    @State private var photos = ""
-    var body: some View { NavigationStack { Form { Section("Статья") { if !sections.isEmpty { Picker("Раздел", selection: $sectionId) { ForEach(sections) { Text($0.name).tag($0.id) } } }; TextField("Заголовок", text: $title); TextField("Текст статьи", text: $articleBody, axis: .vertical); TextField("Хэштеги", text: $tags); TextField("Видео URL", text: $video) }; Section("Ссылки") { TextField("Название|URL, по одной в строке", text: $links, axis: .vertical) }; Section("Фото") { TextField("URL через запятую", text: $photos) }; if onDelete != nil { Button("Удалить статью", role: .destructive) { onDelete?() } } }.navigationTitle(existing == nil ? "Новая статья" : "Редактировать статью").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { onSave(payload) }.disabled(sectionId == 0 || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || articleBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) } }.onAppear { sectionId = existing?.sectionId ?? sections.first?.id ?? 0; title = existing?.title ?? ""; articleBody = existing?.body.plainText ?? ""; tags = existing?.tags ?? ""; video = existing?.video ?? ""; links = existing?.links.map { "\($0.title)|\($0.url)" }.joined(separator: "\n") ?? ""; photos = existing?.photos.joined(separator: ", ") ?? "" } } }
-    private var payload: JSONPayload { let linkValues = links.split(separator: "\n").compactMap { line -> JSONPayload? in let values = line.split(separator: "|", maxSplits: 1).map(String.init); guard values.count == 2, !values[0].trimmingCharacters(in: .whitespaces).isEmpty, !values[1].trimmingCharacters(in: .whitespaces).isEmpty else { return nil }; return JSONPayload(values: ["title": AnyEncodable(values[0].trimmingCharacters(in: .whitespaces)), "url": AnyEncodable(values[1].trimmingCharacters(in: .whitespaces))]) }; return JSONPayload(values: ["section_id": AnyEncodable(sectionId), "title": AnyEncodable(title), "body": AnyEncodable(articleBody), "tags": editorOptionalString(tags), "video": editorOptionalString(video), "links": AnyEncodable(linkValues), "photos": AnyEncodable(photos.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty })]) }
+    @State private var photos: [String] = []
+    @State private var mediaError: String?
+    var body: some View { NavigationStack { Form { Section("Статья") { if !sections.isEmpty { Picker("Раздел", selection: $sectionId) { ForEach(sections) { Text($0.name).tag($0.id) } } }; TextField("Заголовок", text: $title); TextField("Текст статьи", text: $articleBody, axis: .vertical); TextField("Хэштеги", text: $tags) }; Section("Медиа") { MobileImagePickerButton(label: "Добавить фото (\(photos.count)/6)", enabled: photos.count < 6, maxSelectionCount: max(1, min(6 - photos.count, 6)), onPicked: { picked in photos = (photos + picked).prefix(6).map { $0 }; mediaError = nil }, onError: { mediaError = $0 }); ForEach(Array(photos.enumerated()), id: \.offset) { index, _ in HStack { Text("Фото \(index + 1)"); Spacer(); Button("Удалить", role: .destructive) { photos.remove(at: index) }.buttonStyle(.borderless) } }; MobileVideoPickerButton(label: video.isEmpty ? "Добавить видео" : "Заменить видео", onPicked: { video = $0; mediaError = nil }, onError: { mediaError = $0 }); if !video.isEmpty { HStack { Text("Видео добавлено"); Spacer(); Button("Удалить", role: .destructive) { video = "" }.buttonStyle(.borderless) } }; if let mediaError { Text(mediaError).foregroundStyle(AstraTheme.danger) } }; Section("Ссылки") { TextField("Название|URL, по одной в строке", text: $links, axis: .vertical) }; if onDelete != nil { Button("Удалить статью", role: .destructive) { onDelete?() } } }.navigationTitle(existing == nil ? "Новая статья" : "Редактировать статью").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { onSave(payload) }.disabled(sectionId == 0 || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || articleBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) } }.onAppear { sectionId = existing?.sectionId ?? sections.first?.id ?? 0; title = existing?.title ?? ""; articleBody = existing?.body.plainText ?? ""; tags = existing?.tags ?? ""; video = existing?.video ?? ""; links = existing?.links.map { "\($0.title)|\($0.url)" }.joined(separator: "\n") ?? ""; photos = existing?.photos ?? [] } } }
+    private var payload: JSONPayload { let linkValues = links.split(separator: "\n").compactMap { line -> JSONPayload? in let values = line.split(separator: "|", maxSplits: 1).map(String.init); guard values.count == 2, !values[0].trimmingCharacters(in: .whitespaces).isEmpty, !values[1].trimmingCharacters(in: .whitespaces).isEmpty else { return nil }; return JSONPayload(values: ["title": AnyEncodable(values[0].trimmingCharacters(in: .whitespaces)), "url": AnyEncodable(values[1].trimmingCharacters(in: .whitespaces))]) }; return JSONPayload(values: ["section_id": AnyEncodable(sectionId), "title": AnyEncodable(title), "body": AnyEncodable(articleBody), "tags": editorOptionalString(tags), "video": editorOptionalString(video), "links": AnyEncodable(linkValues), "photos": AnyEncodable(photos)]) }
 }
 
 private extension String { var plainText: String { replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression).replacingOccurrences(of: "&nbsp;", with: " ").trimmingCharacters(in: .whitespacesAndNewlines) } }
@@ -2553,10 +2644,90 @@ private func editorOptionalString(_ value: String) -> AnyEncodable { AnyEncodabl
 
 private struct ShareSelection: Identifiable, Hashable { let type: String; let id: Int }
 
+struct CategoryEditorMobileView: View {
+    @Environment(\.dismiss) private var dismiss
+    let kind: String
+    let isAdmin: Bool
+    let onSave: (JSONPayload) -> Void
+    @State private var name = ""
+    @State private var collection: String
+
+    init(kind: String, isAdmin: Bool, onSave: @escaping (JSONPayload) -> Void) {
+        self.kind = kind
+        self.isAdmin = isAdmin
+        self.onSave = onSave
+        _collection = State(initialValue: isAdmin ? "common" : "local")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("Название категории", text: $name)
+                if isAdmin {
+                    Picker("Тип", selection: $collection) {
+                        Text("Общая").tag("common")
+                        Text("Личная").tag("local")
+                    }
+                }
+            }
+            .navigationTitle(kind == "product" ? "Новая категория продуктов" : "Новая категория рецептов")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Сохранить") {
+                        onSave(JSONPayload(values: ["kind": AnyEncodable(kind), "name": AnyEncodable(name.trimmingCharacters(in: .whitespacesAndNewlines)), "collection": AnyEncodable(collection)]))
+                    }
+                    .disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+}
+
 struct CatalogManagementMobileView: View {
     @Environment(\.dismiss) private var dismiss
-    let products: [Product]; let recipes: [Recipe]; let onEditProduct: (Product) -> Void; let onDeleteProduct: (Product) -> Void; let onEditRecipe: (Recipe) -> Void; let onDeleteRecipe: (Recipe) -> Void; let onShare: (String, Int) -> Void
-    var body: some View { NavigationStack { List { Section("Продукты") { ForEach(products) { product in HStack { Text(product.name); Spacer(); Button("Изменить") { onEditProduct(product) }; Button("Отправить") { onShare("product", product.id) }.buttonStyle(.borderless); Button("Удалить", role: .destructive) { onDeleteProduct(product) }.buttonStyle(.borderless) } } }; Section("Блюда") { ForEach(recipes) { recipe in HStack { Text(recipe.name); Spacer(); Button("Изменить") { onEditRecipe(recipe) }; Button("Отправить") { onShare("recipe", recipe.id) }.buttonStyle(.borderless); Button("Удалить", role: .destructive) { onDeleteRecipe(recipe) }.buttonStyle(.borderless) } } } }.navigationTitle("Управление каталогом").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } } } } }
+    let products: [Product]
+    let recipes: [Recipe]
+    let canEditProduct: (Product) -> Bool
+    let canDeleteProduct: (Product) -> Bool
+    let canEditRecipe: (Recipe) -> Bool
+    let canDeleteRecipe: (Recipe) -> Bool
+    let onEditProduct: (Product) -> Void
+    let onDeleteProduct: (Product) -> Void
+    let onEditRecipe: (Recipe) -> Void
+    let onDeleteRecipe: (Recipe) -> Void
+    let onShare: (String, Int) -> Void
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section("Продукты") {
+                    ForEach(products) { product in
+                        HStack {
+                            Text(product.name)
+                            Spacer()
+                            if canEditProduct(product) { Button("Изменить") { onEditProduct(product) } }
+                            Button("Отправить") { onShare("product", product.id) }.buttonStyle(.borderless)
+                            if canDeleteProduct(product) { Button("Удалить", role: .destructive) { onDeleteProduct(product) }.buttonStyle(.borderless) }
+                        }
+                    }
+                }
+                Section("Блюда") {
+                    ForEach(recipes) { recipe in
+                        HStack {
+                            Text(recipe.name)
+                            Spacer()
+                            if canEditRecipe(recipe) { Button("Изменить") { onEditRecipe(recipe) } }
+                            Button("Отправить") { onShare("recipe", recipe.id) }.buttonStyle(.borderless)
+                            if canDeleteRecipe(recipe) { Button("Удалить", role: .destructive) { onDeleteRecipe(recipe) }.buttonStyle(.borderless) }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Управление каталогом")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Закрыть") { dismiss() } } }
+        }
+    }
 }
 
 struct ProductEditorMobileView: View {
@@ -2602,7 +2773,7 @@ struct ExerciseEditorMobileView: View {
     let existing: Exercise?
     let onSave: (JSONPayload) -> Void
     let onDelete: (() -> Void)?
-    @State private var name = ""; @State private var muscle = ""; @State private var unit = "кг"; @State private var sets = "3"; @State private var reps = "12"; @State private var rir = "0–2"; @State private var note = ""; @State private var description = ""; @State private var photos = ""; @State private var video = ""; @State private var variants: [ExerciseVariantDraft] = [ExerciseVariantDraft()]
+    @State private var name = ""; @State private var muscle = ""; @State private var unit = "кг"; @State private var sets = "3"; @State private var reps = "12"; @State private var rir = "0–2"; @State private var note = ""; @State private var description = ""; @State private var photos: [String] = []; @State private var video = ""; @State private var mediaError: String?; @State private var variants: [ExerciseVariantDraft] = [ExerciseVariantDraft()]
     @ViewBuilder private var variantFields: some View {
         Section("Варианты выполнения") {
             ForEach(variants.indices, id: \.self) { index in
@@ -2612,6 +2783,7 @@ struct ExerciseEditorMobileView: View {
                     TextField("Вариант \(index + 1)", text: $variants[index].name)
                     TextField("Тренажёр", text: $variants[index].machine)
                     TextField("Инвентарь", text: $variants[index].equipment)
+                    TextField("Описание варианта", text: $variants[index].description)
                     TextField("Техника", text: $variants[index].technique)
                     TextField("Советы", text: $variants[index].tips)
                     if variants.count > 1 {
@@ -2622,7 +2794,44 @@ struct ExerciseEditorMobileView: View {
             Button("Добавить вариант") { variants.append(ExerciseVariantDraft()) }
         }
     }
-    var body: some View { NavigationStack { Form { Section("Упражнение") { TextField("Название", text: $name); TextField("Мышечная группа", text: $muscle); TextField("Единица", text: $unit); TextField("Подходы", text: $sets).keyboardType(.decimalPad); TextField("Повторения", text: $reps).keyboardType(.decimalPad); TextField("Целевой RIR", text: $rir); TextField("Заметка", text: $note); TextField("Описание", text: $description, axis: .vertical); TextField("Фото URL через запятую", text: $photos); TextField("Видео URL", text: $video) }; variantFields; if onDelete != nil { Button("Удалить", role: .destructive) { onDelete?() } } }.navigationTitle(existing == nil ? "Новое упражнение" : "Редактировать упражнение").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { let variantPayloads = variants.map { variant in JSONPayload(values: ["name": editorOptionalString(variant.name), "machine": editorOptionalString(variant.machine), "equipment": editorOptionalString(variant.equipment), "description": editorOptionalString(variant.description), "technique": editorOptionalString(variant.technique), "tips": editorOptionalString(variant.tips)]) }; onSave(JSONPayload(values: ["name": AnyEncodable(name), "muscle_group": editorOptionalString(muscle), "default_unit": AnyEncodable(unit), "default_sets": editorNumber(sets), "default_reps": editorNumber(reps), "target_rir": editorOptionalString(rir), "note": editorOptionalString(note), "description": editorOptionalString(description), "photos": AnyEncodable(photos.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }), "video": editorOptionalString(video), "variants": AnyEncodable(variantPayloads)])); dismiss() }.disabled(name.isEmpty) } }.onAppear { name = existing?.name ?? ""; muscle = existing?.muscleGroup ?? ""; unit = existing?.defaultUnit ?? "кг"; sets = existing?.defaultSets?.display ?? "3"; reps = existing?.defaultReps?.display ?? "12"; rir = existing?.targetRir ?? "0–2"; note = existing?.note ?? ""; description = existing?.description ?? ""; photos = existing?.photos.joined(separator: ", ") ?? ""; video = existing?.video ?? ""; variants = existing?.variants.map { ExerciseVariantDraft($0) } ?? [ExerciseVariantDraft()] } } }
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Упражнение") {
+                    TextField("Название", text: $name)
+                    TextField("Мышечная группа", text: $muscle)
+                    TextField("Единица", text: $unit)
+                    TextField("Подходы", text: $sets).keyboardType(.decimalPad)
+                    TextField("Повторения", text: $reps).keyboardType(.decimalPad)
+                    TextField("Целевой RIR", text: $rir)
+                    TextField("Заметка", text: $note)
+                    TextField("Описание", text: $description, axis: .vertical)
+                }
+                Section("Медиа") {
+                    MobileImagePickerButton(label: "Добавить фото (\(photos.count)/6)", enabled: photos.count < 6, maxSelectionCount: max(1, min(6 - photos.count, 6)), onPicked: { picked in photos = (photos + picked).prefix(6).map { $0 }; mediaError = nil }, onError: { mediaError = $0 })
+                    ForEach(Array(photos.enumerated()), id: \.offset) { index, _ in HStack { Text("Фото \(index + 1)"); Spacer(); Button("Удалить", role: .destructive) { photos.remove(at: index) }.buttonStyle(.borderless) } }
+                    MobileVideoPickerButton(label: video.isEmpty ? "Добавить видео" : "Заменить видео", onPicked: { video = $0; mediaError = nil }, onError: { mediaError = $0 })
+                    if !video.isEmpty { HStack { Text("Видео добавлено"); Spacer(); Button("Удалить", role: .destructive) { video = "" }.buttonStyle(.borderless) } }
+                    if let mediaError { Text(mediaError).foregroundStyle(AstraTheme.danger) }
+                }
+                variantFields
+                if onDelete != nil { Button("Удалить", role: .destructive) { onDelete?() } }
+            }
+            .navigationTitle(existing == nil ? "Новое упражнение" : "Редактировать упражнение")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Сохранить") {
+                        let variantPayloads = variants.map { variant in JSONPayload(values: ["name": editorOptionalString(variant.name), "machine": editorOptionalString(variant.machine), "equipment": editorOptionalString(variant.equipment), "description": editorOptionalString(variant.description), "technique": editorOptionalString(variant.technique), "tips": editorOptionalString(variant.tips)]) }
+                        onSave(JSONPayload(values: ["name": AnyEncodable(name), "muscle_group": editorOptionalString(muscle), "default_unit": AnyEncodable(unit), "default_sets": editorNumber(sets), "default_reps": editorNumber(reps), "target_rir": editorOptionalString(rir), "note": editorOptionalString(note), "description": editorOptionalString(description), "photos": AnyEncodable(photos), "video": editorOptionalString(video), "variants": AnyEncodable(variantPayloads)]))
+                        dismiss()
+                    }
+                    .disabled(name.isEmpty)
+                }
+            }
+            .onAppear { name = existing?.name ?? ""; muscle = existing?.muscleGroup ?? ""; unit = existing?.defaultUnit ?? "кг"; sets = existing?.defaultSets?.display ?? "3"; reps = existing?.defaultReps?.display ?? "12"; rir = existing?.targetRir ?? "0–2"; note = existing?.note ?? ""; description = existing?.description ?? ""; photos = existing?.photos ?? []; video = existing?.video ?? ""; variants = existing?.variants.map { ExerciseVariantDraft($0) } ?? [ExerciseVariantDraft()] }
+        }
+    }
 }
 
 struct EquipmentEditorMobileView: View {
@@ -2630,8 +2839,8 @@ struct EquipmentEditorMobileView: View {
     let existing: WorkoutEquipment?
     let onSave: (JSONPayload) -> Void
     let onDelete: (() -> Void)?
-    @State private var kind = "equipment"; @State private var name = ""; @State private var description = ""; @State private var photo = ""
-    var body: some View { NavigationStack { Form { Picker("Тип", selection: $kind) { Text("Тренажёр").tag("machine"); Text("Инвентарь").tag("equipment") }; TextField("Название", text: $name); TextField("Описание", text: $description, axis: .vertical); TextField("Фото URL", text: $photo); if onDelete != nil { Button("Удалить", role: .destructive) { onDelete?() } } }.navigationTitle(existing == nil ? "Новое оборудование" : "Редактировать оборудование").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { onSave(JSONPayload(values: ["kind": AnyEncodable(kind), "name": AnyEncodable(name), "description": editorOptionalString(description), "photo": editorOptionalString(photo)])); dismiss() }.disabled(name.isEmpty) } }.onAppear { kind = existing?.kind ?? "equipment"; name = existing?.name ?? ""; description = existing?.description ?? ""; photo = existing?.photo ?? "" } } }
+    @State private var kind = "equipment"; @State private var name = ""; @State private var description = ""; @State private var photo = ""; @State private var mediaError: String?
+    var body: some View { NavigationStack { Form { Picker("Тип", selection: $kind) { Text("Тренажёр").tag("machine"); Text("Инвентарь").tag("equipment") }; TextField("Название", text: $name); TextField("Описание", text: $description, axis: .vertical); Section("Медиа") { MobileImagePickerButton(label: photo.isEmpty ? "Добавить фото" : "Заменить фото", maxSelectionCount: 1, onPicked: { picked in photo = picked.first ?? ""; mediaError = nil }, onError: { mediaError = $0 }); if !photo.isEmpty { HStack { Text("Фото добавлено"); Spacer(); Button("Удалить", role: .destructive) { photo = "" }.buttonStyle(.borderless) } }; if let mediaError { Text(mediaError).foregroundStyle(AstraTheme.danger) } }; if onDelete != nil { Button("Удалить", role: .destructive) { onDelete?() } } }.navigationTitle(existing == nil ? "Новое оборудование" : "Редактировать оборудование").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { onSave(JSONPayload(values: ["kind": AnyEncodable(kind), "name": AnyEncodable(name), "description": editorOptionalString(description), "photo": editorOptionalString(photo)])); dismiss() }.disabled(name.isEmpty) } }.onAppear { kind = existing?.kind ?? "equipment"; name = existing?.name ?? ""; description = existing?.description ?? ""; photo = existing?.photo ?? "" } } }
 }
 
 struct ShareClientMobileView: View {
@@ -2659,9 +2868,9 @@ struct WorkoutEntryEditorMobileView: View {
 struct WorkoutComplexEditorMobileView: View {
     @Environment(\.dismiss) private var dismiss
     let initial: WorkoutComplex?; let exercises: [Exercise]; let onSave: (JSONPayload) -> Void
-    @State private var name = ""; @State private var comment = ""; @State private var video = ""; @State private var exerciseId = 0; @State private var weight = ""; @State private var sets = ""; @State private var itemDuration = ""; @State private var speed = ""
-    init(initial: WorkoutComplex?, exercises: [Exercise], onSave: @escaping (JSONPayload) -> Void) { self.initial = initial; self.exercises = exercises; self.onSave = onSave; self._name = State(initialValue: initial?.name ?? ""); self._comment = State(initialValue: initial?.comment ?? ""); self._video = State(initialValue: initial?.video ?? ""); let item = initial?.items.first; self._exerciseId = State(initialValue: item?.exerciseId ?? exercises.first?.id ?? 0); self._weight = State(initialValue: item?.workingWeight?.display ?? ""); self._sets = State(initialValue: item?.sets?.display ?? ""); self._itemDuration = State(initialValue: item?.durationMinutes?.display ?? ""); self._speed = State(initialValue: item?.speedKmh?.display ?? "") }
-    var body: some View { NavigationStack { Form { TextField("Название", text: $name); TextField("Комментарий", text: $comment, axis: .vertical); TextField("Видео URL", text: $video); if !exercises.isEmpty { Picker("Упражнение", selection: $exerciseId) { ForEach(exercises) { Text($0.name).tag($0.id) } } }; TextField("Вес", text: $weight).keyboardType(.decimalPad); TextField("Подходы", text: $sets).keyboardType(.decimalPad); TextField("Длительность, мин", text: $itemDuration).keyboardType(.decimalPad); TextField("Скорость, км/ч", text: $speed).keyboardType(.decimalPad) }.navigationTitle(initial == nil ? "Новый комплекс" : "Редактировать комплекс").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { let item = JSONPayload(values: ["exercise_id": AnyEncodable(exerciseId), "working_weight": editorOptionalNumber(weight), "sets": editorOptionalNumber(sets), "duration_minutes": editorOptionalNumber(itemDuration), "speed_kmh": editorOptionalNumber(speed)]); onSave(JSONPayload(values: ["name": AnyEncodable(name), "comment": editorOptionalString(comment), "photos": AnyEncodable([String]()), "video": editorOptionalString(video), "items": AnyEncodable([item])])); dismiss() } }.disabled(name.isEmpty) } } }
+    @State private var name = ""; @State private var comment = ""; @State private var photos: [String] = []; @State private var video = ""; @State private var mediaError: String?; @State private var exerciseId = 0; @State private var weight = ""; @State private var sets = ""; @State private var itemDuration = ""; @State private var speed = ""
+    init(initial: WorkoutComplex?, exercises: [Exercise], onSave: @escaping (JSONPayload) -> Void) { self.initial = initial; self.exercises = exercises; self.onSave = onSave; self._name = State(initialValue: initial?.name ?? ""); self._comment = State(initialValue: initial?.comment ?? ""); self._photos = State(initialValue: initial?.photos ?? []); self._video = State(initialValue: initial?.video ?? ""); let item = initial?.items.first; self._exerciseId = State(initialValue: item?.exerciseId ?? exercises.first?.id ?? 0); self._weight = State(initialValue: item?.workingWeight?.display ?? ""); self._sets = State(initialValue: item?.sets?.display ?? ""); self._itemDuration = State(initialValue: item?.durationMinutes?.display ?? ""); self._speed = State(initialValue: item?.speedKmh?.display ?? "") }
+    var body: some View { NavigationStack { Form { TextField("Название", text: $name); TextField("Комментарий", text: $comment, axis: .vertical); Section("Медиа") { MobileImagePickerButton(label: "Добавить фото (\(photos.count)/6)", enabled: photos.count < 6, maxSelectionCount: max(1, min(6 - photos.count, 6)), onPicked: { picked in photos = (photos + picked).prefix(6).map { $0 }; mediaError = nil }, onError: { mediaError = $0 }); ForEach(Array(photos.enumerated()), id: \.offset) { index, _ in HStack { Text("Фото \(index + 1)"); Spacer(); Button("Удалить", role: .destructive) { photos.remove(at: index) }.buttonStyle(.borderless) } }; MobileVideoPickerButton(label: video.isEmpty ? "Добавить видео" : "Заменить видео", onPicked: { video = $0; mediaError = nil }, onError: { mediaError = $0 }); if !video.isEmpty { HStack { Text("Видео добавлено"); Spacer(); Button("Удалить", role: .destructive) { video = "" }.buttonStyle(.borderless) } }; if let mediaError { Text(mediaError).foregroundStyle(AstraTheme.danger) } }; if !exercises.isEmpty { Picker("Упражнение", selection: $exerciseId) { ForEach(exercises) { Text($0.name).tag($0.id) } } }; TextField("Вес", text: $weight).keyboardType(.decimalPad); TextField("Подходы", text: $sets).keyboardType(.decimalPad); TextField("Длительность, мин", text: $itemDuration).keyboardType(.decimalPad); TextField("Скорость, км/ч", text: $speed).keyboardType(.decimalPad) }.navigationTitle(initial == nil ? "Новый комплекс" : "Редактировать комплекс").toolbar { ToolbarItem(placement: .cancellationAction) { Button("Отмена") { dismiss() } }; ToolbarItem(placement: .confirmationAction) { Button("Сохранить") { let item = JSONPayload(values: ["exercise_id": AnyEncodable(exerciseId), "working_weight": editorOptionalNumber(weight), "sets": editorOptionalNumber(sets), "duration_minutes": editorOptionalNumber(itemDuration), "speed_kmh": editorOptionalNumber(speed)]); onSave(JSONPayload(values: ["name": AnyEncodable(name), "comment": editorOptionalString(comment), "photos": AnyEncodable(photos), "video": editorOptionalString(video), "items": AnyEncodable([item])])); dismiss() } }.disabled(name.isEmpty) } } }
 }
 
 struct WorkoutManagementMobileView: View {
@@ -2691,6 +2900,7 @@ private func mobileDiaryTotals(_ entries: [DiaryEntry]) -> MobileDiaryTotals {
 private func mobileDiaryISO(_ date: Date) -> String { let formatter = DateFormatter(); formatter.dateFormat = "yyyy-MM-dd"; formatter.locale = Locale(identifier: "en_US_POSIX"); return formatter.string(from: date) }
 private func mobileDiaryDate(_ value: String) -> Date { let formatter = DateFormatter(); formatter.dateFormat = "yyyy-MM-dd"; formatter.locale = Locale(identifier: "en_US_POSIX"); return formatter.date(from: value) ?? Date() }
 private func mobileDiaryMonthTitle(_ date: Date) -> String { let formatter = DateFormatter(); formatter.dateFormat = "LLLL yyyy"; formatter.locale = Locale(identifier: "ru_RU"); return formatter.string(from: date).capitalized }
+private func mobileDiaryMonthKey(_ date: Date) -> String { let formatter = DateFormatter(); formatter.dateFormat = "yyyy-MM"; formatter.locale = Locale(identifier: "en_US_POSIX"); return formatter.string(from: date) }
 private func mobileDiaryNumber(_ value: Double) -> String { value == value.rounded() ? String(Int(value)) : String(format: "%.1f", value) }
 
 struct DiaryCalendarView: View {
@@ -2698,6 +2908,7 @@ struct DiaryCalendarView: View {
     @State private var entries: [DiaryEntry] = []
     @State private var products: [Product] = []
     @State private var recipes: [Recipe] = []
+    @State private var progress: [ProgressEntry] = []
     @State private var month = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: Date())) ?? Date()
     @State private var error: String?
 
@@ -2705,6 +2916,21 @@ struct DiaryCalendarView: View {
     private var monthDays: [Date] { guard let range = Calendar.current.range(of: .day, in: .month, for: month), let start = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: month)) else { return [] }; return range.compactMap { Calendar.current.date(byAdding: .day, value: $0 - 1, to: start) } }
     private var monthOffset: Int { guard let first = monthDays.first else { return 0 }; let weekday = Calendar.current.component(.weekday, from: first); return (weekday + 5) % 7 }
     private var currentEntries: [DiaryEntry] { entries.filter { $0.entryDate == today } }
+    private var monthEntries: [DiaryEntry] { entries.filter { $0.entryDate.hasPrefix(mobileDiaryMonthKey(month)) } }
+    private var monthFilledDays: Int { Set(monthEntries.map(\.entryDate)).count }
+    private var latestProgress: ProgressEntry? { progress.first }
+    private func positive(_ value: Double?) -> Double? { guard let value, value > 0 else { return nil }; return value }
+    private func targetValue(_ value: Double?) -> Double? { guard let value, value.isFinite else { return nil }; return value }
+    private var calculationWeight: Double? { positive(latestProgress?.desiredWeightKg) ?? positive(latestProgress?.weightKg) }
+    private var proteinTarget: Double? { targetValue(latestProgress?.proteinTargetG) ?? calculationWeight.map { $0 * 2 } }
+    private var fatTarget: Double? { targetValue(latestProgress?.fatTargetG) ?? calculationWeight }
+    private var carbsTarget: Double? { targetValue(latestProgress?.carbsTargetG) ?? calculationWeight.map { $0 * 3 } }
+    private var kcalTarget: Double? {
+        if let target = targetValue(latestProgress?.kcalTarget) { return target }
+        guard let proteinTarget, let fatTarget, let carbsTarget else { return nil }
+        return proteinTarget * 4 + fatTarget * 9 + carbsTarget * 4
+    }
+    private func monthAverage(_ value: Double) -> Double { monthFilledDays == 0 ? 0 : value / Double(monthFilledDays) }
 
     var body: some View {
         NavigationStack {
@@ -2714,6 +2940,7 @@ struct DiaryCalendarView: View {
                     if let error { Text(error).foregroundStyle(.red) }
                     currentDayCard
                     currentMealsCard
+                    monthlyAveragesCard
                     calendarCard
                 }
                 .padding()
@@ -2749,6 +2976,28 @@ struct DiaryCalendarView: View {
         }
     }
 
+    private var monthlyAveragesCard: some View {
+        let totals = mobileDiaryTotals(monthEntries)
+        return AstraCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("СРЕДНИЕ ПОКАЗАТЕЛИ МЕСЯЦА").font(.caption.weight(.bold)).foregroundStyle(AstraTheme.green)
+                        Text("Питание в среднем за заполненный день").font(.headline)
+                    }
+                    Spacer()
+                    Text("\(monthFilledDays) заполненных дней").font(.caption2).foregroundStyle(AstraTheme.muted).multilineTextAlignment(.trailing)
+                }
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+                    mobileAverageMetric("Калории", monthAverage(totals.kcal), "ккал", kcalTarget, AstraTheme.blue)
+                    mobileAverageMetric("Белок", monthAverage(totals.protein), "г", proteinTarget, AstraTheme.green)
+                    mobileAverageMetric("Жиры", monthAverage(totals.fat), "г", fatTarget, AstraTheme.amber)
+                    mobileAverageMetric("Углеводы", monthAverage(totals.carbs), "г", carbsTarget, AstraTheme.blue)
+                }
+            }
+        }
+    }
+
     private var calendarCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) { VStack(alignment: .leading, spacing: 3) { Text("КАЛЕНДАРЬ ПИТАНИЯ").font(.caption.weight(.bold)).foregroundStyle(AstraTheme.green); Text("Нажмите на день для редактирования").font(.headline) }; Spacer(); Button("Сегодня") { month = Calendar.current.date(from: Calendar.current.dateComponents([.year, .month], from: Date())) ?? Date() }.font(.caption.weight(.bold)) }
@@ -2769,7 +3018,8 @@ struct DiaryCalendarView: View {
     }
 
     private func mobileDiaryMetric(_ label: String, _ value: String, _ color: Color) -> some View { VStack(alignment: .leading, spacing: 4) { Text(label).font(.caption2.weight(.bold)).foregroundStyle(AstraTheme.muted); Text(value).font(.headline.weight(.bold)).foregroundStyle(color) }.frame(maxWidth: .infinity, alignment: .leading).padding(10).background(color.opacity(0.12)).clipShape(RoundedRectangle(cornerRadius: 10)) }
-    private func load() async { do { async let diary = session.api.diary(); async let productList = session.api.products(); async let recipeList = session.api.recipes(); entries = try await diary; products = try await productList.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }; recipes = try await recipeList.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }; error = nil } catch { error = error.localizedDescription } }
+    private func mobileAverageMetric(_ label: String, _ value: Double, _ unit: String, _ target: Double?, _ color: Color) -> some View { VStack(alignment: .leading, spacing: 4) { Text(label.uppercased()).font(.caption2.weight(.bold)).foregroundStyle(AstraTheme.muted); Text("\(mobileDiaryNumber(value)) \(unit)").font(.headline.weight(.bold)).foregroundStyle(color); if let target { let delta = (target - value).rounded(); Text("цель \(mobileDiaryNumber(target)) \(unit)").font(.caption2).foregroundStyle(AstraTheme.muted); Text("\(delta >= 0 ? "−" : "+")\(mobileDiaryNumber(abs(delta))) \(unit)").font(.caption2.weight(.semibold)).foregroundStyle(delta >= 0 ? AstraTheme.green : AstraTheme.danger) } else { Text("цель не задана").font(.caption2).foregroundStyle(AstraTheme.muted) } }.frame(maxWidth: .infinity, alignment: .leading).padding(10).background(color.opacity(0.12)).clipShape(RoundedRectangle(cornerRadius: 10)) }
+    private func load() async { do { async let diary = session.api.diary(); async let productList = session.api.products(); async let recipeList = session.api.recipes(); async let progressList = session.api.progress(); entries = try await diary; products = try await productList.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }; recipes = try await recipeList.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }; progress = try await progressList; error = nil } catch { error = error.localizedDescription } }
 }
 
 struct DiaryDayEditorMobileView: View {
