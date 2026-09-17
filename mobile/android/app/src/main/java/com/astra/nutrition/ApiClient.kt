@@ -68,12 +68,20 @@ class ApiClient(context: Context) {
     suspend fun workoutEquipment(): List<WorkoutEquipment> = (request("workout-equipment") as JSONArray).equipment()
     suspend fun workoutComplexes(): List<WorkoutComplex> = (request("workout-complexes") as JSONArray).complexes()
     suspend fun categories(kind: String): List<ContentCategory> = (request("categories?kind=$kind") as JSONArray).categories()
+    suspend fun createCategory(body: JSONObject): ContentCategory = (request("categories", "POST", body) as JSONObject).category()
     suspend fun articleSections(): List<ArticleSection> = (request("article-sections") as JSONArray).articleSections()
     suspend fun articles(): List<Article> = (request("articles") as JSONArray).articles()
     suspend fun myTrainerChat(): TrainerChatResponse { val o = request("clients/me/chat") as JSONObject; return o.trainerInfo() }
     suspend fun sendMyTrainerChat(message: String): TrainerChatMessage = (request("clients/me/chat", "POST", JSONObject().put("message", message)) as JSONObject).chatMessage()
     suspend fun clients(): List<ClientSummary> = (request("clients") as JSONArray).clients()
+    suspend fun addClient(email: String): ClientSummary = (request("clients", "POST", JSONObject().put("email", email)) as JSONObject).clientSummary()
     suspend fun client(id: Int): ClientDetail = (request("clients/$id") as JSONObject).clientDetail()
+    suspend fun clientDiary(id: Int): List<DiaryEntry> = (request("clients/$id/diary") as JSONArray).diary()
+    suspend fun addClientDiary(id: Int, body: JSONObject): List<DiaryEntry> = (request("clients/$id/diary", "POST", body) as JSONArray).diary()
+    suspend fun deleteClientDiary(clientId: Int, entryId: Int) { request("clients/$clientId/diary/$entryId", "DELETE") }
+    suspend fun scheduleClientWorkout(id: Int, body: JSONObject): WorkoutPlan = (request("clients/$id/workout-plans", "POST", body) as JSONObject).plan()
+    suspend fun updateClientWorkout(clientId: Int, planId: Int, body: JSONObject): WorkoutPlan = (request("clients/$clientId/workout-plans/$planId", "PUT", body) as JSONObject).plan()
+    suspend fun updateClientTargets(id: Int, body: JSONObject): ProgressEntry = (request("clients/$id/nutrition-targets", "PUT", body) as JSONObject).progress()
     suspend fun clientChat(id: Int): List<TrainerChatMessage> = (request("clients/$id/chat") as JSONArray).chatMessages()
     suspend fun sendClientChat(id: Int, message: String): TrainerChatMessage = (request("clients/$id/chat", "POST", JSONObject().put("message", message)) as JSONObject).chatMessage()
 
@@ -94,6 +102,7 @@ class ApiClient(context: Context) {
     suspend fun deleteEquipment(id: Int) { request("workout-equipment/$id", "DELETE") }
     suspend fun createComplex(body: JSONObject): WorkoutComplex = (request("workout-complexes", "POST", body) as JSONObject).complex()
     suspend fun updateComplex(id: Int, body: JSONObject): WorkoutComplex = (request("workout-complexes/$id", "PUT", body) as JSONObject).complex()
+    suspend fun deleteComplex(id: Int) { request("workout-complexes/$id", "DELETE") }
     suspend fun updateWorkout(id: Int, body: JSONObject): WorkoutEntry = (request("workouts/$id", "PUT", body) as JSONObject).workout()
     suspend fun deleteWorkout(id: Int) { request("workouts/$id", "DELETE") }
     suspend fun createPlan(body: JSONObject): WorkoutPlan = (request("workout-plans", "POST", body) as JSONObject).plan()

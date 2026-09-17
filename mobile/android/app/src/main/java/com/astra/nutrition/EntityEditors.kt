@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -23,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -31,16 +31,44 @@ private fun String.numberOrNull(): Double? = replace(',', '.').toDoubleOrNull()
 
 @Composable
 fun ShareToClientDialog(clients: List<ClientSummary>, onShare: (Int) -> Unit, onDismiss: () -> Unit) {
-    var selected by remember { mutableStateOf(clients.firstOrNull()) }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Отправить клиенту") }, text = {
-        if (clients.isEmpty()) Text("Список клиентов пока пуст")
-        else Picker("Клиент: ${selected?.name ?: "—"}", clients.map { it.name }) { name -> selected = clients.firstOrNull { it.name == name } }
+    var selected by remember(clients) { mutableStateOf(clients.firstOrNull()) }
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text("Отправить клиенту") }, text = {
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            if (clients.isEmpty()) Text("Список клиентов пока пуст")
+            else Picker("Клиент: ${selected?.name ?: "—"}", clients.map { it.name }) { name -> selected = clients.firstOrNull { it.name == name } }
+        }
     }, confirmButton = { Button({ selected?.let { onShare(it.id) } }) { Text("Отправить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
 }
 
 @Composable
+fun CategoryEditorDialog(kind: String, isAdmin: Boolean, onSave: (JSONObject) -> Unit, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var collection by remember { mutableStateOf(if (isAdmin) "common" else "local") }
+    val kindLabel = if (kind == "product") "продуктов" else "рецептов"
+    MobileModalScreen(
+        onDismissRequest = onDismiss,
+        title = { Text("Новая категория $kindLabel") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                EditField("Название категории", name, "Например, Завтраки") { name = it }
+                if (isAdmin) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        TextButton(onClick = { collection = "common" }) { Text(if (collection == "common") "✓ Общая" else "Общая") }
+                        TextButton(onClick = { collection = "local" }) { Text(if (collection == "local") "✓ Личная" else "Личная") }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onSave(JSONObject().put("kind", kind).put("name", name.trim()).put("collection", collection)) }, enabled = name.isNotBlank()) { Text("Сохранить") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
+    )
+}
+
+@Composable
 fun WorkoutEntityManageDialog(exercises: List<Exercise>, equipment: List<WorkoutEquipment>, complexes: List<WorkoutComplex>, onEditExercise: (Exercise) -> Unit, onDeleteExercise: (Exercise) -> Unit, onEditEquipment: (WorkoutEquipment) -> Unit, onDeleteEquipment: (WorkoutEquipment) -> Unit, onEditComplex: (WorkoutComplex) -> Unit, onScheduleComplex: (WorkoutComplex) -> Unit, onShare: (String, Int) -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Управление тренировочными сущностями") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text("Управление тренировочными сущностями") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Упражнения", fontWeight = FontWeight.Bold)
         exercises.forEach { item -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) { Text(item.name, Modifier.weight(1f)); TextButton({ onEditExercise(item) }) { Text("изменить") }; TextButton({ onDeleteExercise(item) }) { Text("удалить") }; TextButton({ onShare("exercise", item.id) }) { Text("отправить") } } }
         Text("Тренажёры и инвентарь", fontWeight = FontWeight.Bold)
@@ -51,12 +79,12 @@ fun WorkoutEntityManageDialog(exercises: List<Exercise>, equipment: List<Workout
 }
 
 @Composable
-fun CatalogEntityManageDialog(products: List<Product>, recipes: List<Recipe>, onEditProduct: (Product) -> Unit, onDeleteProduct: (Product) -> Unit, onEditRecipe: (Recipe) -> Unit, onDeleteRecipe: (Recipe) -> Unit, onShare: (String, Int) -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Управление каталогом") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+fun CatalogEntityManageDialog(products: List<Product>, recipes: List<Recipe>, onEditProduct: (Product) -> Unit, onDeleteProduct: (Product) -> Unit, onEditRecipe: (Recipe) -> Unit, onDeleteRecipe: (Recipe) -> Unit, onShare: (String, Int) -> Unit, onDismiss: () -> Unit, canEditProduct: (Product) -> Boolean = { true }, canDeleteProduct: (Product) -> Boolean = { true }, canEditRecipe: (Recipe) -> Boolean = { true }, canDeleteRecipe: (Recipe) -> Boolean = { true }) {
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text("Управление каталогом") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Продукты", fontWeight = FontWeight.Bold)
-        products.forEach { item -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) { Text(item.name, Modifier.weight(1f)); TextButton({ onEditProduct(item) }) { Text("изменить") }; TextButton({ onDeleteProduct(item) }) { Text("удалить") }; TextButton({ onShare("product", item.id) }) { Text("отправить") } } }
+        products.forEach { item -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) { Text(item.name, Modifier.weight(1f)); if (canEditProduct(item)) TextButton({ onEditProduct(item) }) { Text("изменить") }; if (canDeleteProduct(item)) TextButton({ onDeleteProduct(item) }) { Text("удалить") }; TextButton({ onShare("product", item.id) }) { Text("отправить") } } }
         Text("Блюда", fontWeight = FontWeight.Bold)
-        recipes.forEach { item -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) { Text(item.name, Modifier.weight(1f)); TextButton({ onEditRecipe(item) }) { Text("изменить") }; TextButton({ onDeleteRecipe(item) }) { Text("удалить") }; TextButton({ onShare("recipe", item.id) }) { Text("отправить") } } }
+        recipes.forEach { item -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) { Text(item.name, Modifier.weight(1f)); if (canEditRecipe(item)) TextButton({ onEditRecipe(item) }) { Text("изменить") }; if (canDeleteRecipe(item)) TextButton({ onDeleteRecipe(item) }) { Text("удалить") }; TextButton({ onShare("recipe", item.id) }) { Text("отправить") } } }
     } }, confirmButton = { TextButton(onDismiss) { Text("Закрыть") } })
 }
 
@@ -74,7 +102,7 @@ fun ProductEditorDialog(existing: Product?, onSave: (JSONObject) -> Unit, onDele
     var carbs by remember { mutableStateOf(existing?.carbs?.toString() ?: "0") }
     var dataStatus by remember { mutableStateOf(existing?.dataStatus ?: "Подтверждено") }
     var note by remember { mutableStateOf(existing?.note.orEmpty()) }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новый продукт" else "Редактировать продукт") }, text = {
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новый продукт" else "Редактировать продукт") }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             EditField("Название", name) { name = it }
             EditField("Категория", category) { category = it }
@@ -117,7 +145,7 @@ fun RecipeEditorDialog(existing: Recipe?, products: List<Product>, onSave: (JSON
     var carbs by remember { mutableStateOf(existing?.carbs?.toString().orEmpty()) }
     val ingredients = remember { mutableStateListOf(IngredientDraft(products.firstOrNull()?.id)) }
     fun updateIngredient(index: Int, update: (IngredientDraft) -> Unit) { val item = ingredients[index].copy(); update(item); ingredients[index] = item }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новое блюдо" else "Редактировать блюдо") }, text = {
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новое блюдо" else "Редактировать блюдо") }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
             EditField("Категория", category) { category = it }; EditField("Название", name) { name = it }; EditField("Подкатегория", subcategory) { subcategory = it }; EditField("Версия", version) { version = it }; EditField("Порций", servings) { servings = it }; EditField("Теги", tags) { tags = it }
             TextButton({ isReady = !isReady }) { Text(if (isReady) "✓ Готово" else "Отметить как готовое") }
@@ -144,12 +172,12 @@ fun RecipeEditorDialog(existing: Recipe?, products: List<Product>, onSave: (JSON
 private data class VariantDraft(var machine: String = "", var equipment: String = "", var description: String = "", var technique: String = "", var tips: String = "", var name: String = "")
 
 @Composable
-fun ExerciseEditorDialog(existing: Exercise?, onSave: (JSONObject) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit) {
+private fun LegacyExerciseEditorDialog(existing: Exercise?, onSave: (JSONObject) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf(existing?.name.orEmpty()) }; var muscle by remember { mutableStateOf(existing?.muscleGroup.orEmpty()) }; var unit by remember { mutableStateOf(existing?.unit ?: "кг") }; var sets by remember { mutableStateOf(existing?.defaultSets?.toString() ?: "3") }; var reps by remember { mutableStateOf(existing?.defaultReps?.toString() ?: "12") }; var rir by remember { mutableStateOf(existing?.targetRir ?: "0–2") }; var note by remember { mutableStateOf(existing?.note.orEmpty()) }; var description by remember { mutableStateOf(existing?.description.orEmpty()) }; var photos by remember { mutableStateOf(existing?.photos?.joinToString(", ").orEmpty()) }; var video by remember { mutableStateOf(existing?.video.orEmpty()) }
     val variants = remember { mutableStateListOf<VariantDraft>().also { list -> existing?.variants?.forEach { list.add(VariantDraft(it.machine.orEmpty(), it.equipment.orEmpty(), it.description.orEmpty(), it.technique.orEmpty(), it.tips.orEmpty(), it.name.orEmpty())) } } }
     fun updateVariant(index: Int, update: (VariantDraft) -> Unit) { val item = variants[index].copy(); update(item); variants[index] = item }
     val variant = variants.firstOrNull() ?: VariantDraft()
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новое упражнение" else "Редактировать упражнение") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новое упражнение" else "Редактировать упражнение") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
         EditField("Название", name) { name = it }; EditField("Мышечная группа", muscle) { muscle = it }; EditField("Единица", unit) { unit = it }; EditField("Подходы по умолчанию", sets) { sets = it }; EditField("Повторения по умолчанию", reps) { reps = it }; EditField("Целевой RIR", rir) { rir = it }; EditField("Заметка", note) { note = it }; EditField("Описание", description) { description = it }; EditField("Фото (URL через запятую)", photos) { photos = it }; EditField("Видео (URL)", video) { video = it }
         Text("Варианты выполнения", fontWeight = FontWeight.Bold)
         variants.forEachIndexed { index, variant -> Column(verticalArrangement = Arrangement.spacedBy(5.dp)) { EditField(label = "Введите название", value = variant.name, onValueChange = { value -> updateVariant(index) { draft -> draft.name = value } }, placeholder = "Вариант ${index + 1}"); EditField("Тренажёр", variant.machine) { value -> updateVariant(index) { draft -> draft.machine = value } }; EditField("Инвентарь", variant.equipment) { value -> updateVariant(index) { draft -> draft.equipment = value } }; EditField("Описание варианта", variant.description) { value -> updateVariant(index) { draft -> draft.description = value } }; EditField("Техника", variant.technique) { value -> updateVariant(index) { draft -> draft.technique = value } }; EditField("Советы", variant.tips) { value -> updateVariant(index) { draft -> draft.tips = value } }; TextButton({ variants.removeAt(index) }) { Text("Удалить вариант") } } }
@@ -158,9 +186,9 @@ fun ExerciseEditorDialog(existing: Exercise?, onSave: (JSONObject) -> Unit, onDe
 }
 
 @Composable
-fun EquipmentEditorDialog(existing: WorkoutEquipment?, onSave: (JSONObject) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit) {
+private fun LegacyEquipmentEditorDialog(existing: WorkoutEquipment?, onSave: (JSONObject) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit) {
     var kind by remember { mutableStateOf(existing?.kind ?: "equipment") }; var name by remember { mutableStateOf(existing?.name.orEmpty()) }; var description by remember { mutableStateOf(existing?.description.orEmpty()) }; var photo by remember { mutableStateOf(existing?.photo.orEmpty()) }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новый тренажёр / инвентарь" else "Редактировать оборудование") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) { Picker("Тип: ${if (kind == "machine") "Тренажёр" else "Инвентарь"}", listOf("Тренажёр", "Инвентарь")) { kind = if (it == "Тренажёр") "machine" else "equipment" }; EditField("Название", name) { name = it }; EditField("Описание", description) { description = it }; EditField("Фото (URL)", photo) { photo = it } } }, confirmButton = { Button({ if (name.isNotBlank()) onSave(JSONObject().put("kind", kind).put("name", name).putOptional("description", description.takeIf { it.isNotBlank() }).putOptional("photo", photo.takeIf { it.isNotBlank() })) }) { Text("Сохранить") } }, dismissButton = { Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { onDelete?.let { TextButton(onClick = it) { Text("Удалить") } }; TextButton(onClick = onDismiss) { Text("Отмена") } } })
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новый тренажёр / инвентарь" else "Редактировать оборудование") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) { Picker("Тип: ${if (kind == "machine") "Тренажёр" else "Инвентарь"}", listOf("Тренажёр", "Инвентарь")) { kind = if (it == "Тренажёр") "machine" else "equipment" }; EditField("Название", name) { name = it }; EditField("Описание", description) { description = it }; EditField("Фото (URL)", photo) { photo = it } } }, confirmButton = { Button({ if (name.isNotBlank()) onSave(JSONObject().put("kind", kind).put("name", name).putOptional("description", description.takeIf { it.isNotBlank() }).putOptional("photo", photo.takeIf { it.isNotBlank() })) }) { Text("Сохранить") } }, dismissButton = { Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { onDelete?.let { TextButton(onClick = it) { Text("Удалить") } }; TextButton(onClick = onDismiss) { Text("Отмена") } } })
 }
 
 private data class PlanDraft(var exerciseId: Int?, var weight: String = "", var sets: String = "", var duration: String = "", var speed: String = "", var variantId: Int? = null)
@@ -171,7 +199,7 @@ fun WorkoutPlanEditorDialog(plan: WorkoutPlan?, complex: WorkoutComplex?, exerci
     val sourceItems: List<WorkoutPlanItem> = plan?.items ?: complex?.items?.map { WorkoutPlanItem(it.id, it.exerciseId, it.name, it.muscleGroup, it.workingWeight, it.sets, it.durationMinutes, it.speedKmh) } ?: emptyList()
     val items = remember { mutableStateListOf<PlanDraft>().also { list -> sourceItems.forEach { item -> list.add(PlanDraft(item.exerciseId, item.weight?.toString().orEmpty(), item.sets?.toString().orEmpty(), item.duration?.toString().orEmpty(), item.speed?.toString().orEmpty(), item.variantId)) }; if (list.isEmpty()) list.add(PlanDraft(exercises.firstOrNull()?.id)) } }
     fun updateItem(index: Int, update: (PlanDraft) -> Unit) { val item = items[index].copy(); update(item); items[index] = item }
-    AlertDialog(
+    MobileModalScreen(
         onDismissRequest = onDismiss,
         title = { Text(if (plan == null) "Включить тренировку в план" else if (plan.id == 0) "Повторить тренировку" else "Редактировать план") },
         text = {
@@ -226,18 +254,172 @@ fun WorkoutPlanEditorDialog(plan: WorkoutPlan?, complex: WorkoutComplex?, exerci
 }
 
 @Composable
-fun WorkoutComplexEditorDialog(existing: WorkoutComplex?, exercises: List<Exercise>, onSave: (JSONObject) -> Unit, onDismiss: () -> Unit) {
+private fun LegacyWorkoutComplexEditorDialog(existing: WorkoutComplex?, exercises: List<Exercise>, onSave: (JSONObject) -> Unit, onDismiss: () -> Unit) {
     var name by remember { mutableStateOf(existing?.name.orEmpty()) }; var comment by remember { mutableStateOf(existing?.comment.orEmpty()) }; var photos by remember { mutableStateOf(existing?.photos?.joinToString(", ").orEmpty()) }; var video by remember { mutableStateOf(existing?.video.orEmpty()) }
     val items = remember { mutableStateListOf<PlanDraft>().also { list -> existing?.items?.forEach { item -> list.add(PlanDraft(item.exerciseId, item.workingWeight?.toString().orEmpty(), item.sets?.toString().orEmpty(), item.durationMinutes?.toString().orEmpty(), item.speedKmh?.toString().orEmpty())) }; if (list.isEmpty()) list.add(PlanDraft(exercises.firstOrNull()?.id)) } }
     fun updateItem(index: Int, update: (PlanDraft) -> Unit) { val item = items[index].copy(); update(item); items[index] = item }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новый комплекс" else "Редактировать комплекс") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) { EditField("Название", name) { name = it }; EditField("Комментарий", comment) { comment = it }; EditField("Фото (URL через запятую)", photos) { photos = it }; EditField("Видео (URL)", video) { video = it }; Text("Упражнения", fontWeight = FontWeight.Bold); items.forEachIndexed { index, item -> Column(verticalArrangement = Arrangement.spacedBy(5.dp)) { if (exercises.isNotEmpty()) Picker("Упражнение: ${exercises.firstOrNull { it.id == item.exerciseId }?.name ?: "—"}", exercises.map { it.name }) { selected -> updateItem(index) { draft -> draft.exerciseId = exercises.firstOrNull { exercise -> exercise.name == selected }?.id } }; EditField("Вес", item.weight) { value -> updateItem(index) { draft -> draft.weight = value } }; EditField("Подходы", item.sets) { value -> updateItem(index) { draft -> draft.sets = value } }; EditField("Длительность, мин", item.duration) { value -> updateItem(index) { draft -> draft.duration = value } }; EditField("Скорость, км/ч", item.speed) { value -> updateItem(index) { draft -> draft.speed = value } }; if (items.size > 1) TextButton({ items.removeAt(index) }) { Text("Удалить упражнение") } } }; TextButton({ items.add(PlanDraft(exercises.firstOrNull()?.id)) }) { Text("+ Добавить упражнение") } } }, confirmButton = { Button({ val array = JSONArray(); items.filter { it.exerciseId != null }.forEach { item -> array.put(JSONObject().put("exercise_id", item.exerciseId).putOptional("working_weight", item.weight.numberOrNull()).putOptional("sets", item.sets.numberOrNull()).putOptional("duration_minutes", item.duration.numberOrNull()).putOptional("speed_kmh", item.speed.numberOrNull())) }; if (name.isNotBlank()) onSave(JSONObject().put("name", name).putOptional("comment", comment.takeIf { it.isNotBlank() }).put("photos", JSONArray(photos.split(',').map { it.trim() }.filter { it.isNotBlank() })).putOptional("video", video.takeIf { it.isNotBlank() }).put("items", array)) }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новый комплекс" else "Редактировать комплекс") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) { EditField("Название", name) { name = it }; EditField("Комментарий", comment) { comment = it }; EditField("Фото (URL через запятую)", photos) { photos = it }; EditField("Видео (URL)", video) { video = it }; Text("Упражнения", fontWeight = FontWeight.Bold); items.forEachIndexed { index, item -> Column(verticalArrangement = Arrangement.spacedBy(5.dp)) { if (exercises.isNotEmpty()) Picker("Упражнение: ${exercises.firstOrNull { it.id == item.exerciseId }?.name ?: "—"}", exercises.map { it.name }) { selected -> updateItem(index) { draft -> draft.exerciseId = exercises.firstOrNull { exercise -> exercise.name == selected }?.id } }; EditField("Вес", item.weight) { value -> updateItem(index) { draft -> draft.weight = value } }; EditField("Подходы", item.sets) { value -> updateItem(index) { draft -> draft.sets = value } }; EditField("Длительность, мин", item.duration) { value -> updateItem(index) { draft -> draft.duration = value } }; EditField("Скорость, км/ч", item.speed) { value -> updateItem(index) { draft -> draft.speed = value } }; if (items.size > 1) TextButton({ items.removeAt(index) }) { Text("Удалить упражнение") } } }; TextButton({ items.add(PlanDraft(exercises.firstOrNull()?.id)) }) { Text("+ Добавить упражнение") } } }, confirmButton = { Button({ val array = JSONArray(); items.filter { it.exerciseId != null }.forEach { item -> array.put(JSONObject().put("exercise_id", item.exerciseId).putOptional("working_weight", item.weight.numberOrNull()).putOptional("sets", item.sets.numberOrNull()).putOptional("duration_minutes", item.duration.numberOrNull()).putOptional("speed_kmh", item.speed.numberOrNull())) }; if (name.isNotBlank()) onSave(JSONObject().put("name", name).putOptional("comment", comment.takeIf { it.isNotBlank() }).put("photos", JSONArray(photos.split(',').map { it.trim() }.filter { it.isNotBlank() })).putOptional("video", video.takeIf { it.isNotBlank() }).put("items", array)) }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
 }
 
 @Composable
 fun WorkoutEntryEditorDialog(existing: WorkoutEntry?, exercises: List<Exercise>, onSave: (JSONObject) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit) {
     var performedAt by remember { mutableStateOf(existing?.date ?: todayTime()) }; var exerciseId by remember { mutableStateOf(existing?.exerciseId ?: exercises.firstOrNull()?.id) }; var weight by remember { mutableStateOf(existing?.weight?.toString().orEmpty()) }; var sets by remember { mutableStateOf(existing?.sets?.toString().orEmpty()) }; var reps by remember { mutableStateOf(existing?.reps?.toString().orEmpty()) }; var rir by remember { mutableStateOf(existing?.rir.orEmpty()) }; var machine by remember { mutableStateOf("") }; var comment by remember { mutableStateOf(existing?.comment.orEmpty()) }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Записать тренировку" else "Редактировать тренировку") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) { if (exercises.isNotEmpty()) Picker("Упражнение: ${exercises.firstOrNull { it.id == exerciseId }?.name ?: "—"}", exercises.map { it.name }) { selected -> exerciseId = exercises.firstOrNull { it.name == selected }?.id }; EditField("Дата и время", performedAt) { performedAt = it }; EditField("Вес", weight) { weight = it }; EditField("Подходы", sets) { sets = it }; EditField("Повторения", reps) { reps = it }; EditField("RIR", rir) { rir = it }; EditField("Место тренажёра", machine) { machine = it }; EditField("Комментарий", comment) { comment = it } } }, confirmButton = { Button({ if (exerciseId != null) onSave(JSONObject().put("performed_at", performedAt).put("exercise_id", exerciseId).putOptional("working_weight", weight.numberOrNull()).putOptional("sets", sets.numberOrNull()).putOptional("reps", reps.numberOrNull()).putOptional("rir", rir.takeIf { it.isNotBlank() }).putOptional("machine_location", machine.takeIf { it.isNotBlank() }).putOptional("comment", comment.takeIf { it.isNotBlank() })) }) { Text("Сохранить") } }, dismissButton = { Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { onDelete?.let { TextButton(onClick = it) { Text("Удалить") } }; TextButton(onClick = onDismiss) { Text("Отмена") } } })
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Записать тренировку" else "Редактировать тренировку") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) { if (exercises.isNotEmpty()) Picker("Упражнение: ${exercises.firstOrNull { it.id == exerciseId }?.name ?: "—"}", exercises.map { it.name }) { selected -> exerciseId = exercises.firstOrNull { it.name == selected }?.id }; EditField("Дата и время", performedAt) { performedAt = it }; EditField("Вес", weight) { weight = it }; EditField("Подходы", sets) { sets = it }; EditField("Повторения", reps) { reps = it }; EditField("RIR", rir) { rir = it }; EditField("Место тренажёра", machine) { machine = it }; EditField("Комментарий", comment) { comment = it } } }, confirmButton = { Button({ if (exerciseId != null) onSave(JSONObject().put("performed_at", performedAt).put("exercise_id", exerciseId).putOptional("working_weight", weight.numberOrNull()).putOptional("sets", sets.numberOrNull()).putOptional("reps", reps.numberOrNull()).putOptional("rir", rir.takeIf { it.isNotBlank() }).putOptional("machine_location", machine.takeIf { it.isNotBlank() }).putOptional("comment", comment.takeIf { it.isNotBlank() })) }) { Text("Сохранить") } }, dismissButton = { Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { onDelete?.let { TextButton(onClick = it) { Text("Удалить") } }; TextButton(onClick = onDismiss) { Text("Отмена") } } })
 }
 
 @Composable
 fun EditField(label: String, value: String, placeholder: String? = null, onValueChange: (String) -> Unit) { OutlinedTextField(value, onValueChange, label = { Text(label) }, placeholder = { placeholder?.let { Text(it) } }, singleLine = false, modifier = Modifier.fillMaxWidth()) }
+
+@Composable
+fun ExerciseEditorDialog(existing: Exercise?, onSave: (JSONObject) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf(existing?.name.orEmpty()) }
+    var muscle by remember { mutableStateOf(existing?.muscleGroup.orEmpty()) }
+    var unit by remember { mutableStateOf(existing?.unit ?: "кг") }
+    var sets by remember { mutableStateOf(existing?.defaultSets?.toString() ?: "3") }
+    var reps by remember { mutableStateOf(existing?.defaultReps?.toString() ?: "12") }
+    var rir by remember { mutableStateOf(existing?.targetRir ?: "0–2") }
+    var note by remember { mutableStateOf(existing?.note.orEmpty()) }
+    var description by remember { mutableStateOf(existing?.description.orEmpty()) }
+    var photos by remember { mutableStateOf(existing?.photos ?: emptyList()) }
+    var video by remember { mutableStateOf(existing?.video.orEmpty()) }
+    var mediaError by remember { mutableStateOf<String?>(null) }
+    val variants = remember { mutableStateListOf<VariantDraft>().also { list -> existing?.variants?.forEach { list.add(VariantDraft(it.machine.orEmpty(), it.equipment.orEmpty(), it.description.orEmpty(), it.technique.orEmpty(), it.tips.orEmpty(), it.name.orEmpty())) } } }
+    fun updateVariant(index: Int, update: (VariantDraft) -> Unit) { val item = variants[index].copy(); update(item); variants[index] = item }
+    MobileModalScreen(
+        onDismissRequest = onDismiss,
+        title = { Text(if (existing == null) "Новое упражнение" else "Редактировать упражнение") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                EditField("Название", name) { name = it }
+                EditField("Мышечная группа", muscle) { muscle = it }
+                EditField("Единица", unit) { unit = it }
+                EditField("Подходы по умолчанию", sets) { sets = it }
+                EditField("Повторения по умолчанию", reps) { reps = it }
+                EditField("Целевой RIR", rir) { rir = it }
+                EditField("Заметка", note) { note = it }
+                EditField("Описание", description) { description = it }
+                Text("Медиа", fontWeight = FontWeight.Bold)
+                MobileImagePickerButton("Добавить фото (${photos.size}/6)", photos.size < 6, { picked -> photos = (photos + picked).take(6); mediaError = null }, { mediaError = it })
+                photos.forEachIndexed { index, _ ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text("Фото ${index + 1}", Modifier.weight(1f), color = AstraTheme.muted, fontSize = 12.sp)
+                        TextButton(onClick = { photos = photos.filterIndexed { photoIndex, _ -> photoIndex != index } }) { Text("Удалить") }
+                    }
+                }
+                MobileVideoPickerButton(if (video.isBlank()) "Добавить видео" else "Заменить видео", onPicked = { video = it; mediaError = null }, onError = { mediaError = it })
+                if (video.isNotBlank()) Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text("Видео добавлено", Modifier.weight(1f), color = AstraTheme.muted, fontSize = 12.sp)
+                    TextButton(onClick = { video = "" }) { Text("Удалить") }
+                }
+                mediaError?.let { Text(it, color = AstraTheme.danger, fontSize = 12.sp) }
+                Text("Варианты выполнения", fontWeight = FontWeight.Bold)
+                variants.forEachIndexed { index, draft ->
+                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        EditField("Введите название", draft.name, "Вариант ${index + 1}") { value -> updateVariant(index) { it.name = value } }
+                        EditField("Тренажёр", draft.machine) { value -> updateVariant(index) { it.machine = value } }
+                        EditField("Инвентарь", draft.equipment) { value -> updateVariant(index) { it.equipment = value } }
+                        EditField("Описание варианта", draft.description) { value -> updateVariant(index) { it.description = value } }
+                        EditField("Техника", draft.technique) { value -> updateVariant(index) { it.technique = value } }
+                        EditField("Советы", draft.tips) { value -> updateVariant(index) { it.tips = value } }
+                        TextButton(onClick = { variants.removeAt(index) }) { Text("Удалить вариант") }
+                    }
+                }
+                TextButton(onClick = { variants.add(VariantDraft()) }) { Text("+ Добавить вариант") }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val variantArray = JSONArray()
+                variants.forEach { draft ->
+                    variantArray.put(JSONObject().putOptional("name", draft.name.takeIf { it.isNotBlank() }).putOptional("machine", draft.machine.takeIf { it.isNotBlank() }).putOptional("equipment", draft.equipment.takeIf { it.isNotBlank() }).putOptional("description", draft.description.takeIf { it.isNotBlank() }).putOptional("technique", draft.technique.takeIf { it.isNotBlank() }).putOptional("tips", draft.tips.takeIf { it.isNotBlank() }))
+                }
+                if (name.isNotBlank()) onSave(JSONObject().put("name", name).putOptional("muscle_group", muscle.takeIf { it.isNotBlank() }).put("default_unit", unit).put("default_sets", sets.numberOrNull() ?: 3).put("default_reps", reps.numberOrNull() ?: 12).putOptional("target_rir", rir.takeIf { it.isNotBlank() }).putOptional("note", note.takeIf { it.isNotBlank() }).putOptional("description", description.takeIf { it.isNotBlank() }).put("photos", JSONArray(photos)).putOptional("video", video.takeIf { it.isNotBlank() }).put("variants", variantArray))
+            }) { Text("Сохранить") }
+        },
+        dismissButton = { Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { onDelete?.let { TextButton(onClick = it) { Text("Удалить") } }; TextButton(onClick = onDismiss) { Text("Отмена") } } }
+    )
+}
+
+@Composable
+fun EquipmentEditorDialog(existing: WorkoutEquipment?, onSave: (JSONObject) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit) {
+    var kind by remember { mutableStateOf(existing?.kind ?: "equipment") }
+    var name by remember { mutableStateOf(existing?.name.orEmpty()) }
+    var description by remember { mutableStateOf(existing?.description.orEmpty()) }
+    var photo by remember { mutableStateOf(existing?.photo.orEmpty()) }
+    var mediaError by remember { mutableStateOf<String?>(null) }
+    MobileModalScreen(
+        onDismissRequest = onDismiss,
+        title = { Text(if (existing == null) "Новый тренажёр / инвентарь" else "Редактировать оборудование") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Picker("Тип: ${if (kind == "machine") "Тренажёр" else "Инвентарь"}", listOf("Тренажёр", "Инвентарь")) { kind = if (it == "Тренажёр") "machine" else "equipment" }
+                EditField("Название", name) { name = it }
+                EditField("Описание", description) { description = it }
+                Text("Медиа", fontWeight = FontWeight.Bold)
+                MobileImagePickerButton(if (photo.isBlank()) "Добавить фото" else "Заменить фото", onPicked = { photo = it.firstOrNull().orEmpty(); mediaError = null }, onError = { mediaError = it })
+                if (photo.isNotBlank()) Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text("Фото добавлено", Modifier.weight(1f), color = AstraTheme.muted, fontSize = 12.sp)
+                    TextButton(onClick = { photo = "" }) { Text("Удалить") }
+                }
+                mediaError?.let { Text(it, color = AstraTheme.danger, fontSize = 12.sp) }
+            }
+        },
+        confirmButton = { Button(onClick = { if (name.isNotBlank()) onSave(JSONObject().put("kind", kind).put("name", name).putOptional("description", description.takeIf { it.isNotBlank() }).putOptional("photo", photo.takeIf { it.isNotBlank() })) }) { Text("Сохранить") } },
+        dismissButton = { Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) { onDelete?.let { TextButton(onClick = it) { Text("Удалить") } }; TextButton(onClick = onDismiss) { Text("Отмена") } } }
+    )
+}
+
+@Composable
+fun WorkoutComplexEditorDialog(existing: WorkoutComplex?, exercises: List<Exercise>, onSave: (JSONObject) -> Unit, onDismiss: () -> Unit) {
+    var name by remember { mutableStateOf(existing?.name.orEmpty()) }
+    var comment by remember { mutableStateOf(existing?.comment.orEmpty()) }
+    var photos by remember { mutableStateOf(existing?.photos ?: emptyList()) }
+    var video by remember { mutableStateOf(existing?.video.orEmpty()) }
+    var mediaError by remember { mutableStateOf<String?>(null) }
+    val items = remember { mutableStateListOf<PlanDraft>().also { list -> existing?.items?.forEach { item -> list.add(PlanDraft(item.exerciseId, item.workingWeight?.toString().orEmpty(), item.sets?.toString().orEmpty(), item.durationMinutes?.toString().orEmpty(), item.speedKmh?.toString().orEmpty())) }; if (list.isEmpty()) list.add(PlanDraft(exercises.firstOrNull()?.id)) } }
+    fun updateItem(index: Int, update: (PlanDraft) -> Unit) { val item = items[index].copy(); update(item); items[index] = item }
+    MobileModalScreen(
+        onDismissRequest = onDismiss,
+        title = { Text(if (existing == null) "Новый комплекс" else "Редактировать комплекс") },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                EditField("Название", name) { name = it }
+                EditField("Комментарий", comment) { comment = it }
+                Text("Медиа", fontWeight = FontWeight.Bold)
+                MobileImagePickerButton("Добавить фото (${photos.size}/6)", photos.size < 6, { picked -> photos = (photos + picked).take(6); mediaError = null }, { mediaError = it })
+                photos.forEachIndexed { index, _ ->
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text("Фото ${index + 1}", Modifier.weight(1f), color = AstraTheme.muted, fontSize = 12.sp)
+                        TextButton(onClick = { photos = photos.filterIndexed { photoIndex, _ -> photoIndex != index } }) { Text("Удалить") }
+                    }
+                }
+                MobileVideoPickerButton(if (video.isBlank()) "Добавить видео" else "Заменить видео", onPicked = { video = it; mediaError = null }, onError = { mediaError = it })
+                if (video.isNotBlank()) Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Text("Видео добавлено", Modifier.weight(1f), color = AstraTheme.muted, fontSize = 12.sp)
+                    TextButton(onClick = { video = "" }) { Text("Удалить") }
+                }
+                mediaError?.let { Text(it, color = AstraTheme.danger, fontSize = 12.sp) }
+                Text("Упражнения", fontWeight = FontWeight.Bold)
+                items.forEachIndexed { index, item ->
+                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        if (exercises.isNotEmpty()) Picker("Упражнение: ${exercises.firstOrNull { it.id == item.exerciseId }?.name ?: "—"}", exercises.map { it.name }) { selected -> updateItem(index) { draft -> draft.exerciseId = exercises.firstOrNull { exercise -> exercise.name == selected }?.id } }
+                        EditField("Вес", item.weight) { value -> updateItem(index) { draft -> draft.weight = value } }
+                        EditField("Подходы", item.sets) { value -> updateItem(index) { draft -> draft.sets = value } }
+                        EditField("Длительность, мин", item.duration) { value -> updateItem(index) { draft -> draft.duration = value } }
+                        EditField("Скорость, км/ч", item.speed) { value -> updateItem(index) { draft -> draft.speed = value } }
+                        if (items.size > 1) TextButton(onClick = { items.removeAt(index) }) { Text("Удалить упражнение") }
+                    }
+                }
+                TextButton(onClick = { items.add(PlanDraft(exercises.firstOrNull()?.id)) }) { Text("+ Добавить упражнение") }
+            }
+        },
+        confirmButton = {
+            Button(onClick = {
+                val array = JSONArray()
+                items.filter { it.exerciseId != null }.forEach { item -> array.put(JSONObject().put("exercise_id", item.exerciseId).putOptional("working_weight", item.weight.numberOrNull()).putOptional("sets", item.sets.numberOrNull()).putOptional("duration_minutes", item.duration.numberOrNull()).putOptional("speed_kmh", item.speed.numberOrNull())) }
+                if (name.isNotBlank()) onSave(JSONObject().put("name", name).putOptional("comment", comment.takeIf { it.isNotBlank() }).put("photos", JSONArray(photos)).putOptional("video", video.takeIf { it.isNotBlank() }).put("items", array))
+            }) { Text("Сохранить") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } }
+    )
+}

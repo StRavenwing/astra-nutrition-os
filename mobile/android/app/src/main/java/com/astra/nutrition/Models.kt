@@ -13,8 +13,11 @@ data class WorkoutPlanItem(val id: Int?, val exerciseId: Int, val name: String?,
 data class WorkoutPlan(val id: Int, val scheduledAt: String, val duration: Double?, val status: String, val completedAt: String?, val items: List<WorkoutPlanItem>, val name: String? = null)
 val WorkoutPlan.isHistory: Boolean get() = status == "archived" || status == "canceled"
 val WorkoutPlan.historyStatus: String get() = if (status == "canceled") "\u041E\u0442\u043C\u0435\u043D\u0435\u043D\u0430" else "\u041F\u0440\u043E\u0439\u0434\u0435\u043D\u0430"
-val WorkoutPlan.displayName: String get() = name.displayOr("Тренировка")
+val WorkoutPlan.statusLabel: String get() = when (status) { "planned" -> "Запланирована"; "archived" -> "Пройдена"; "canceled" -> "Отменена"; else -> status.displayOr("Статус не указан") }
+val WorkoutPlan.displayName: String
+    get() = name.displayOr(items.mapNotNull { it.muscleGroup.displayOrNull() }.distinct().joinToString(" · ").displayOr("Тренировка"))
 data class WorkoutEntry(val id: Int, val date: String, val exerciseId: Int, val name: String, val muscleGroup: String?, val weight: Double?, val sets: Double?, val reps: Double?, val rir: String?, val comment: String?)
+val WorkoutEntry.displayName: String get() = name.displayOr(muscleGroup.displayOr("Тренировка"))
 data class ExerciseVariant(val machine: String?, val equipment: String?, val description: String?, val technique: String?, val tips: String?, val name: String? = null, val id: Int? = null)
 data class Exercise(val id: Int, val name: String, val muscleGroup: String?, val unit: String?, val defaultSets: Double?, val defaultReps: Double?, val targetRir: String? = null, val note: String? = null, val description: String? = null, val photos: List<String> = emptyList(), val video: String? = null, val variants: List<ExerciseVariant> = emptyList(), val code: String? = null)
 data class WorkoutEquipment(val id: Int, val kind: String, val name: String, val description: String?, val photo: String?)

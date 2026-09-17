@@ -42,13 +42,10 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -76,12 +73,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Stroke
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardOptions
@@ -202,8 +200,8 @@ fun MainScaffold(state: AstraState) {
             when (screen) {
                 Screen.Overview -> DashboardScreen(state)
                 Screen.Diary -> DiaryCalendarScreen(state)
-                Screen.Products -> ProductsScreen(state)
-                Screen.Recipes -> RecipesScreen(state)
+                Screen.Products -> CatalogScreen(state, initialMode = 0)
+                Screen.Recipes -> CatalogScreen(state, initialMode = 1)
                 Screen.Progress -> ProgressScreen(state)
                 Screen.Workouts -> WorkoutsScreen(state)
                 Screen.More -> MoreScreen(state) { screen = it }
@@ -323,8 +321,8 @@ fun AddDiaryDialog(products: List<Product>, recipes: List<Recipe>, onSave: (Stri
     var amount by remember { mutableStateOf("1") }
     var product by remember { mutableStateOf(products.firstOrNull()) }
     var recipe by remember { mutableStateOf(recipes.firstOrNull()) }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("В дневник") }, text = {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text("В дневник") }, text = {
+        Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) { ChoiceButton("Продукт", productMode) { productMode = true }; ChoiceButton("Рецепт", !productMode) { productMode = false } }
             OutlinedTextField(date, { date = it }, label = { Text("Дата YYYY-MM-DD") }, singleLine = true)
             Picker("Приём: $meal", listOf("Завтрак", "Обед", "Ужин", "Перекус", "Напиток", "Десерт")) { meal = it }
@@ -338,9 +336,26 @@ fun AddDiaryDialog(products: List<Product>, recipes: List<Recipe>, onSave: (Stri
 @Composable
 fun Picker(label: String, options: List<String>, onSelect: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
-        OutlinedButton({ expanded = true }, Modifier.fillMaxWidth()) { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(label, Modifier.weight(1f)); Text("⌄") } }
-        DropdownMenu(expanded, { expanded = false }) { for (option in options) { DropdownMenuItem({ Text(option) }, { expanded = false; onSelect(option) }) } }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        OutlinedButton({ expanded = !expanded }, Modifier.fillMaxWidth()) { Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(label, Modifier.weight(1f)); Text(if (expanded) "⌃" else "⌄") } }
+        if (expanded) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
+                    .padding(vertical = 4.dp)
+            ) {
+                options.forEach { option ->
+                    TextButton(
+                        onClick = { expanded = false; onSelect(option) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(option, Modifier.fillMaxWidth(), textAlign = TextAlign.Start)
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -392,7 +407,7 @@ fun RecipesScreen(state: AstraState) {
 private fun RecipeDetailDialog(state: AstraState, recipe: Recipe, onDismiss: () -> Unit) {
     var detail by remember { mutableStateOf<RecipeDetail?>(null) }
     LaunchedEffect(recipe.id) { detail = suspendResult { state.api.recipe(recipe.id) }.getOrNull() }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(recipe.name) }, text = {
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text(recipe.name) }, text = {
         Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("${recipe.kcal.shown(" ккал")} · Б ${recipe.protein.shown(" г")} · Ж ${recipe.fat.shown(" г")} · У ${recipe.carbs.shown(" г")}", color = AstraTheme.muted)
             Divider()
@@ -414,7 +429,7 @@ fun MoreScreen(state: AstraState, onNavigate: (Screen) -> Unit) {
             item { AstraCard { Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) { Text(state.user?.email ?: "—", fontWeight = FontWeight.Bold); Text("Настройки", color = AstraTheme.muted); OutlinedButton({ showAPI = true }) { Icon(Icons.Default.Settings, null); Spacer(Modifier.width(6.dp)); Text("Адрес API") }; TextButton({ kotlinx.coroutines.MainScope().launch { state.api.logout(); state.user = null } }) { Icon(Icons.Default.ArrowBack, null); Spacer(Modifier.width(6.dp)); Text("Выйти") } } } }
         }
     }
-    if (showAPI) AlertDialog(onDismissRequest = { showAPI = false }, title = { Text("Адрес API") }, text = { OutlinedTextField(apiURL, { apiURL = it }, label = { Text("https://astra.example.com/api/v1") }, singleLine = true) }, confirmButton = { Button({ state.api.baseUrl = apiURL; showAPI = false }) { Text("Сохранить") } }, dismissButton = { TextButton({ showAPI = false }) { Text("Отмена") } })
+    if (showAPI) MobileModalScreen(onDismissRequest = { showAPI = false }, title = { Text("Адрес API") }, text = { OutlinedTextField(apiURL, { apiURL = it }, label = { Text("https://astra.example.com/api/v1") }, singleLine = true) }, confirmButton = { Button({ state.api.baseUrl = apiURL; showAPI = false }) { Text("Сохранить") } }, dismissButton = { TextButton({ showAPI = false }) { Text("Отмена") } })
 }
 
 @Composable
@@ -434,7 +449,7 @@ fun LegacyProgressScreen(state: AstraState) {
 @Composable
 private fun AddProgressDialog(onSave: (String, Double?, Double?, Double?, String?) -> Unit, onDismiss: () -> Unit) {
     var date by remember { mutableStateOf(today()) }; var weight by remember { mutableStateOf("") }; var waist by remember { mutableStateOf("") }; var wellbeing by remember { mutableStateOf("") }; var comment by remember { mutableStateOf("") }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Новый замер") }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { OutlinedTextField(date, { date = it }, label = { Text("Дата YYYY-MM-DD") }, singleLine = true); NumberField("Вес, кг", weight) { weight = it }; NumberField("Талия, см", waist) { waist = it }; NumberField("Самочувствие 1–5", wellbeing) { wellbeing = it }; OutlinedTextField(comment, { comment = it }, label = { Text("Комментарий") }, modifier = Modifier.fillMaxWidth()) } }, confirmButton = { Button({ onSave(date, weight.toNumber(), waist.toNumber(), wellbeing.toNumber(), comment.takeIf { it.isNotBlank() }) }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text("Новый замер") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) { OutlinedTextField(date, { date = it }, label = { Text("Дата YYYY-MM-DD") }, singleLine = true); NumberField("Вес, кг", weight) { weight = it }; NumberField("Талия, см", waist) { waist = it }; NumberField("Самочувствие 1–5", wellbeing) { wellbeing = it }; OutlinedTextField(comment, { comment = it }, label = { Text("Комментарий") }, modifier = Modifier.fillMaxWidth()) } }, confirmButton = { Button({ onSave(date, weight.toNumber(), waist.toNumber(), wellbeing.toNumber(), comment.takeIf { it.isNotBlank() }) }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
 }
 
 @Composable
@@ -563,6 +578,7 @@ private fun averageProgress(values: Iterable<Double?>): Double? {
 
 @Composable
 private fun ProgressLineChart(values: List<Double>) {
+    val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = .12f)
     Canvas(Modifier.fillMaxWidth().height(132.dp)) {
         if (values.isEmpty()) return@Canvas
 
@@ -574,7 +590,6 @@ private fun ProgressLineChart(values: List<Double>) {
             val y = size.height - size.height * ((value - minValue) / range).toFloat()
             Offset(x, y)
         }
-        val gridColor = MaterialTheme.colorScheme.onSurface.copy(alpha = .12f)
         listOf(0f, .5f, 1f).forEach { fraction ->
             val y = size.height * fraction
             drawLine(gridColor, Offset(0f, y), Offset(size.width, y), strokeWidth = 1f)
@@ -676,7 +691,7 @@ private fun ProgressDetailScreen(state: AstraState, entry: ProgressEntry, onBack
     }
     if (showEditor) ProgressEditorDialog(entry, { body -> scope.launch { suspendResult { state.api.updateProgress(entry.id, body) }; showEditor = false; onChanged() } }, { showEditor = false })
     if (showShare) ShareToClientDialog(clients, { clientId -> scope.launch { suspendResult { state.api.shareToClient(clientId, "progress", entry.id) }; showShare = false; actionMessage = "Отправлено клиенту" } }, { showShare = false })
-    if (showDelete) AlertDialog(onDismissRequest = { showDelete = false }, title = { Text("Удалить замер?") }, text = { Text("Это действие нельзя отменить.") }, confirmButton = { TextButton({ scope.launch { suspendResult { state.api.deleteProgress(entry.id) }; showDelete = false; onChanged() } }) { Text("Удалить", color = AstraTheme.danger) } }, dismissButton = { TextButton({ showDelete = false }) { Text("Отмена") } })
+    if (showDelete) MobileModalScreen(onDismissRequest = { showDelete = false }, title = { Text("Удалить замер?") }, text = { Text("Это действие нельзя отменить.") }, confirmButton = { TextButton({ scope.launch { suspendResult { state.api.deleteProgress(entry.id) }; showDelete = false; onChanged() } }) { Text("Удалить", color = AstraTheme.danger) } }, dismissButton = { TextButton({ showDelete = false }) { Text("Отмена") } })
 }
 
 @Composable
@@ -703,7 +718,7 @@ private fun ProgressEditorDialog(existing: ProgressEntry?, onSave: (JSONObject) 
     var wellbeing by remember(existing?.id) { mutableStateOf(existing?.wellbeing?.toString().orEmpty()) }
     var comment by remember(existing?.id) { mutableStateOf(existing?.comment.orEmpty()) }
     fun body(): JSONObject = JSONObject().put("measured_at", date).putProgressValue("weight_kg", weight).putProgressValue("desired_weight_kg", desired).putProgressValue("height_cm", height).putProgressValue("body_fat_pct", bodyFat).putProgressValue("muscle_mass_kg", muscle).putProgressValue("kcal_target", kcal).putProgressValue("protein_target_g", protein).putProgressValue("fat_target_g", fat).putProgressValue("carbs_target_g", carbs).putProgressValue("waist_cm", waist).putProgressValue("chest_cm", chest).putProgressValue("hips_cm", hips).putProgressValue("sleep_score", sleep).putProgressValue("wellbeing_score", wellbeing).put("comment", comment.takeIf { it.isNotBlank() } ?: JSONObject.NULL)
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новый замер" else "Редактировать замер") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) { OutlinedTextField(date, { date = it }, label = { Text("Дата YYYY-MM-DD") }, singleLine = true); NumberField("Вес, кг", weight) { weight = it }; NumberField("Желаемый вес, кг", desired) { desired = it }; NumberField("Рост, см", height) { height = it }; NumberField("Талия, см", waist) { waist = it }; NumberField("Грудь, см", chest) { chest = it }; NumberField("Бёдра, см", hips) { hips = it }; NumberField("Процент жира", bodyFat) { bodyFat = it }; NumberField("Мышечная масса, кг", muscle) { muscle = it }; NumberField("Калорийность", kcal) { kcal = it }; NumberField("Белок, г", protein) { protein = it }; NumberField("Жиры, г", fat) { fat = it }; NumberField("Углеводы, г", carbs) { carbs = it }; NumberField("Сон, 1–5", sleep) { sleep = it }; NumberField("Самочувствие, 1–5", wellbeing) { wellbeing = it }; OutlinedTextField(comment, { comment = it }, label = { Text("Комментарий") }, modifier = Modifier.fillMaxWidth()) } }, confirmButton = { Button({ onSave(body()) }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text(if (existing == null) "Новый замер" else "Редактировать замер") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(7.dp)) { OutlinedTextField(date, { date = it }, label = { Text("Дата YYYY-MM-DD") }, singleLine = true); NumberField("Вес, кг", weight) { weight = it }; NumberField("Желаемый вес, кг", desired) { desired = it }; NumberField("Рост, см", height) { height = it }; NumberField("Талия, см", waist) { waist = it }; NumberField("Грудь, см", chest) { chest = it }; NumberField("Бёдра, см", hips) { hips = it }; NumberField("Процент жира", bodyFat) { bodyFat = it }; NumberField("Мышечная масса, кг", muscle) { muscle = it }; NumberField("Калорийность", kcal) { kcal = it }; NumberField("Белок, г", protein) { protein = it }; NumberField("Жиры, г", fat) { fat = it }; NumberField("Углеводы, г", carbs) { carbs = it }; NumberField("Сон, 1–5", sleep) { sleep = it }; NumberField("Самочувствие, 1–5", wellbeing) { wellbeing = it }; OutlinedTextField(comment, { comment = it }, label = { Text("Комментарий") }, modifier = Modifier.fillMaxWidth()) } }, confirmButton = { Button({ onSave(body()) }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
 }
 
 private fun JSONObject.putProgressValue(key: String, value: String): JSONObject = put(key, value.toNumber() ?: JSONObject.NULL)
@@ -728,7 +743,7 @@ fun WorkoutsScreen(state: AstraState) {
 @Composable
 private fun AddWorkoutDialog(exercises: List<Exercise>, onSave: (String, Exercise, Double?, Double?, Double?, String?) -> Unit, onDismiss: () -> Unit) {
     var date by remember { mutableStateOf(todayTime()) }; var exercise by remember { mutableStateOf(exercises.firstOrNull()) }; var weight by remember { mutableStateOf("") }; var sets by remember { mutableStateOf("") }; var reps by remember { mutableStateOf("") }; var rir by remember { mutableStateOf("") }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text("Записать тренировку") }, text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) { Picker("Упражнение: ${exercise?.name ?: "—"}", exercises.map { it.name }) { exercise = exercises.firstOrNull { e -> e.name == it } }; OutlinedTextField(date, { date = it }, label = { Text("Дата и время") }, singleLine = true); NumberField("Вес", weight) { weight = it }; NumberField("Подходы", sets) { sets = it }; NumberField("Повторения", reps) { reps = it }; OutlinedTextField(rir, { rir = it }, label = { Text("RIR") }, singleLine = true) } }, confirmButton = { Button({ exercise?.let { onSave(date, it, weight.toNumber(), sets.toNumber(), reps.toNumber(), rir.takeIf { value -> value.isNotBlank() }) } }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text("Записать тренировку") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) { Picker("Упражнение: ${exercise?.name ?: "—"}", exercises.map { it.name }) { exercise = exercises.firstOrNull { e -> e.name == it } }; OutlinedTextField(date, { date = it }, label = { Text("Дата и время") }, singleLine = true); NumberField("Вес", weight) { weight = it }; NumberField("Подходы", sets) { sets = it }; NumberField("Повторения", reps) { reps = it }; OutlinedTextField(rir, { rir = it }, label = { Text("RIR") }, singleLine = true) } }, confirmButton = { Button({ exercise?.let { onSave(date, it, weight.toNumber(), sets.toNumber(), reps.toNumber(), rir.takeIf { value -> value.isNotBlank() }) } }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
 }
 
 @Composable
@@ -837,9 +852,9 @@ private fun DiaryFoodPickerScreen(products: List<Product>, recipes: List<Recipe>
 }
 
 @Composable
-private fun DiaryEntryEditorDialog(products: List<Product>, recipes: List<Recipe>, initialDate: String, entry: DiaryEntry?, presetProduct: Product? = null, presetRecipe: Recipe? = null, presetCustom: Boolean = false, onDismiss: () -> Unit, onSave: (Int?, JSONObject) -> Unit) {
+fun DiaryEntryEditorDialog(products: List<Product>, recipes: List<Recipe>, initialDate: String, entry: DiaryEntry?, presetProduct: Product? = null, presetRecipe: Recipe? = null, presetCustom: Boolean = false, onDismiss: () -> Unit, onSave: (Int?, JSONObject) -> Unit) {
     var kind by remember(entry?.id) { mutableStateOf(if (entry?.itemType == "product") 0 else 1) }; var date by remember(entry?.id) { mutableStateOf(entry?.date ?: initialDate) }; var meal by remember(entry?.id) { mutableStateOf(entry?.meal ?: androidMealOrder.first()) }; var product by remember(entry?.id) { mutableStateOf(products.firstOrNull { it.id == entry?.productId } ?: products.firstOrNull()) }; var recipe by remember(entry?.id) { mutableStateOf(recipes.firstOrNull { it.id == entry?.recipeId } ?: recipes.firstOrNull()) }; var amount by remember(entry?.id) { mutableStateOf((entry?.measurementQuantity ?: entry?.quantity ?: entry?.servings ?: 1.0).toString()) }; var unit by remember(entry?.id) { mutableStateOf(entry?.measurementName ?: entry?.unit ?: product?.unit ?: "г") }; var comment by remember(entry?.id) { mutableStateOf(entry?.comment ?: "") }
     LaunchedEffect(presetProduct?.id, presetRecipe?.id, presetCustom) { if (entry == null) { if (presetCustom) kind = 2; presetProduct?.let { product = it; unit = it.unit ?: unit; kind = 0 }; presetRecipe?.let { recipe = it; kind = 1 } } }
     var customName by remember(entry?.id) { mutableStateOf("") }; var customKcal by remember(entry?.id) { mutableStateOf("") }; var customProtein by remember(entry?.id) { mutableStateOf("") }; var customFat by remember(entry?.id) { mutableStateOf("") }; var customCarbs by remember(entry?.id) { mutableStateOf("") }
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(if (entry == null) "Добавить запись" else "Редактировать запись") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { ChoiceButton("Продукт", kind == 0) { kind = 0 }; ChoiceButton("Блюдо", kind == 1) { kind = 1 }; ChoiceButton("Новое блюдо", kind == 2) { kind = 2 } }; OutlinedTextField(date, { date = it }, label = { Text("Дата YYYY-MM-DD") }, singleLine = true); Picker("Приём: $meal", androidMealOrder) { meal = it }; if (kind == 0) { Picker("Продукт: ${product?.name ?: "—"}", products.map { it.name }) { product = products.firstOrNull { p -> p.name == it }; unit = product?.unit ?: "г" }; OutlinedTextField(amount, { amount = it }, label = { Text("Количество") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(unit, { unit = it }, label = { Text("Единица") }, singleLine = true) } else if (kind == 1) { Picker("Блюдо: ${recipe?.name ?: "—"}", recipes.map { it.name }) { recipe = recipes.firstOrNull { r -> r.name == it } }; OutlinedTextField(amount, { amount = it }, label = { Text("Порций") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)) } else { OutlinedTextField(customName, { customName = it }, label = { Text("Название блюда") }, singleLine = true); OutlinedTextField(customKcal, { customKcal = it }, label = { Text("Ккал") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(customProtein, { customProtein = it }, label = { Text("Белки, г") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(customFat, { customFat = it }, label = { Text("Жиры, г") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(customCarbs, { customCarbs = it }, label = { Text("Углеводы, г") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(amount, { amount = it }, label = { Text("Порций") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)) }; OutlinedTextField(comment, { comment = it }, label = { Text("Комментарий") }, modifier = Modifier.fillMaxWidth()) } }, confirmButton = { Button({ val body = JSONObject().put("entry_date", date).put("meal_type", meal).put("servings", if (kind == 0) 1.0 else amount.toNumber() ?: 1.0).put("comment", comment.ifBlank { JSONObject.NULL }); when (kind) { 0 -> body.put("product_id", product?.id).put("quantity", amount.toNumber() ?: 1.0).put("measurement_quantity", amount.toNumber() ?: 1.0).put("measurement_name", unit); 1 -> body.put("recipe_id", recipe?.id); else -> body.put("custom_dish", JSONObject().put("name", customName).put("kcal", customKcal.toNumber() ?: 0.0).put("protein_g", customProtein.toNumber() ?: 0.0).put("fat_g", customFat.toNumber() ?: 0.0).put("carbs_g", customCarbs.toNumber() ?: 0.0)) }; onSave(entry?.id, body) }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
+    MobileModalScreen(onDismissRequest = onDismiss, title = { Text(if (entry == null) "Добавить запись" else "Редактировать запись") }, text = { Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) { Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) { ChoiceButton("Продукт", kind == 0) { kind = 0 }; ChoiceButton("Блюдо", kind == 1) { kind = 1 }; ChoiceButton("Новое блюдо", kind == 2) { kind = 2 } }; OutlinedTextField(date, { date = it }, label = { Text("Дата YYYY-MM-DD") }, singleLine = true); Picker("Приём: $meal", androidMealOrder) { meal = it }; if (kind == 0) { Picker("Продукт: ${product?.name ?: "—"}", products.map { it.name }) { product = products.firstOrNull { p -> p.name == it }; unit = product?.unit ?: "г" }; OutlinedTextField(amount, { amount = it }, label = { Text("Количество") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(unit, { unit = it }, label = { Text("Единица") }, singleLine = true) } else if (kind == 1) { Picker("Блюдо: ${recipe?.name ?: "—"}", recipes.map { it.name }) { recipe = recipes.firstOrNull { r -> r.name == it } }; OutlinedTextField(amount, { amount = it }, label = { Text("Порций") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)) } else { OutlinedTextField(customName, { customName = it }, label = { Text("Название блюда") }, singleLine = true); OutlinedTextField(customKcal, { customKcal = it }, label = { Text("Ккал") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(customProtein, { customProtein = it }, label = { Text("Белки, г") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(customFat, { customFat = it }, label = { Text("Жиры, г") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(customCarbs, { customCarbs = it }, label = { Text("Углеводы, г") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)); OutlinedTextField(amount, { amount = it }, label = { Text("Порций") }, singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)) }; OutlinedTextField(comment, { comment = it }, label = { Text("Комментарий") }, modifier = Modifier.fillMaxWidth()) } }, confirmButton = { Button({ val body = JSONObject().put("entry_date", date).put("meal_type", meal).put("servings", if (kind == 0) 1.0 else amount.toNumber() ?: 1.0).put("comment", comment.ifBlank { JSONObject.NULL }); when (kind) { 0 -> body.put("product_id", product?.id).put("quantity", amount.toNumber() ?: 1.0).put("measurement_quantity", amount.toNumber() ?: 1.0).put("measurement_name", unit); 1 -> body.put("recipe_id", recipe?.id); else -> body.put("custom_dish", JSONObject().put("name", customName).put("kcal", customKcal.toNumber() ?: 0.0).put("protein_g", customProtein.toNumber() ?: 0.0).put("fat_g", customFat.toNumber() ?: 0.0).put("carbs_g", customCarbs.toNumber() ?: 0.0)) }; onSave(entry?.id, body) }) { Text("Сохранить") } }, dismissButton = { TextButton(onDismiss) { Text("Отмена") } })
 }

@@ -1,0 +1,279 @@
+<div id="astra-trainer-mockup" class="astra-trainer-mockup" aria-label="Макет рабочего места тренера">
+  <style>
+    #astra-trainer-mockup {
+      --atm-bg: light-dark(#f7f8fc, #101827);
+      --atm-surface: light-dark(#ffffff, #172235);
+      --atm-surface-soft: light-dark(#f1f3f8, #1d2a40);
+      --atm-ink: light-dark(#172033, #f4f7fc);
+      --atm-muted: light-dark(#7d879b, #a9b4c8);
+      --atm-line: light-dark(#e3e8f1, #2d3b52);
+      --atm-nav: light-dark(#0e1728, #0b1220);
+      --atm-nav-soft: light-dark(#26364a, #1e2b40);
+      --atm-purple: light-dark(#6f82ff, #91a0ff);
+      --atm-mint: light-dark(#bdf2d3, #75dca3);
+      --atm-orange: light-dark(#e99642, #f2b66f);
+      --atm-red: light-dark(#d56666, #f18a8a);
+      --atm-shadow: 0 18px 44px color-mix(in srgb, var(--atm-ink) 10%, transparent);
+      display: block;
+      width: 100%;
+      color: var(--atm-ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    #astra-trainer-mockup *, #astra-trainer-mockup *::before, #astra-trainer-mockup *::after { box-sizing: border-box; }
+    #astra-trainer-mockup button, #astra-trainer-mockup input { font: inherit; }
+    #astra-trainer-mockup button { cursor: pointer; }
+    #astra-trainer-mockup .atm-shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 760px; overflow: hidden; border: 1px solid var(--atm-line); border-radius: 22px; background: var(--atm-bg); box-shadow: var(--atm-shadow); }
+    #astra-trainer-mockup .atm-sidebar { display: flex; min-width: 0; flex-direction: column; padding: 25px 14px 18px; background: var(--atm-nav); color: #f4f7fc; }
+    #astra-trainer-mockup .atm-brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 30px; font-size: 18px; font-weight: 700; letter-spacing: -.02em; }
+    #astra-trainer-mockup .atm-brand-mark { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 11px; background: var(--atm-mint); color: #172033; font-size: 15px; font-weight: 800; }
+    #astra-trainer-mockup .atm-brand small { display: block; margin-top: 2px; color: #9eabc1; font-size: 10px; font-weight: 500; letter-spacing: .03em; }
+    #astra-trainer-mockup .atm-nav-label { margin: 0 11px 8px; color: #7f8ca3; font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    #astra-trainer-mockup .atm-nav { display: grid; gap: 4px; }
+    #astra-trainer-mockup .atm-nav button { display: flex; align-items: center; gap: 11px; min-height: 42px; border: 0; border-radius: 10px; padding: 0 11px; background: transparent; color: #c8d0df; text-align: left; font-size: 13px; }
+    #astra-trainer-mockup .atm-nav button:hover, #astra-trainer-mockup .atm-nav button[aria-current="page"] { background: var(--atm-nav-soft); color: #fff; }
+    #astra-trainer-mockup .atm-nav-icon { display: grid; width: 20px; place-items: center; color: var(--atm-mint); font-size: 15px; }
+    #astra-trainer-mockup .atm-sidebar-note { margin-top: auto; border-top: 1px solid #2a374d; padding: 18px 10px 0; color: #9eabc1; font-size: 11px; }
+    #astra-trainer-mockup .atm-user { display: flex; align-items: center; gap: 9px; margin-top: 20px; padding: 0 10px; }
+    #astra-trainer-mockup .atm-user-avatar { display: grid; width: 31px; height: 31px; place-items: center; border-radius: 50%; background: #f3c6a9; color: #172033; font-size: 12px; font-weight: 800; }
+    #astra-trainer-mockup .atm-user strong, #astra-trainer-mockup .atm-user span { display: block; }
+    #astra-trainer-mockup .atm-user strong { color: #f4f7fc; font-size: 11px; }
+    #astra-trainer-mockup .atm-user span { margin-top: 2px; color: #8f9db3; font-size: 10px; }
+
+    #astra-trainer-mockup .atm-main { min-width: 0; padding: 26px 30px 34px; }
+    #astra-trainer-mockup .atm-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+    #astra-trainer-mockup .atm-breadcrumb { color: var(--atm-muted); font-size: 12px; }
+    #astra-trainer-mockup .atm-breadcrumb strong { color: var(--atm-ink); font-weight: 600; }
+    #astra-trainer-mockup .atm-top-actions, #astra-trainer-mockup .atm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    #astra-trainer-mockup .atm-button { min-height: 38px; border: 1px solid var(--atm-line); border-radius: 10px; padding: 0 13px; background: var(--atm-surface); color: var(--atm-ink); font-size: 12px; font-weight: 600; }
+    #astra-trainer-mockup .atm-button:hover { border-color: var(--atm-purple); color: var(--atm-purple); }
+    #astra-trainer-mockup .atm-button-primary { border-color: var(--atm-ink); background: var(--atm-ink); color: var(--atm-surface); }
+    #astra-trainer-mockup .atm-button-primary:hover { border-color: var(--atm-purple); background: var(--atm-purple); color: #fff; }
+    #astra-trainer-mockup .atm-button-quiet { border-color: transparent; background: transparent; color: var(--atm-purple); }
+
+    #astra-trainer-mockup .atm-profile { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; margin-bottom: 19px; }
+    #astra-trainer-mockup .atm-profile-main { display: flex; min-width: 0; align-items: center; gap: 14px; }
+    #astra-trainer-mockup .atm-profile-avatar { display: grid; flex: 0 0 54px; width: 54px; height: 54px; place-items: center; border-radius: 17px; background: #e7e3ff; color: #6254bd; font-size: 20px; font-weight: 700; }
+    #astra-trainer-mockup .atm-eyebrow { margin: 0 0 4px; color: var(--atm-purple); font-size: 9px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
+    #astra-trainer-mockup h1, #astra-trainer-mockup h2, #astra-trainer-mockup h3, #astra-trainer-mockup p { margin-top: 0; }
+    #astra-trainer-mockup .atm-profile h1 { margin-bottom: 3px; font-size: clamp(24px, 3vw, 32px); letter-spacing: -.04em; line-height: 1.05; }
+    #astra-trainer-mockup .atm-profile-meta { color: var(--atm-muted); font-size: 12px; }
+    #astra-trainer-mockup .atm-status { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; color: #2e9962; font-size: 11px; font-weight: 700; }
+    #astra-trainer-mockup .atm-status::before { width: 6px; height: 6px; border-radius: 50%; background: #45bd7a; content: ""; }
+
+    #astra-trainer-mockup .atm-tabs { display: flex; gap: 18px; overflow-x: auto; border-bottom: 1px solid var(--atm-line); }
+    #astra-trainer-mockup .atm-tab { flex: 0 0 auto; min-height: 42px; border: 0; border-bottom: 2px solid transparent; padding: 0 1px; background: transparent; color: var(--atm-muted); font-size: 12px; font-weight: 600; }
+    #astra-trainer-mockup .atm-tab:hover, #astra-trainer-mockup .atm-tab[aria-selected="true"] { border-bottom-color: var(--atm-purple); color: var(--atm-ink); }
+    #astra-trainer-mockup .atm-panel { display: none; padding-top: 20px; }
+    #astra-trainer-mockup .atm-panel[data-active="true"] { display: block; }
+    #astra-trainer-mockup .atm-stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+    #astra-trainer-mockup .atm-stat { min-width: 0; padding: 13px 14px; border: 1px solid var(--atm-line); border-radius: 14px; background: var(--atm-surface); }
+    #astra-trainer-mockup .atm-stat span, #astra-trainer-mockup .atm-stat small { display: block; color: var(--atm-muted); font-size: 10px; }
+    #astra-trainer-mockup .atm-stat strong { display: block; margin: 5px 0 2px; font-size: 20px; letter-spacing: -.04em; }
+    #astra-trainer-mockup .atm-stat small { font-size: 10px; }
+    #astra-trainer-mockup .atm-stat-positive strong { color: #329a63; }
+    #astra-trainer-mockup .atm-stat-attention strong { color: var(--atm-orange); }
+    #astra-trainer-mockup .atm-two-col { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(300px, .9fr); gap: 16px; }
+    #astra-trainer-mockup .atm-section { min-width: 0; border: 1px solid var(--atm-line); border-radius: 16px; background: var(--atm-surface); }
+    #astra-trainer-mockup .atm-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 17px 13px; border-bottom: 1px solid var(--atm-line); }
+    #astra-trainer-mockup .atm-section-head h2 { margin-bottom: 2px; font-size: 15px; letter-spacing: -.02em; }
+    #astra-trainer-mockup .atm-section-head p { margin-bottom: 0; color: var(--atm-muted); font-size: 11px; }
+    #astra-trainer-mockup .atm-section-body { padding: 0 17px 17px; }
+    #astra-trainer-mockup .atm-table-wrap { overflow-x: auto; }
+    #astra-trainer-mockup table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    #astra-trainer-mockup th { padding: 12px 9px 9px; color: var(--atm-muted); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-align: left; text-transform: uppercase; }
+    #astra-trainer-mockup td { padding: 11px 9px; border-top: 1px solid var(--atm-line); white-space: nowrap; }
+    #astra-trainer-mockup th:first-child, #astra-trainer-mockup td:first-child { padding-left: 0; }
+    #astra-trainer-mockup th:last-child, #astra-trainer-mockup td:last-child { padding-right: 0; text-align: right; }
+    #astra-trainer-mockup .atm-change-down { color: #329a63; font-weight: 700; }
+    #astra-trainer-mockup .atm-change-neutral { color: var(--atm-muted); }
+    #astra-trainer-mockup .atm-muted { color: var(--atm-muted); }
+    #astra-trainer-mockup .atm-progress-line { display: flex; align-items: center; gap: 10px; margin: 14px 0 10px; }
+    #astra-trainer-mockup .atm-track { height: 7px; flex: 1; overflow: hidden; border-radius: 99px; background: var(--atm-surface-soft); }
+    #astra-trainer-mockup .atm-track span { display: block; height: 100%; border-radius: inherit; background: var(--atm-purple); }
+    #astra-trainer-mockup .atm-progress-line strong { font-size: 12px; white-space: nowrap; }
+    #astra-trainer-mockup .atm-task-list { display: grid; gap: 0; }
+    #astra-trainer-mockup .atm-task { display: flex; align-items: flex-start; gap: 9px; padding: 11px 0; border-top: 1px solid var(--atm-line); }
+    #astra-trainer-mockup .atm-task:first-child { border-top: 0; }
+    #astra-trainer-mockup .atm-task input { width: 16px; height: 16px; margin-top: 1px; accent-color: var(--atm-purple); }
+    #astra-trainer-mockup .atm-task label { flex: 1; min-width: 0; font-size: 12px; }
+    #astra-trainer-mockup .atm-task label span, #astra-trainer-mockup .atm-task small { display: block; color: var(--atm-muted); font-size: 10px; }
+    #astra-trainer-mockup .atm-task input:checked + label { color: var(--atm-muted); text-decoration: line-through; }
+    #astra-trainer-mockup .atm-task small { color: var(--atm-orange); white-space: nowrap; }
+    #astra-trainer-mockup .atm-week-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 14px; }
+    #astra-trainer-mockup .atm-day { min-width: 0; padding: 9px 5px; border: 1px solid var(--atm-line); border-radius: 10px; text-align: center; }
+    #astra-trainer-mockup .atm-day strong, #astra-trainer-mockup .atm-day span { display: block; }
+    #astra-trainer-mockup .atm-day strong { font-size: 11px; }
+    #astra-trainer-mockup .atm-day span { margin-top: 3px; color: var(--atm-muted); font-size: 9px; }
+    #astra-trainer-mockup .atm-day-done { border-color: #a8dfbd; background: #f0fbf4; }
+    #astra-trainer-mockup .atm-day-done strong { color: #329a63; }
+    #astra-trainer-mockup .atm-day-today { border-color: var(--atm-purple); background: #f0f1ff; }
+    #astra-trainer-mockup .atm-review-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-top: 1px solid var(--atm-line); }
+    #astra-trainer-mockup .atm-review-row:first-child { border-top: 0; }
+    #astra-trainer-mockup .atm-review-row > div { min-width: 0; }
+    #astra-trainer-mockup .atm-review-row strong, #astra-trainer-mockup .atm-review-row span { display: block; }
+    #astra-trainer-mockup .atm-review-row strong { font-size: 12px; }
+    #astra-trainer-mockup .atm-review-row span { margin-top: 2px; color: var(--atm-muted); font-size: 10px; }
+    #astra-trainer-mockup .atm-review-status { border-radius: 99px; padding: 4px 7px; background: #f0fbf4; color: #329a63; font-size: 9px; font-weight: 700; white-space: nowrap; }
+    #astra-trainer-mockup .atm-review-status-open { background: #fff5e7; color: #b96f16; }
+    #astra-trainer-mockup .atm-callout { margin-top: 16px; border-radius: 13px; padding: 13px 14px; background: var(--atm-nav); color: #fff; }
+    #astra-trainer-mockup .atm-callout .atm-eyebrow { color: var(--atm-mint); }
+    #astra-trainer-mockup .atm-callout p { margin-bottom: 0; color: #dce4ef; font-size: 11px; line-height: 1.5; }
+    #astra-trainer-mockup .atm-lower { margin-top: 16px; }
+    #astra-trainer-mockup .atm-full-section { min-width: 0; border: 1px solid var(--atm-line); border-radius: 16px; background: var(--atm-surface); }
+    #astra-trainer-mockup .atm-microbar { display: inline-flex; width: 60px; height: 6px; overflow: hidden; border-radius: 99px; background: var(--atm-surface-soft); vertical-align: middle; }
+    #astra-trainer-mockup .atm-microbar span { display: block; background: var(--atm-purple); }
+    #astra-trainer-mockup .atm-checkpoint { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 13px 0; border-top: 1px solid var(--atm-line); }
+    #astra-trainer-mockup .atm-checkpoint:first-child { border-top: 0; }
+    #astra-trainer-mockup .atm-checkpoint-date { color: var(--atm-muted); font-size: 11px; }
+    #astra-trainer-mockup .atm-checkpoint-main strong, #astra-trainer-mockup .atm-checkpoint-main span { display: block; }
+    #astra-trainer-mockup .atm-checkpoint-main strong { font-size: 12px; }
+    #astra-trainer-mockup .atm-checkpoint-main span { margin-top: 2px; color: var(--atm-muted); font-size: 10px; }
+    #astra-trainer-mockup .atm-checkpoint-pill { border-radius: 99px; padding: 5px 8px; background: #f0f1ff; color: #6254bd; font-size: 9px; font-weight: 700; white-space: nowrap; }
+    #astra-trainer-mockup .atm-chart { display: block; width: 100%; height: 180px; }
+    #astra-trainer-mockup .atm-chart text { fill: var(--atm-muted); font-size: 10px; }
+    #astra-trainer-mockup .atm-chart .atm-grid { stroke: var(--atm-line); stroke-width: 1; }
+    #astra-trainer-mockup .atm-chart .atm-line { fill: none; stroke: var(--atm-purple); stroke-linecap: round; stroke-linejoin: round; stroke-width: 3; }
+    #astra-trainer-mockup .atm-chart .atm-dot { fill: var(--atm-purple); stroke: var(--atm-surface); stroke-width: 3; }
+    #astra-trainer-mockup .atm-empty-message { padding: 26px 0; color: var(--atm-muted); font-size: 12px; }
+
+    @media (max-width: 900px) {
+      #astra-trainer-mockup .atm-shell { grid-template-columns: 74px minmax(0, 1fr); }
+      #astra-trainer-mockup .atm-sidebar { padding-inline: 10px; }
+      #astra-trainer-mockup .atm-brand { justify-content: center; padding-inline: 0; }
+      #astra-trainer-mockup .atm-brand > div, #astra-trainer-mockup .atm-nav-label, #astra-trainer-mockup .atm-nav button span:not(.atm-nav-icon), #astra-trainer-mockup .atm-sidebar-note, #astra-trainer-mockup .atm-user > div { display: none; }
+      #astra-trainer-mockup .atm-nav button { justify-content: center; padding-inline: 0; }
+      #astra-trainer-mockup .atm-user { justify-content: center; padding-inline: 0; }
+      #astra-trainer-mockup .atm-main { padding-inline: 20px; }
+    }
+    @media (max-width: 680px) {
+      #astra-trainer-mockup .atm-shell { display: block; min-height: 0; }
+      #astra-trainer-mockup .atm-sidebar { display: none; }
+      #astra-trainer-mockup .atm-main { padding: 18px 15px 25px; }
+      #astra-trainer-mockup .atm-topbar, #astra-trainer-mockup .atm-profile { align-items: flex-start; flex-direction: column; }
+      #astra-trainer-mockup .atm-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      #astra-trainer-mockup .atm-two-col { grid-template-columns: 1fr; }
+      #astra-trainer-mockup .atm-week-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      #astra-trainer-mockup .atm-profile { margin-bottom: 12px; }
+    }
+  </style>
+
+  <div class="atm-shell">
+    <aside class="atm-sidebar" aria-label="Навигация тренера">
+      <div class="atm-brand"><span class="atm-brand-mark">A</span><div>Astra<small>Nutrition OS</small></div></div>
+      <p class="atm-nav-label">Основная навигация</p>
+      <nav class="atm-nav">
+        <button type="button"><span class="atm-nav-icon">⌂</span><span>Обзор</span></button>
+        <button type="button"><span class="atm-nav-icon">◌</span><span>Дневник питания</span></button>
+        <button type="button"><span class="atm-nav-icon">↗</span><span>Прогресс</span></button>
+        <button type="button"><span class="atm-nav-icon">ϟ</span><span>Тренировки</span></button>
+        <button type="button" aria-current="page"><span class="atm-nav-icon">♙</span><span>Клиенты</span></button>
+        <button type="button"><span class="atm-nav-icon">◎</span><span>Информация</span></button>
+      </nav>
+      <div class="atm-sidebar-note">В фокусе тренера<br><strong>1 отчёт требует проверки</strong></div>
+      <div class="atm-user"><span class="atm-user-avatar">Е</span><div><strong>Елена, тренер</strong><span>Рабочее место</span></div></div>
+    </aside>
+
+    <main class="atm-main">
+      <div class="atm-topbar">
+        <div class="atm-breadcrumb">Клиенты <span aria-hidden="true">/</span> <strong>Анна Иванова</strong></div>
+        <div class="atm-top-actions"><button class="atm-button" type="button">12–18 сентября</button><button class="atm-button atm-button-primary" type="button">＋ Создать задачу</button></div>
+      </div>
+
+      <section class="atm-profile" aria-labelledby="atm-client-title">
+        <div class="atm-profile-main"><span class="atm-profile-avatar" aria-hidden="true">АИ</span><div><p class="atm-eyebrow">Карточка клиента</p><h1 id="atm-client-title">Анна Иванова <span class="atm-status">Активный план</span></h1><div class="atm-profile-meta">anna.ivanova@example.com · Клиент с 8 августа 2026</div></div></div>
+        <div class="atm-actions"><button class="atm-button" type="button">Написать</button><button class="atm-button atm-button-primary" type="button">Отправить отчёт</button></div>
+      </section>
+
+      <div class="atm-tabs" role="tablist" aria-label="Разделы карточки клиента">
+        <button class="atm-tab" type="button" role="tab" aria-selected="true" aria-controls="atm-overview" data-tab="overview">Обзор</button>
+        <button class="atm-tab" type="button" role="tab" aria-selected="false" aria-controls="atm-progress" data-tab="progress">Точка А → Б</button>
+        <button class="atm-tab" type="button" role="tab" aria-selected="false" aria-controls="atm-nutrition" data-tab="nutrition">Питание и активность</button>
+        <button class="atm-tab" type="button" role="tab" aria-selected="false" aria-controls="atm-week" data-tab="week">План недели</button>
+        <button class="atm-tab" type="button" role="tab" aria-selected="false" aria-controls="atm-history" data-tab="history">История</button>
+      </div>
+
+      <section id="atm-overview" class="atm-panel" data-panel="overview" data-active="true" role="tabpanel" aria-label="Обзор клиента">
+        <div class="atm-stat-grid">
+          <div class="atm-stat atm-stat-positive"><span>Вес от старта</span><strong>−4,2 кг</strong><small>78,4 → 74,2 кг</small></div>
+          <div class="atm-stat atm-stat-positive"><span>Талия от старта</span><strong>−6 см</strong><small>86 → 80 см</small></div>
+          <div class="atm-stat"><span>Выполнение недели</span><strong>72%</strong><small>5 из 7 задач</small></div>
+          <div class="atm-stat atm-stat-attention"><span>Следующая точка</span><strong>14 сен</strong><small>замеры и фото</small></div>
+        </div>
+
+        <div class="atm-two-col">
+          <section class="atm-section">
+            <div class="atm-section-head"><div><h2>Точка А → Точка Б</h2><p>Сравнение старта и последнего контрольного замера</p></div><button class="atm-button atm-button-quiet" type="button" data-tab-jump="progress">Открыть всё</button></div>
+            <div class="atm-section-body"><div class="atm-table-wrap"><table><thead><tr><th>Параметр</th><th>Старт</th><th>Сейчас</th><th>Изменение</th></tr></thead><tbody>
+              <tr><td>Вес</td><td>78,4 кг</td><td><strong>74,2 кг</strong></td><td class="atm-change-down">−4,2 кг</td></tr>
+              <tr><td>Грудь</td><td>98 см</td><td><strong>95 см</strong></td><td class="atm-change-down">−3 см</td></tr>
+              <tr><td>Живот</td><td>92 см</td><td><strong>84 см</strong></td><td class="atm-change-down">−8 см</td></tr>
+              <tr><td>Таз</td><td>106 см</td><td><strong>102 см</strong></td><td class="atm-change-down">−4 см</td></tr>
+              <tr><td>Бедро</td><td>62 см</td><td><strong>59 см</strong></td><td class="atm-change-down">−3 см</td></tr>
+            </tbody></table></div><div class="atm-actions" style="margin-top:13px"><button class="atm-button" type="button" data-tab-jump="progress">＋ Внести замеры</button><span class="atm-muted" style="font-size:10px">Последний замер: 31 августа</span></div></div>
+          </section>
+
+          <section class="atm-section">
+            <div class="atm-section-head"><div><h2>Задачи на эту неделю</h2><p>12–18 сентября · дедлайны и подтверждения</p></div><button class="atm-button atm-button-quiet" type="button" data-tab-jump="week">Настроить</button></div>
+            <div class="atm-section-body"><div class="atm-progress-line"><div class="atm-track" role="progressbar" aria-label="Выполнение задач недели" aria-valuenow="72" aria-valuemin="0" aria-valuemax="100"><span style="width:72%"></span></div><strong>5 / 7</strong></div>
+              <div class="atm-task-list">
+                <div class="atm-task"><input id="atm-task-1" type="checkbox" checked><label for="atm-task-1">Заполнить КБЖУ и активность<span>Подтверждено по данным дневника</span></label></div>
+                <div class="atm-task"><input id="atm-task-2" type="checkbox" checked><label for="atm-task-2">Сделать 2 тренировки<span>План выполнен</span></label></div>
+                <div class="atm-task"><input id="atm-task-3" type="checkbox" checked><label for="atm-task-3">Прислать пищевой дневник за 3 дня<span>Проверено тренером</span></label></div>
+                <div class="atm-task"><input id="atm-task-4" type="checkbox"><label for="atm-task-4">Средняя активность 10 000 шагов<span>За текущую неделю: 8 420</span></label><small>В работе</small></div>
+                <div class="atm-task"><input id="atm-task-5" type="checkbox"><label for="atm-task-5">Фото и контрольные замеры<span>Следующая точка через 2 дня</span></label><small>14 сен</small></div>
+              </div>
+              <div class="atm-week-strip" aria-label="Статус по дням недели"><div class="atm-day atm-day-done"><strong>Пн</strong><span>готово</span></div><div class="atm-day atm-day-done"><strong>Вт</strong><span>готово</span></div><div class="atm-day atm-day-done"><strong>Ср</strong><span>готово</span></div><div class="atm-day atm-day-today"><strong>Чт</strong><span>сегодня</span></div><div class="atm-day"><strong>Пт</strong><span>план</span></div><div class="atm-day"><strong>Сб</strong><span>план</span></div><div class="atm-day"><strong>Вс</strong><span>план</span></div></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="atm-lower"><section class="atm-full-section"><div class="atm-section-head"><div><h2>Питание и активность</h2><p>План и факт за последние дни — повод для быстрой проверки</p></div><button class="atm-button atm-button-quiet" type="button" data-tab-jump="nutrition">Открыть дневник</button></div><div class="atm-section-body"><div class="atm-table-wrap"><table><thead><tr><th>День</th><th>Ккал план</th><th>Ккал факт</th><th>Б / Ж / У, г</th><th>Шаги</th><th>Тренировка</th><th>Проверка</th></tr></thead><tbody>
+          <tr><td>12 сен, Пн</td><td>1 850</td><td>1 790</td><td>126 / 61 / 168</td><td>10 840</td><td>Ноги · 45 мин</td><td><span class="atm-review-status">Проверено</span></td></tr>
+          <tr><td>13 сен, Вт</td><td>1 850</td><td>2 020</td><td>118 / 78 / 192</td><td>7 420</td><td>—</td><td><span class="atm-review-status atm-review-status-open">Нужен комментарий</span></td></tr>
+          <tr><td>14 сен, Ср</td><td>1 850</td><td>1 830</td><td>132 / 59 / 171</td><td>9 000</td><td>Верх тела · 40 мин</td><td><span class="atm-review-status">Проверено</span></td></tr>
+        </tbody></table></div></div></section></div>
+      </section>
+
+      <section id="atm-progress" class="atm-panel" data-panel="progress" role="tabpanel" aria-label="Контрольные точки" hidden>
+        <div class="atm-two-col"><section class="atm-section"><div class="atm-section-head"><div><h2>Динамика веса</h2><p>Контрольные точки каждые 14 дней</p></div><button class="atm-button atm-button-primary" type="button">＋ Добавить точку</button></div><div class="atm-section-body"><svg class="atm-chart" viewBox="0 0 620 180" role="img" aria-label="Динамика веса с 8 августа по 31 августа"><path class="atm-grid" d="M50 32H600M50 82H600M50 132H600"/><polyline class="atm-line" points="55,36 190,57 325,76 460,105 595,129"/><circle class="atm-dot" cx="55" cy="36" r="6"/><circle class="atm-dot" cx="190" cy="57" r="6"/><circle class="atm-dot" cx="325" cy="76" r="6"/><circle class="atm-dot" cx="460" cy="105" r="6"/><circle class="atm-dot" cx="595" cy="129" r="6"/><text x="50" y="168">8 авг</text><text x="270" y="168">22 авг</text><text x="560" y="168">31 авг</text><text x="55" y="25">78,4</text><text x="570" y="121">74,2 кг</text></svg><div class="atm-callout"><p class="atm-eyebrow">Рекомендация тренера</p><p>Темп снижения стабильный. На следующей точке проверить самочувствие и не снижать калорийность без необходимости.</p></div></div></section><section class="atm-section"><div class="atm-section-head"><div><h2>История контрольных точек</h2><p>Данные и подтверждающие материалы</p></div></div><div class="atm-section-body"><div class="atm-checkpoint"><span class="atm-checkpoint-date">08 авг</span><div class="atm-checkpoint-main"><strong>Точка А · старт</strong><span>Замеры, фото до, анкета здоровья</span></div><span class="atm-checkpoint-pill">Заполнено</span></div><div class="atm-checkpoint"><span class="atm-checkpoint-date">22 авг</span><div class="atm-checkpoint-main"><strong>14-й день</strong><span>Вес, живот, таз · фото после</span></div><span class="atm-checkpoint-pill">Проверено</span></div><div class="atm-checkpoint"><span class="atm-checkpoint-date">31 авг</span><div class="atm-checkpoint-main"><strong>Последний замер</strong><span>5 параметров · комментарий клиента</span></div><span class="atm-checkpoint-pill">Проверено</span></div><div class="atm-checkpoint"><span class="atm-checkpoint-date">14 сен</span><div class="atm-checkpoint-main"><strong>Следующая точка</strong><span>Замеры, фото и обратная связь</span></div><span class="atm-checkpoint-pill">Ожидается</span></div></div></section></div>
+      </section>
+
+      <section id="atm-nutrition" class="atm-panel" data-panel="nutrition" role="tabpanel" aria-label="Питание и активность" hidden>
+        <section class="atm-full-section"><div class="atm-section-head"><div><h2>Питание и активность</h2><p>План, факт, источник данных и проверка тренера в одной строке</p></div><div class="atm-actions"><button class="atm-button" type="button">Экспорт</button><button class="atm-button atm-button-primary" type="button">＋ Добавить день</button></div></div><div class="atm-section-body"><div class="atm-table-wrap"><table><thead><tr><th>Дата</th><th>КБЖУ план</th><th>КБЖУ факт</th><th>FatSecret / фото</th><th>Шаги</th><th>Название тренировки</th><th>Статус</th></tr></thead><tbody><tr><td>12 сен</td><td>1 850 / 130 / 60 / 170</td><td>1 790 / 126 / 61 / 168</td><td class="atm-change-down">Ссылка открыта</td><td>10 840</td><td>Ноги · 45 мин</td><td><span class="atm-review-status">Проверено</span></td></tr><tr><td>13 сен</td><td>1 850 / 130 / 60 / 170</td><td>2 020 / 118 / 78 / 192</td><td class="atm-change-neutral">Есть фото</td><td>7 420</td><td>—</td><td><span class="atm-review-status atm-review-status-open">Нужен комментарий</span></td></tr><tr><td>14 сен</td><td>1 850 / 130 / 60 / 170</td><td>1 830 / 132 / 59 / 171</td><td class="atm-change-down">Ссылка открыта</td><td>9 000</td><td>Верх тела · 40 мин</td><td><span class="atm-review-status">Проверено</span></td></tr><tr><td>15 сен</td><td>1 850 / 130 / 60 / 170</td><td class="atm-muted">Нет данных</td><td class="atm-muted">Ожидается</td><td class="atm-muted">—</td><td class="atm-muted">Запланирована</td><td><span class="atm-review-status atm-review-status-open">Ожидается</span></td></tr></tbody></table></div></div></section>
+      </section>
+
+      <section id="atm-week" class="atm-panel" data-panel="week" role="tabpanel" aria-label="План недели" hidden>
+        <div class="atm-two-col"><section class="atm-section"><div class="atm-section-head"><div><h2>План недели</h2><p>12–18 сентября · 7 дней и все договорённости с клиентом</p></div><button class="atm-button atm-button-primary" type="button">＋ Добавить задачу</button></div><div class="atm-section-body"><div class="atm-task-list"><div class="atm-task"><input id="atm-week-1" type="checkbox" checked><label for="atm-week-1">Внести значения в питание и активность<span>КБЖУ, шаги, тренировка или фото еды · до 21:00</span></label></div><div class="atm-task"><input id="atm-week-2" type="checkbox" checked><label for="atm-week-2">Тренировка дома или силовая в зале<span>Минимум 2 раза за неделю</span></label></div><div class="atm-task"><input id="atm-week-3" type="checkbox"><label for="atm-week-3">Не допускать менее 5 000 шагов<span>Автоматически из данных активности</span></label><small>В работе</small></div><div class="atm-task"><input id="atm-week-4" type="checkbox"><label for="atm-week-4">Фото и замеры через 14 дней<span>Задача создаётся автоматически от последней контрольной точки</span></label><small>14 сен</small></div><div class="atm-task"><input id="atm-week-5" type="checkbox"><label for="atm-week-5">Отправить тренеру «отчёт готов»<span>Клиент завершает недельный цикл одной кнопкой</span></label><small>Ожидается</small></div></div></div></section><section class="atm-section"><div class="atm-section-head"><div><h2>Правила контроля</h2><p>Что система отслеживает автоматически</p></div></div><div class="atm-section-body"><div class="atm-review-row"><div><strong>Ниже 5 000 шагов</strong><span>Создать мягкое напоминание</span></div><span class="atm-review-status atm-review-status-open">Включено</span></div><div class="atm-review-row"><div><strong>10 000 шагов и больше</strong><span>Отметить день как выполненный</span></div><span class="atm-review-status">Включено</span></div><div class="atm-review-row"><div><strong>Контрольная точка каждые 14 дней</strong><span>Замеры + фото + самочувствие</span></div><span class="atm-review-status">Включено</span></div><div class="atm-review-row"><div><strong>Отчёт клиента</strong><span>Уведомить тренера, если готов</span></div><span class="atm-review-status">Включено</span></div></div></section></div>
+      </section>
+
+      <section id="atm-history" class="atm-panel" data-panel="history" role="tabpanel" aria-label="История клиента" hidden>
+        <section class="atm-full-section"><div class="atm-section-head"><div><h2>История взаимодействия</h2><p>Замеры, задачи, тренировки, отчёты и комментарии в одной ленте</p></div><button class="atm-button" type="button">Фильтр событий</button></div><div class="atm-section-body"><div class="atm-checkpoint"><span class="atm-checkpoint-date">Сегодня</span><div class="atm-checkpoint-main"><strong>Клиент внесла дневник за 14 сентября</strong><span>КБЖУ 1 830 ккал · 9 000 шагов · тренировка «Верх тела»</span></div><span class="atm-checkpoint-pill">Новое</span></div><div class="atm-checkpoint"><span class="atm-checkpoint-date">13 сен</span><div class="atm-checkpoint-main"><strong>Тренер оставил комментарий к питанию</strong><span>«Проверьте размер порции ужина и добавьте воду в отчёт»</span></div><span class="atm-checkpoint-pill">Комментарий</span></div><div class="atm-checkpoint"><span class="atm-checkpoint-date">31 авг</span><div class="atm-checkpoint-main"><strong>Завершена контрольная точка</strong><span>5 замеров, фото и оценка самочувствия 4 / 5</span></div><span class="atm-checkpoint-pill">Проверено</span></div><div class="atm-checkpoint"><span class="atm-checkpoint-date">08 авг</span><div class="atm-checkpoint-main"><strong>Создан план клиента</strong><span>Стартовые данные и цели питания сохранены</span></div><span class="atm-checkpoint-pill">Старт</span></div></div></section>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const root = document.getElementById('astra-trainer-mockup');
+      if (!root) return;
+      const tabs = [...root.querySelectorAll('[data-tab]')];
+      const panels = [...root.querySelectorAll('[data-panel]')];
+      const show = (name) => {
+        tabs.forEach((tab) => {
+          const selected = tab.dataset.tab === name;
+          tab.setAttribute('aria-selected', String(selected));
+        });
+        panels.forEach((panel) => {
+          const active = panel.dataset.panel === name;
+          panel.dataset.active = String(active);
+          panel.hidden = !active;
+        });
+      };
+      tabs.forEach((tab) => tab.addEventListener('click', () => show(tab.dataset.tab)));
+      root.querySelectorAll('[data-tab-jump]').forEach((button) => button.addEventListener('click', () => show(button.dataset.tabJump)));
+    })();
+  </script>
+</div>

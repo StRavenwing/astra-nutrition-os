@@ -118,8 +118,12 @@ const selectedDayTotals = computed(() => diaryTotals(selectedDayItems.value));
 const selectedDayLabel = computed(() => new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${selectedDate.value}T12:00:00`)));
 const averageKcal = computed(() => filledDays.value ? monthTotals.value.kcal / filledDays.value : 0);
 const averageProtein = computed(() => filledDays.value ? monthTotals.value.protein / filledDays.value : 0);
+const averageFat = computed(() => filledDays.value ? monthTotals.value.fat / filledDays.value : 0);
+const averageCarbs = computed(() => filledDays.value ? monthTotals.value.carbs / filledDays.value : 0);
 const kcalDelta = computed(() => kcalTarget.value == null ? null : Math.round(kcalTarget.value - averageKcal.value));
 const proteinDelta = computed(() => proteinTarget.value == null ? null : Math.round(proteinTarget.value - averageProtein.value));
+const fatDelta = computed(() => fatTarget.value == null ? null : Math.round(fatTarget.value - averageFat.value));
+const carbsDelta = computed(() => carbsTarget.value == null ? null : Math.round(carbsTarget.value - averageCarbs.value));
 
 function progressWidth(current: number, target: number | null) {
   return target != null && target > 0 ? Math.min(current / target * 100, 100) : 0;
@@ -870,6 +874,14 @@ function editEntry(id: number) {
       <article v-if="proteinTarget != null" class="diary-average-card average-protein">
         <span>СРЕДНИЙ БЕЛОК</span><b>{{ fmt(averageProtein) }} г</b><small>в день · цель {{ fmt(proteinTarget) }} г</small><strong>{{ proteinDelta != null && proteinDelta >= 0 ? '−' : '+' }}{{ fmt(Math.abs(proteinDelta || 0)) }} г</strong>
         <svg viewBox="0 0 420 64" aria-hidden="true"><path d="M2 48H418M2 26H418"/><polyline points="2,42 32,35 62,29 92,38 122,24 152,33 182,18 212,28 242,16 272,23 302,12 332,20 362,8 392,16 418,5"/></svg>
+      </article>
+      <article v-if="fatTarget != null" class="diary-average-card average-fat">
+        <span>СРЕДНИЕ ЖИРЫ</span><b>{{ fmt(averageFat) }} г</b><small>в день · цель {{ fmt(fatTarget) }} г</small><strong>{{ fatDelta != null && fatDelta >= 0 ? '−' : '+' }}{{ fmt(Math.abs(fatDelta || 0)) }} г</strong>
+        <svg viewBox="0 0 420 64" aria-hidden="true"><path d="M2 48H418M2 26H418"/><polyline points="2,34 32,25 62,39 92,30 122,36 152,22 182,28 212,18 242,31 272,21 302,27 332,14 362,23 392,12 418,18"/></svg>
+      </article>
+      <article v-if="carbsTarget != null" class="diary-average-card average-carbs">
+        <span>СРЕДНИЕ УГЛЕВОДЫ</span><b>{{ fmt(averageCarbs) }} г</b><small>в день · цель {{ fmt(carbsTarget) }} г</small><strong>{{ carbsDelta != null && carbsDelta >= 0 ? '−' : '+' }}{{ fmt(Math.abs(carbsDelta || 0)) }} г</strong>
+        <svg viewBox="0 0 420 64" aria-hidden="true"><path d="M2 48H418M2 26H418"/><polyline points="2,44 32,32 62,36 92,20 122,28 152,18 182,26 212,12 242,22 272,17 302,29 332,15 362,24 392,10 418,6"/></svg>
       </article>
     </div>
 

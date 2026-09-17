@@ -3984,7 +3984,7 @@ body .diary-calendar-actions .change-month { min-width: 44px; min-height: 36px; 
 body .diary-calendar-actions .primary { min-height: 36px; height: 36px; border-radius: 10px; font-size: 11px; }
 body .diary-average-heading { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin: 30px 0 20px; }
 body .diary-average-heading > span { color: #7d879b; font-size: 11px; }
-body .diary-average-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+body .diary-average-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
 body .diary-average-card { position: relative; min-height: 178px; padding: 32px; overflow: hidden; border-radius: 20px; }
 body .diary-average-card > span { display: block; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
 body .diary-average-card > b { display: block; margin-top: 18px; font-size: 27px; line-height: 1; }
@@ -4001,6 +4001,14 @@ body .average-protein { border: 1px solid #c5ebd4; background: #e2f7eb; color: #
 body .average-protein > span, body .average-protein > strong { color: #329a63; }
 body .average-protein > small { color: #7d879b; }
 body .average-protein svg { color: #329a63; }
+body .average-fat { border: 1px solid #ffcfbd; background: #fff1e8; color: #172033; }
+body .average-fat > span, body .average-fat > strong { color: #d88927; }
+body .average-fat > small { color: #7d879b; }
+body .average-fat svg { color: #d88927; }
+body .average-carbs { border: 1px solid #d7d5ff; background: #f0f1ff; color: #172033; }
+body .average-carbs > span, body .average-carbs > strong { color: #6f82ff; }
+body .average-carbs > small { color: #7d879b; }
+body .average-carbs svg { color: #6f82ff; }
 
 body .diary-days-panel { margin-top: 20px; padding: 18px 16px 16px; border-radius: 20px; }
 body .diary-weekdays, body .diary-day-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 16px; }
@@ -4024,6 +4032,7 @@ body .diary-day-card.today .diary-day-number { color: #6f82ff; }
   body .diary-current-stats { grid-column: 1 / -1; grid-row: 2; justify-content: space-between; }
   body .diary-current-grid { grid-template-columns: 1fr; }
   body .diary-norm-card { min-height: auto; }
+  body .diary-average-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 700px) {
   body .diary-current-banner { padding: 22px; }
