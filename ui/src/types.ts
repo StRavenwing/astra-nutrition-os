@@ -238,8 +238,20 @@ export interface ClientSummary {
   id: number;
   name: string;
   email: string;
+  created_at: string;
   next_workout: { id: number; scheduled_at: string; status: string } | null;
   unread_messages: number;
+}
+
+export interface TrainerTask {
+  id: number;
+  week_start: string;
+  title: string;
+  description: string | null;
+  due_date: string | null;
+  status: 'open' | 'done' | string;
+  created_at: string;
+  completed_at: string | null;
 }
 
 export interface ClientDetail extends ClientSummary {

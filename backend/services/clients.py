@@ -13,6 +13,7 @@ from backend.models import (
     Product,
     Recipe,
     TrainerClient,
+    TrainerTask,
     TrainerSharedItem,
     User,
     WorkoutComplex,
@@ -25,6 +26,7 @@ from backend.services.auth import normalize_email, utc_now
 from backend.services.articles import serialize_article
 from backend.services.diary import create_diary_entries
 from backend.services.errors import ConflictError, ForbiddenError, NotFoundError
+from backend.services.progress import create_progress, update_progress
 from backend.services.serialization import serialize_diary_entry, serialize_exercise, serialize_product, serialize_progress, serialize_recipe_detail, serialize_workout, serialize_workout_plan
 from backend.services.workouts import create_workout_plan, serialize_workout_complex, serialize_workout_equipment, update_workout_plan
 
@@ -121,6 +123,7 @@ def serialize_client_summary(client: User, relation: TrainerClient | None = None
         "id": client.id,
         "name": _display_name(client),
         "email": client.email,
+        "created_at": relation.created_at if relation else client.created_at,
         "next_workout": _next_workout(client),
         "unread_messages": _trainer_unread_count(relation) if relation else 0,
     }
@@ -286,6 +289,111 @@ def update_client_targets(client_id: int, data: dict, actor: User) -> dict:
         else:
             entry.save()
         return serialize_progress(entry)
+
+
+def add_client_progress(client_id: int, data: dict, actor: User) -> dict:
+    client = _relationship(client_id, actor).client
+    return create_progress(data, client)
+
+
+def update_client_progress(client_id: int, entry_id: int, data: dict, actor: User) -> dict:
+    client = _relationship(client_id, actor).client
+    return update_progress(entry_id, data, client)
+
+
+def _serialize_task(task: TrainerTask) -> dict:
+    return {
+        "id": task.id,
+        "week_start": task.week_start,
+        "title": task.title,
+        "description": task.description,
+        "due_date": task.due_date,
+        "status": task.status,
+        "created_at": task.created_at,
+        "completed_at": task.completed_at,
+    }
+
+
+def _default_tasks(week_start: str) -> list[dict[str, str | None]]:
+    return [
+        {
+            "title": "Внести значения в питание и активность",
+            "description": "КБЖУ, шаги, тренировка или фото еды · до 21:00",
+            "due_date": None,
+        },
+        {
+            "title": "Тренировка дома или силовая в зале",
+            "description": "Минимум 2 раза за неделю",
+            "due_date": None,
+        },
+        {
+            "title": "Не допускать менее 5 000 шагов",
+            "description": "Система отметит день по данным активности",
+            "due_date": None,
+        },
+        {
+            "title": "Фото и замеры через 14 дней",
+            "description": "Замеры, фото и обратная связь по следующей контрольной точке",
+            "due_date": None,
+        },
+        {
+            "title": "Отправить тренеру «отчёт готов»",
+            "description": "Клиент завершает недельный цикл одной кнопкой",
+            "due_date": None,
+        },
+    ]
+
+
+def list_client_tasks(client_id: int, week_start: str, actor: User) -> list[dict]:
+    relation = _relationship(client_id, actor)
+    query = (
+        TrainerTask
+        .select()
+        .where((TrainerTask.trainer_client == relation) & (TrainerTask.week_start == week_start))
+        .order_by(TrainerTask.id)
+    )
+    tasks = list(query)
+    if not tasks:
+        with current_database().atomic():
+            tasks = [
+                TrainerTask.create(
+                    trainer_client=relation,
+                    week_start=week_start,
+                    title=item["title"],
+                    description=item["description"],
+                    due_date=item["due_date"],
+                    created_at=utc_now(),
+                )
+                for item in _default_tasks(week_start)
+            ]
+    return [_serialize_task(task) for task in tasks]
+
+
+def add_client_task(client_id: int, data: dict, actor: User) -> dict:
+    relation = _relationship(client_id, actor)
+    task = TrainerTask.create(
+        trainer_client=relation,
+        week_start=str(data.get("week_start") or _today()),
+        title=str(data.get("title") or "").strip(),
+        description=str(data.get("description") or "").strip() or None,
+        due_date=data.get("due_date"),
+        created_at=utc_now(),
+    )
+    return _serialize_task(task)
+
+
+def update_client_task(client_id: int, task_id: int, data: dict, actor: User) -> dict:
+    relation = _relationship(client_id, actor)
+    task = TrainerTask.get_or_none((TrainerTask.id == task_id) & (TrainerTask.trainer_client == relation))
+    if task is None:
+        raise NotFoundError("Задача не найдена")
+    status = str(data.get("status") or "")
+    if status not in {"open", "done"}:
+        raise ValueError("Некорректный статус задачи")
+    task.status = status
+    task.completed_at = utc_now() if status == "done" else None
+    task.save()
+    return _serialize_task(task)
 
 
 def _number_or_none(value: object) -> float | None:

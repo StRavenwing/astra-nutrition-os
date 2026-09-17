@@ -2,7 +2,7 @@
 import { onMounted, reactive, ref, watch } from 'vue';
 import { api } from '@/api/client';
 
-const props = defineProps<{ progressId?: number }>();
+const props = defineProps<{ progressId?: number; targetUserId?: number }>();
 const emit = defineEmits<{ saved: []; cancel: [] }>();
 
 const error = ref('');
@@ -45,7 +45,9 @@ onMounted(async () => {
   if (!props.progressId) return;
   loading.value = true;
   try {
-    const data = await api.progress();
+    const data = props.targetUserId
+      ? (await api.client(props.targetUserId)).progress
+      : await api.progress();
       const item = data.find((progress) => progress.id === props.progressId);
     if (item) {
       for (const [key, value] of Object.entries(item)) {
@@ -63,7 +65,9 @@ onMounted(async () => {
 async function save() {
   error.value = '';
   try {
-    if (props.progressId) await api.put(`progress/${props.progressId}`, { ...form });
+    if (props.targetUserId && props.progressId) await api.updateClientProgress(props.targetUserId, props.progressId, { ...form });
+    else if (props.targetUserId) await api.clientProgress(props.targetUserId, { ...form });
+    else if (props.progressId) await api.put(`progress/${props.progressId}`, { ...form });
     else await api.post('progress', { ...form });
     emit('saved');
   } catch (err) {

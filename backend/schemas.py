@@ -176,6 +176,17 @@ class ClientNutritionTargetsInput(BaseModel):
     carbs_target_g: Any = None
 
 
+class TrainerTaskInput(BaseModel):
+    week_start: str
+    title: str = Field(min_length=1, max_length=240)
+    description: str | None = Field(default=None, max_length=1000)
+    due_date: str | None = None
+
+
+class TrainerTaskStatusInput(BaseModel):
+    status: Literal['open', 'done']
+
+
 class TrainerChatMessageInput(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
 

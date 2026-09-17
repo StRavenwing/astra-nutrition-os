@@ -9,7 +9,10 @@ from backend.schemas import (
     ClientShareItemInput,
     ClientNutritionTargetsInput,
     DiaryCreateInput,
+    ProgressInput,
     ShareItemInput,
+    TrainerTaskInput,
+    TrainerTaskStatusInput,
     TrainerChatMessageInput,
     WorkoutPlanInput,
     dump_model,
@@ -17,10 +20,13 @@ from backend.schemas import (
 from backend.services.clients import (
     add_client,
     add_client_diary_entry,
+    add_client_progress,
+    add_client_task,
     delete_client_diary_entry,
     get_client_shared_item,
     get_client_diary,
     get_client_detail,
+    list_client_tasks,
     get_my_shared_item,
     get_my_trainer,
     get_my_trainer_chat,
@@ -33,6 +39,8 @@ from backend.services.clients import (
     share_item,
     update_client_workout,
     update_client_targets,
+    update_client_progress,
+    update_client_task,
 )
 
 
@@ -117,6 +125,31 @@ def put_client_workout_plan(client_id: int, plan_id: int, payload: WorkoutPlanIn
 @router.put("/{client_id}/nutrition-targets")
 def put_client_targets(client_id: int, payload: ClientNutritionTargetsInput, current_user: User = Depends(require_trainer)) -> dict:
     return update_client_targets(client_id, dump_model(payload), current_user)
+
+
+@router.post("/{client_id}/progress", status_code=status.HTTP_201_CREATED)
+def post_client_progress(client_id: int, payload: ProgressInput, current_user: User = Depends(require_trainer)) -> dict:
+    return add_client_progress(client_id, dump_model(payload), current_user)
+
+
+@router.put("/{client_id}/progress/{entry_id}")
+def put_client_progress(client_id: int, entry_id: int, payload: ProgressInput, current_user: User = Depends(require_trainer)) -> dict:
+    return update_client_progress(client_id, entry_id, dump_model(payload), current_user)
+
+
+@router.get("/{client_id}/tasks")
+def get_client_tasks(client_id: int, week_start: str, current_user: User = Depends(require_trainer)) -> list[dict]:
+    return list_client_tasks(client_id, week_start, current_user)
+
+
+@router.post("/{client_id}/tasks", status_code=status.HTTP_201_CREATED)
+def post_client_task(client_id: int, payload: TrainerTaskInput, current_user: User = Depends(require_trainer)) -> dict:
+    return add_client_task(client_id, dump_model(payload), current_user)
+
+
+@router.put("/{client_id}/tasks/{task_id}")
+def put_client_task(client_id: int, task_id: int, payload: TrainerTaskStatusInput, current_user: User = Depends(require_trainer)) -> dict:
+    return update_client_task(client_id, task_id, dump_model(payload), current_user)
 
 
 @router.get("/{client_id}/chat")

@@ -491,6 +491,22 @@ class TrainerClient(BaseModel):
         indexes = ((('trainer', 'client'), True),)
 
 
+class TrainerTask(BaseModel):
+    id = AutoField()
+    trainer_client = ForeignKeyField(TrainerClient, backref="tasks", on_delete="CASCADE")
+    week_start = CharField(index=True)
+    title = CharField()
+    description = TextField(null=True)
+    due_date = CharField(null=True)
+    status = CharField(default="open", index=True)
+    created_at = CharField()
+    completed_at = CharField(null=True)
+
+    class Meta:
+        table_name = "trainer_tasks"
+        indexes = ((('trainer_client', 'week_start'), False),)
+
+
 class ChatMessage(BaseModel):
     id = AutoField()
     trainer_client = ForeignKeyField(TrainerClient, backref="messages", on_delete="CASCADE")
@@ -548,6 +564,7 @@ MODELS = [
     WorkoutComplex,
     WorkoutComplexItem,
     TrainerClient,
+    TrainerTask,
     ChatMessage,
     TrainerSharedItem,
 ]
