@@ -88,6 +88,7 @@ export interface RecipeSummary {
   version: string | number | null;
   status: string | null;
   servings: number | null;
+  yield_g: number | null;
   tags: string | null;
   is_ready: boolean;
   needs_garnish: boolean;
@@ -117,8 +118,12 @@ export interface RecipeSummary {
 
 export interface RecipeIngredient {
   id: number;
-  product_id: number;
-  product_code: string;
+  product_id: number | null;
+  product_code: string | null;
+  recipe_id: number | null;
+  recipe_code: string | null;
+  recipe_yield_g?: number | null;
+  component_type: 'product' | 'recipe' | string;
   name: string;
   quantity: number | null;
   unit: string | null;

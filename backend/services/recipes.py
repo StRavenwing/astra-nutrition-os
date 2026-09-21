@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from backend.models import DiaryEntry, Recipe, RecipeIngredient, User, current_database
+from backend.models import DiaryEntry, Recipe, RecipeComponent, RecipeIngredient, User, current_database
 from backend.services.calculations import RECIPE_PREFIXES, normalise_measure, number
 from backend.services.codes import next_code
 from backend.services.errors import ConflictError, ForbiddenError, NotFoundError
@@ -48,8 +48,40 @@ def _recipe_prefix(category: str) -> str:
     return prefix or "M"
 
 
+def _get_component_recipe(recipe_id: int, owner: User | None) -> Recipe:
+    child = Recipe.get_or_none(Recipe.id == recipe_id)
+    if child is None:
+        raise NotFoundError("Вложенное блюдо не найдено")
+    if owner is None and child.owner_id is not None:
+        raise NotFoundError("Общее блюдо может содержать только общие блюда")
+    if owner is not None and child.owner_id not in (None, owner.id):
+        raise NotFoundError("Вложенное блюдо недоступно для этого пользователя")
+    return child
+
+
+def _assert_no_recipe_cycle(parent: Recipe, child: Recipe) -> None:
+    pending = [child.id]
+    visited: set[int] = set()
+    while pending:
+        recipe_id = pending.pop()
+        if recipe_id == parent.id:
+            raise ValueError("Нельзя включить рецепт в самого себя или создать циклический состав")
+        if recipe_id in visited:
+            continue
+        visited.add(recipe_id)
+        pending.extend(
+            component.child_recipe_id
+            for component in RecipeComponent.select(RecipeComponent.child_recipe)
+            .where(RecipeComponent.recipe == recipe_id)
+        )
+
+
 def _write_recipe_ingredients(recipe: Recipe, ingredients: list[dict]) -> None:
     for ingredient in ingredients:
+        if ingredient.get("recipe_id") is not None:
+            continue
+        if ingredient.get("product_id") is None:
+            raise ValueError("Для ингредиента выберите продукт или блюдо")
         base_quantity, base_unit, shown_quantity, shown_measure = normalise_measure(
             ingredient["product_id"],
             ingredient.get("measurement_quantity", ingredient.get("quantity")),
@@ -69,6 +101,33 @@ def _write_recipe_ingredients(recipe: Recipe, ingredients: list[dict]) -> None:
         )
 
 
+def _write_recipe_components(recipe: Recipe, ingredients: list[dict], owner: User | None) -> None:
+    for ingredient in ingredients:
+        recipe_id = ingredient.get("recipe_id")
+        if recipe_id is None:
+            continue
+        if ingredient.get("product_id") is not None:
+            raise ValueError("Компонент не может одновременно быть продуктом и блюдом")
+        child = _get_component_recipe(int(recipe_id), owner)
+        if child.id == recipe.id:
+            raise ValueError("Нельзя включить рецепт в самого себя или создать циклический состав")
+        if child.yield_g is None or child.yield_g <= 0:
+            raise ValueError(
+                f'Для вложенного блюда «{child.name}» необходимо указать выход в граммах'
+            )
+        _assert_no_recipe_cycle(recipe, child)
+        quantity = number(ingredient.get("quantity"), None)
+        if quantity is None or quantity <= 0:
+            raise ValueError("Количество вложенного блюда должно быть больше нуля")
+        RecipeComponent.create(
+            recipe=recipe,
+            child_recipe=child,
+            quantity=quantity,
+            unit="г",
+            portion_description=ingredient.get("portion_description"),
+        )
+
+
 def create_recipe(data: dict, owner: User | None = None) -> dict:
     with current_database().atomic():
         category = data["category"]
@@ -76,6 +135,9 @@ def create_recipe(data: dict, owner: User | None = None) -> dict:
         if legacy_ready:
             category = "Main"
         prefix = "R" if legacy_ready else _recipe_prefix(category)
+        yield_g = number(data.get("yield_g"))
+        if yield_g is not None and yield_g <= 0:
+            raise ValueError("Выход блюда должен быть больше нуля")
         recipe = Recipe.create(
             code=next_code(prefix),
             name=data["name"],
@@ -84,6 +146,7 @@ def create_recipe(data: dict, owner: User | None = None) -> dict:
             version=data.get("version", "1.0"),
             status=data.get("status", "Draft"),
             servings=number(data.get("servings"), 1) or 1,
+            yield_g=yield_g,
             tags=data.get("tags"),
             is_ready=bool(data.get("is_ready", False)) or legacy_ready,
             needs_garnish=bool(data.get("needs_garnish", False)),
@@ -98,6 +161,7 @@ def create_recipe(data: dict, owner: User | None = None) -> dict:
             moderation_status="none",
         )
         _write_recipe_ingredients(recipe, data.get("ingredients", []))
+        _write_recipe_components(recipe, data.get("ingredients", []), owner)
         return serialize_recipe_summary(recipe)
 
 
@@ -122,6 +186,12 @@ def update_recipe(recipe_id: int, data: dict, current_user: User) -> dict:
         recipe.version = data.get("version", "1.0")
         recipe.status = data.get("status", "Draft")
         recipe.servings = number(data.get("servings"), 1) or 1
+        new_yield = number(data.get("yield_g"))
+        if new_yield is not None and new_yield <= 0:
+            raise ValueError("Выход блюда должен быть больше нуля")
+        if new_yield is None and RecipeComponent.select().where(RecipeComponent.child_recipe == recipe).exists():
+            raise ConflictError("Нельзя убрать выход в граммах: блюдо используется в составе другого блюда")
+        recipe.yield_g = new_yield
         recipe.tags = data.get("tags")
         recipe.is_ready = bool(data.get("is_ready", False)) or legacy_ready
         recipe.needs_garnish = bool(data.get("needs_garnish", False))
@@ -137,7 +207,9 @@ def update_recipe(recipe_id: int, data: dict, current_user: User) -> dict:
         recipe.save()
 
         RecipeIngredient.delete().where(RecipeIngredient.recipe == recipe).execute()
+        RecipeComponent.delete().where(RecipeComponent.recipe == recipe).execute()
         _write_recipe_ingredients(recipe, data.get("ingredients", []))
+        _write_recipe_components(recipe, data.get("ingredients", []), current_user)
         return serialize_recipe_summary(recipe)
 
 
@@ -151,6 +223,12 @@ def delete_recipe(recipe_id: int, current_user: User) -> dict:
             raise ConflictError(
                 f"Рецепт используется в дневнике питания: {diary_count}. "
                 "Сначала удалите связанные записи дневника."
+            )
+        component_count = RecipeComponent.select().where(RecipeComponent.child_recipe == recipe).count()
+        if component_count:
+            raise ConflictError(
+                f"Блюдо используется в составе других рецептов: {component_count}. "
+                "Сначала удалите его из составов этих рецептов."
             )
         recipe.delete_instance(recursive=True)
         return {"deleted": True, "id": recipe_id, "deleted_diary_entries": 0}

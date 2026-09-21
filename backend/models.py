@@ -281,6 +281,7 @@ class Recipe(BaseModel):
     version = CharField()
     status = CharField()
     servings = FloatField(constraints=[Check("servings > 0")])
+    yield_g = FloatField(null=True, constraints=[Check("yield_g IS NULL OR yield_g > 0")])
     tags = TextField(null=True)
     is_ready = BooleanField(default=False)
     needs_garnish = BooleanField(default=False)
@@ -315,6 +316,28 @@ class RecipeIngredient(BaseModel):
         indexes = (
             (("recipe",), False),
             (("product",), False),
+        )
+
+
+class RecipeComponent(BaseModel):
+    """A finished recipe used as an ingredient in another recipe.
+
+    ``quantity`` is always the grams of the child recipe's finished product.
+    Nutrition is calculated proportionally to the child's ``yield_g``.
+    """
+
+    id = AutoField()
+    recipe = ForeignKeyField(Recipe, backref="components", on_delete="CASCADE")
+    child_recipe = ForeignKeyField(Recipe, backref="used_in_recipes", on_delete="RESTRICT")
+    quantity = FloatField(constraints=[Check("quantity > 0")])
+    unit = CharField(default="г")
+    portion_description = TextField(null=True)
+
+    class Meta:
+        table_name = "recipe_components"
+        indexes = (
+            (("recipe",), False),
+            (("child_recipe",), False),
         )
 
 
@@ -556,6 +579,7 @@ MODELS = [
     WorkoutEquipment,
     ProductMeasure,
     RecipeIngredient,
+    RecipeComponent,
     DiaryEntry,
     ProgressEntry,
     WorkoutLog,

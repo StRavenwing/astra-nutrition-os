@@ -37,6 +37,13 @@ def _matches_text(recipe: dict[str, Any], query: str) -> bool:
 
 
 def _ingredient_payload(ingredient: dict[str, Any]) -> dict[str, Any]:
+    if ingredient.get("recipe_id") is not None:
+        return {
+            "recipe_id": ingredient["recipe_id"],
+            "quantity": ingredient.get("quantity"),
+            "unit": ingredient.get("unit"),
+            "portion_description": ingredient.get("portion_description"),
+        }
     return {
         "product_id": ingredient["product_id"],
         "quantity": ingredient.get("quantity"),
@@ -56,6 +63,7 @@ def _recipe_update_payload(current: dict[str, Any], updates: dict[str, Any]) -> 
         "version": recipe.get("version", "1.0"),
         "status": recipe.get("status", "Draft"),
         "servings": recipe.get("servings", 1),
+        "yield_g": recipe.get("yield_g"),
         "tags": recipe.get("tags"),
         "is_ready": recipe.get("is_ready", False),
         "needs_garnish": recipe.get("needs_garnish", False),
@@ -134,6 +142,7 @@ def register_recipe_tools(mcp: FastMCP) -> None:
         version: str = "1.0",
         status: str = "Draft",
         servings: float = 1,
+        yield_g: float | None = None,
         tags: str | None = None,
         is_ready: bool = False,
         needs_garnish: bool = False,
@@ -153,6 +162,7 @@ def register_recipe_tools(mcp: FastMCP) -> None:
                 "version": version,
                 "status": status,
                 "servings": servings,
+                "yield_g": yield_g,
                 "tags": tags,
                 "is_ready": is_ready,
                 "needs_garnish": needs_garnish,
@@ -181,6 +191,7 @@ def register_recipe_tools(mcp: FastMCP) -> None:
         version: str | None = None,
         status: str | None = None,
         servings: float | None = None,
+        yield_g: float | None = None,
         tags: str | None = None,
         is_ready: bool | None = None,
         needs_garnish: bool | None = None,
@@ -200,6 +211,7 @@ def register_recipe_tools(mcp: FastMCP) -> None:
             "version": version,
             "status": status,
             "servings": servings,
+            "yield_g": yield_g,
             "tags": tags,
             "is_ready": is_ready,
             "needs_garnish": needs_garnish,

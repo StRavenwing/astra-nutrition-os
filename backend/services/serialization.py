@@ -10,6 +10,7 @@ from backend.models import (
     ProductMeasure,
     ProgressEntry,
     Recipe,
+    RecipeComponent,
     RecipeIngredient,
     WorkoutLog,
     WorkoutPlan,
@@ -59,7 +60,35 @@ def serialize_product(product: Product, include_measures: bool = True) -> dict:
     return data
 
 
-def recipe_totals(recipe: Recipe) -> dict[str, float | None]:
+def _scale_values(values: dict[str, float | None], factor: float) -> dict[str, float | None]:
+    return {
+        key: None if value is None else value * factor
+        for key, value in values.items()
+    }
+
+
+def _recipe_component_values(component: RecipeComponent, stack: set[int]) -> dict[str, float | None]:
+    child = component.child_recipe
+    if child.id in stack:
+        raise ValueError("Нельзя включить рецепт в самого себя или создать циклический состав")
+    if child.yield_g is None or child.yield_g <= 0:
+        raise ValueError(
+            f'Для вложенного блюда «{child.name}» необходимо указать выход в граммах'
+        )
+    child_totals = _recipe_totals(child, stack | {child.id})
+    return _scale_values(
+        {
+            "kcal": child_totals["kcal"],
+            "protein_g": child_totals["protein_g"],
+            "fat_g": child_totals["fat_g"],
+            "carbs_g": child_totals["carbs_g"],
+            "cost_rsd": child_totals["recipe_cost_rsd"],
+        },
+        component.quantity / child.yield_g,
+    )
+
+
+def _recipe_totals(recipe: Recipe, stack: set[int]) -> dict[str, float | None]:
     ingredients = list(
         RecipeIngredient
         .select(RecipeIngredient, Product)
@@ -80,6 +109,10 @@ def recipe_totals(recipe: Recipe) -> dict[str, float | None]:
         }
         for ingredient in ingredients
     ]
+    values.extend(
+        _recipe_component_values(component, stack)
+        for component in RecipeComponent.select().where(RecipeComponent.recipe == recipe)
+    )
     cost = _sum_defined([item["cost_rsd"] for item in values])
 
     if recipe.manual_kcal_per_serving is not None:
@@ -122,6 +155,10 @@ def recipe_totals(recipe: Recipe) -> dict[str, float | None]:
     }
 
 
+def recipe_totals(recipe: Recipe) -> dict[str, float | None]:
+    return _recipe_totals(recipe, {recipe.id})
+
+
 def serialize_recipe_summary(recipe: Recipe) -> dict:
     return {
         "id": recipe.id,
@@ -132,6 +169,7 @@ def serialize_recipe_summary(recipe: Recipe) -> dict:
         "version": recipe.version,
         "status": recipe.status,
         "servings": recipe.servings,
+        "yield_g": recipe.yield_g,
         "tags": recipe.tags,
         "is_ready": bool(recipe.is_ready),
         "needs_garnish": bool(recipe.needs_garnish),
@@ -167,6 +205,44 @@ def serialize_recipe_ingredient(ingredient: RecipeIngredient) -> dict:
         "fat_g": values["fat_g"],
         "carbs_g": values["carbs_g"],
         "cost_rsd": values["cost_rsd"],
+        "component_type": "product",
+        "recipe_id": None,
+        "recipe_code": None,
+    }
+
+
+def serialize_recipe_component(component: RecipeComponent) -> dict:
+    child = component.child_recipe
+    child_totals = recipe_totals(child)
+    values = _scale_values(
+        {
+            "kcal": child_totals["kcal"],
+            "protein_g": child_totals["protein_g"],
+            "fat_g": child_totals["fat_g"],
+            "carbs_g": child_totals["carbs_g"],
+            "cost_rsd": child_totals["recipe_cost_rsd"],
+        },
+        component.quantity / child.yield_g if child.yield_g else 0,
+    )
+    return {
+        "id": component.id,
+        "product_id": None,
+        "product_code": None,
+        "recipe_id": child.id,
+        "recipe_code": child.code,
+        "name": child.name,
+        "quantity": component.quantity,
+        "unit": component.unit,
+        "measurement_name": component.unit,
+        "measurement_quantity": component.quantity,
+        "portion_description": component.portion_description or f"{component.quantity:g} г готового блюда",
+        "recipe_yield_g": child.yield_g,
+        "component_type": "recipe",
+        "kcal": rounded(values["kcal"]),
+        "protein_g": rounded(values["protein_g"]),
+        "fat_g": rounded(values["fat_g"]),
+        "carbs_g": rounded(values["carbs_g"]),
+        "cost_rsd": rounded(values["cost_rsd"]),
     }
 
 
@@ -178,9 +254,15 @@ def serialize_recipe_detail(recipe: Recipe) -> dict:
         .where(RecipeIngredient.recipe == recipe)
         .order_by(RecipeIngredient.id)
     )
+    ingredients_data = [serialize_recipe_ingredient(ingredient) for ingredient in ingredients]
+    ingredients_data.extend(
+        serialize_recipe_component(component)
+        for component in RecipeComponent.select().where(RecipeComponent.recipe == recipe)
+    )
+    ingredients_data.sort(key=lambda item: item["id"])
     return {
         "recipe": serialize_recipe_summary(recipe),
-        "ingredients": [serialize_recipe_ingredient(ingredient) for ingredient in ingredients],
+        "ingredients": ingredients_data,
     }
 
 

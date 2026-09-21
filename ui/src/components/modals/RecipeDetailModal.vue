@@ -89,7 +89,7 @@ function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; car
     wide
     @close="$emit('close')"
   >
-    <p v-if="recipe" class="subtle recipe-meta">{{ recipe.code }} · {{ recipeCategoryLabels[recipe.category] || recipe.category }}<template v-if="recipe.subcategory"> / {{ recipe.subcategory }}</template> · v{{ recipe.version }} · {{ fmt(recipe.servings) }} порц.</p>
+    <p v-if="recipe" class="subtle recipe-meta">{{ recipe.code }} · {{ recipeCategoryLabels[recipe.category] || recipe.category }}<template v-if="recipe.subcategory"> / {{ recipe.subcategory }}</template> · v{{ recipe.version }} · {{ fmt(recipe.servings) }} порц.<template v-if="recipe.yield_g != null"> · Выход: {{ fmt(recipe.yield_g) }} г</template></p>
     <div v-if="loading" class="panel">Загрузка…</div>
     <div v-else-if="error" class="panel empty">{{ error }}</div>
     <div v-else-if="recipe && detail" class="recipe-body">
@@ -139,8 +139,8 @@ function macroItems(values: { kcal: unknown; protein: unknown; fat: unknown; car
             </tr>
           </thead>
           <tbody>
-            <tr v-for="ingredient in detail.ingredients" :key="ingredient.id">
-              <td><b>{{ ingredient.name }}</b><small>{{ ingredient.portion_description || ingredient.product_code }}</small></td>
+            <tr v-for="ingredient in detail.ingredients" :key="`${ingredient.component_type}-${ingredient.id}`">
+              <td><b>{{ ingredient.name }}</b><small>{{ ingredient.portion_description || ingredient.product_code || (ingredient.component_type === 'recipe' ? 'Готовое блюдо' : '') }}</small></td>
               <td class="number">{{ fmt(ingredient.quantity) }} {{ ingredient.unit }}</td>
               <td class="number">{{ fmt(ingredient.kcal) }}</td>
               <td class="number">{{ fmt(ingredient.protein_g) }}</td>

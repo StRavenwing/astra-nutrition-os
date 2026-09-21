@@ -262,6 +262,7 @@ async function removeRecipe(item: RecipeSummary) {
         </div>
         <div class="recipe-category">{{ recipeCategoryMap[item.category]?.label || recipeCategoryLabels[item.category] || item.category }}<span v-if="item.is_ready" class="recipe-option-badge">Готовое блюдо</span><span v-if="item.needs_garnish" class="recipe-option-badge">Нужен гарнир</span></div>
         <h3>{{ item.name }}</h3>
+        <p v-if="item.yield_g != null" class="recipe-yield">Выход: {{ fmt(item.yield_g) }} г</p>
         <p>{{ item.subcategory || item.tags || 'Рецепт из личной коллекции' }}</p>
         <div class="tile-macros">
           <span><b>{{ fmt(item.kcal_per_serving) }}</b><small>ккал</small></span>

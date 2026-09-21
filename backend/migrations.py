@@ -157,6 +157,8 @@ def _ensure_recipe_option_columns(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE recipes ADD COLUMN is_ready INTEGER NOT NULL DEFAULT 0")
     if "needs_garnish" not in columns:
         connection.execute("ALTER TABLE recipes ADD COLUMN needs_garnish INTEGER NOT NULL DEFAULT 0")
+    if "yield_g" not in columns:
+        connection.execute("ALTER TABLE recipes ADD COLUMN yield_g REAL")
     # Preserve old Ready recipes while moving the classification into an option.
     connection.execute(
         "UPDATE recipes SET is_ready=1, category='Main' WHERE category='Ready'"
@@ -271,6 +273,7 @@ def _upgrade_legacy_schema(connection: sqlite3.Connection) -> None:
     recipe_additions = {
         "is_ready": "INTEGER NOT NULL DEFAULT 0",
         "needs_garnish": "INTEGER NOT NULL DEFAULT 0",
+        "yield_g": "REAL",
         "manual_price_per_serving_rsd": "REAL",
         "manual_kcal_per_serving": "REAL",
         "manual_protein_per_serving_g": "REAL",

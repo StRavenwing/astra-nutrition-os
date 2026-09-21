@@ -96,7 +96,8 @@ class ProductNutritionScanResult(BaseModel):
 
 
 class RecipeIngredientInput(BaseModel):
-    product_id: int
+    product_id: int | None = None
+    recipe_id: int | None = None
     quantity: Any = None
     unit: str | None = None
     measurement_name: str | None = None
@@ -111,6 +112,7 @@ class RecipeInput(BaseModel):
     version: str = "1.0"
     status: str = "Draft"
     servings: Any = 1
+    yield_g: Any = None
     tags: str | None = None
     is_ready: bool = False
     needs_garnish: bool = False

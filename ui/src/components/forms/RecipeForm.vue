@@ -8,7 +8,9 @@ const props = defineProps<{ recipeId?: number }>();
 const emit = defineEmits<{ saved: [recipeId?: number]; cancel: [] }>();
 
 type IngredientRow = {
-  product_id: number;
+  kind: 'product' | 'recipe';
+  product_id: number | null;
+  recipe_id: number | null;
   quantity: string;
   measurement_name: string;
 };
@@ -16,6 +18,7 @@ type IngredientRow = {
 const loading = ref(false);
 const error = ref('');
 const products = ref<Product[]>([]);
+const recipes = ref<RecipeSummary[]>([]);
 const extraCategories = ref<{ key: string; label: string; prefix: string; x: number; y: number }[]>([]);
 const measures = ref<ProductMeasure[]>([]);
 const original = ref<RecipeSummary | null>(null);
@@ -28,6 +31,7 @@ const form = reactive<Record<string, string>>({
   subcategory: '',
   version: '1.0',
   servings: '1',
+  yield_g: '',
   tags: '',
   manual_price_per_serving_rsd: '',
   manual_kcal_per_serving: '',
@@ -41,11 +45,12 @@ const needsGarnish = ref(false);
 const categoryOptions = computed(() => [...recipeCategories, ...extraCategories.value]);
 const modalTitle = computed(() => (props.recipeId ? 'Редактировать рецепт' : 'Добавить рецепт'));
 
-function productById(productId: number) {
+function productById(productId: number | null) {
   return products.value.find((product) => product.id === productId) || products.value[0];
 }
 
 function optionsFor(row: IngredientRow) {
+  if (row.kind !== 'product') return [];
   const product = productById(row.product_id);
   if (!product) return [];
   const list = [
@@ -62,11 +67,15 @@ function syncRecipeId() {
 }
 
 function addIngredient(item?: Partial<RecipeIngredient>) {
-  const productId = item?.product_id || products.value[0]?.id || 0;
+  const kind: IngredientRow['kind'] = item?.recipe_id != null ? 'recipe' : 'product';
+  const productId = item?.product_id ?? products.value[0]?.id ?? null;
+  const recipeId = item?.recipe_id ?? recipes.value[0]?.id ?? null;
   const row: IngredientRow = {
+    kind,
     product_id: productId,
-    quantity: item?.measurement_quantity != null ? String(item.measurement_quantity) : item?.quantity != null ? String(item.quantity) : '',
-    measurement_name: item?.measurement_name || productById(productId)?.unit || 'г'
+    recipe_id: recipeId,
+    quantity: item?.quantity != null ? String(item.quantity) : item?.measurement_quantity != null ? String(item.measurement_quantity) : '',
+    measurement_name: kind === 'recipe' ? 'г' : item?.measurement_name || productById(productId)?.unit || 'г'
   };
   ingredients.value.push(row);
 }
@@ -79,6 +88,18 @@ function productChanged(row: IngredientRow) {
   row.measurement_name = productById(row.product_id)?.unit || 'г';
 }
 
+function ingredientKindChanged(row: IngredientRow) {
+  if (row.kind === 'recipe') {
+    row.product_id = null;
+    row.recipe_id = recipes.value[0]?.id ?? null;
+    row.measurement_name = 'г';
+  } else {
+    row.recipe_id = null;
+    row.product_id = products.value[0]?.id ?? null;
+    row.measurement_name = productById(row.product_id)?.unit || 'г';
+  }
+}
+
 onMounted(async () => {
   loading.value = true;
   try {
@@ -87,6 +108,9 @@ onMounted(async () => {
       .map((item) => ({ key: item.name, label: recipeCategoryLabels[item.name] || item.name, prefix: 'M', x: 50, y: 50 }));
     const productList = await api.products();
     products.value = [...productList].sort((a, b) => a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' }));
+    recipes.value = (await api.recipes())
+      .filter((item) => item.id !== props.recipeId && item.yield_g != null)
+      .sort((a, b) => a.name.localeCompare(b.name, 'ru', { sensitivity: 'base' }));
     measures.value = await api.productMeasures();
 
     if (props.recipeId) {
@@ -127,19 +151,26 @@ function payload() {
     is_ready: isReady.value,
     needs_garnish: needsGarnish.value,
     manual_price_per_serving_rsd: form.manual_price_per_serving_rsd,
+    yield_g: form.yield_g,
     manual_kcal_per_serving: form.manual_kcal_per_serving,
     manual_protein_per_serving_g: form.manual_protein_per_serving_g,
     manual_fat_per_serving_g: form.manual_fat_per_serving_g,
     manual_carbs_per_serving_g: form.manual_carbs_per_serving_g,
     ingredients: isReady.value
       ? []
-      : ingredients.value.map((row) => ({
-          product_id: row.product_id,
-          quantity: row.quantity,
-          measurement_quantity: row.quantity,
-          measurement_name: row.measurement_name,
-          unit: productById(row.product_id)?.unit || 'г'
-        }))
+      : ingredients.value.map((row) => row.kind === 'recipe'
+        ? {
+            recipe_id: row.recipe_id,
+            quantity: row.quantity,
+            unit: 'г'
+          }
+        : {
+            product_id: row.product_id,
+            quantity: row.quantity,
+            measurement_quantity: row.quantity,
+            measurement_name: row.measurement_name,
+            unit: productById(row.product_id)?.unit || 'г'
+          })
   };
 }
 
@@ -167,6 +198,7 @@ async function save() {
         <div class="field"><label>Подкатегория</label><input v-model="form.subcategory"></div>
         <div class="field"><label>Версия</label><input v-model="form.version"></div>
         <div class="field"><label>Количество порций</label><input v-model="form.servings" type="number" min="1" step="0.1" required></div>
+        <div class="field"><label>Выход, г <small>необязательно; нужен для вложения блюда</small></label><input v-model="form.yield_g" type="number" min="0.01" step="0.01" placeholder="Например, 850"></div>
         <div class="field"><label>Теги</label><input v-model="form.tags"></div>
         <label class="checkbox-field"><input v-model="isReady" type="checkbox"><span>Готовое блюдо</span><small>Можно одновременно отнести к любой категории</small></label>
         <label class="checkbox-field"><input v-model="needsGarnish" type="checkbox"><span>Нужен гарнир</span><small>Учитывать при подборе меню</small></label>
@@ -184,13 +216,22 @@ async function save() {
         <label>Ингредиенты</label>
         <div id="ingredients">
           <div v-for="(row, index) in ingredients" :key="index" class="ingredient-row">
-            <select v-model="row.product_id" class="ip" @change="productChanged(row)">
+            <select v-model="row.kind" class="ik" @change="ingredientKindChanged(row)">
+              <option value="product">Продукт</option>
+              <option value="recipe" :disabled="!recipes.length">Готовое блюдо</option>
+            </select>
+            <select v-if="row.kind === 'product'" v-model="row.product_id" class="ip" @change="productChanged(row)">
               <option v-for="product in products" :key="product.id" :value="product.id">{{ product.name }}</option>
             </select>
+            <select v-else v-model="row.recipe_id" class="ip">
+              <option v-for="recipe in recipes" :key="recipe.id" :value="recipe.id">{{ recipe.name }} · {{ recipe.yield_g }} г</option>
+              <option v-if="!recipes.length" disabled value="">Нет блюд с указанным выходом</option>
+            </select>
             <input v-model="row.quantity" class="iq" type="number" min="0.01" step="0.01" placeholder="Количество" required>
-            <select v-model="row.measurement_name" class="im">
+            <select v-if="row.kind === 'product'" v-model="row.measurement_name" class="im">
               <option v-for="measure in optionsFor(row)" :key="measure.measure_name" :value="measure.measure_name">{{ measure.measure_name }}</option>
             </select>
+            <span v-else class="ingredient-unit">г готового изделия</span>
             <button type="button" @click="removeIngredient(index)">×</button>
           </div>
         </div>
@@ -209,6 +250,32 @@ async function save() {
 <style lang="scss">
 .recipe-ingredients-section {
   margin-top: 16px;
+}
+
+.ingredient-row {
+  grid-template-columns: 112px minmax(150px, 1fr) 105px 145px 36px;
+}
+
+.ingredient-unit {
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .ingredient-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .ingredient-row .iq,
+  .ingredient-row .im,
+  .ingredient-row .ingredient-unit,
+  .ingredient-row button {
+    grid-column: span 1;
+  }
 }
 
 .checkbox-field {
