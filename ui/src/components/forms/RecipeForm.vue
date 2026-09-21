@@ -81,7 +81,7 @@ function addIngredient(item?: Partial<RecipeIngredient>) {
 }
 
 function removeIngredient(index: number) {
-  if (ingredients.value.length > 1) ingredients.value.splice(index, 1);
+  ingredients.value.splice(index, 1);
 }
 
 function productChanged(row: IngredientRow) {
@@ -232,7 +232,7 @@ async function save() {
               <option v-for="measure in optionsFor(row)" :key="measure.measure_name" :value="measure.measure_name">{{ measure.measure_name }}</option>
             </select>
             <span v-else class="ingredient-unit">г готового изделия</span>
-            <button type="button" @click="removeIngredient(index)">×</button>
+            <button type="button" class="ingredient-remove" aria-label="Удалить ингредиент" title="Удалить ингредиент" @click="removeIngredient(index)">×</button>
           </div>
         </div>
         <button type="button" id="add-ing" @click="addIngredient()">＋ ингредиент</button>
@@ -252,8 +252,8 @@ async function save() {
   margin-top: 16px;
 }
 
-.ingredient-row {
-  grid-template-columns: 112px minmax(150px, 1fr) 105px 145px 36px;
+.recipe-ingredients-section .ingredient-row {
+  grid-template-columns: 82px minmax(120px, 1fr) 90px 112px 36px;
 }
 
 .ingredient-unit {
@@ -265,15 +265,36 @@ async function save() {
   white-space: nowrap;
 }
 
+.ingredient-remove {
+  width: 36px;
+  min-width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid #f0caca;
+  border-radius: 8px;
+  background: #fff7f7;
+  color: #d55555;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.ingredient-remove:hover,
+.ingredient-remove:focus-visible {
+  border-color: #d55555;
+  background: #fff0ed;
+  outline: none;
+}
+
 @media (max-width: 760px) {
-  .ingredient-row {
+  .recipe-ingredients-section .ingredient-row {
     grid-template-columns: 1fr 1fr;
   }
 
-  .ingredient-row .iq,
-  .ingredient-row .im,
-  .ingredient-row .ingredient-unit,
-  .ingredient-row button {
+  .recipe-ingredients-section .ingredient-row .iq,
+  .recipe-ingredients-section .ingredient-row .im,
+  .recipe-ingredients-section .ingredient-row .ingredient-unit,
+  .recipe-ingredients-section .ingredient-row button {
     grid-column: span 1;
   }
 }
