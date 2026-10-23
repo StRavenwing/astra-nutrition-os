@@ -25,6 +25,7 @@ defineEmits<{
   logout: [];
   feedback: [];
   login: [];
+  profile: [];
 }>();
 </script>
 
@@ -32,7 +33,7 @@ defineEmits<{
   <div class="app-shell">
     <SideNav :current-page="currentPage" :feedback-unread="feedbackUnread" :user="user" :can-access-clients="canAccessClients" @navigate="$emit('navigate', $event)" @feedback="$emit('feedback')" />
     <main>
-    <TopBar :title="title" :can-add="canAdd" :can-add-category="canAddCategory" :add-label="addLabel" :show-diary-menu-actions="showDiaryMenuActions" :user="user" :guest="guestMode" @add="$emit('add')" @collect-day-menu="$emit('collectDayMenu')" @collect-week-menu="$emit('collectWeekMenu')" @add-category="$emit('addCategory')" @logout="$emit('logout')" @login="$emit('login')" />
+    <TopBar :title="title" :can-add="canAdd" :can-add-category="canAddCategory" :add-label="addLabel" :show-diary-menu-actions="showDiaryMenuActions" :user="user" :guest="guestMode" @add="$emit('add')" @collect-day-menu="$emit('collectDayMenu')" @collect-week-menu="$emit('collectWeekMenu')" @add-category="$emit('addCategory')" @logout="$emit('logout')" @login="$emit('login')" @profile="$emit('profile')" />
       <slot />
     </main>
   </div>

@@ -20,6 +20,23 @@ class PasswordResetConfirmInput(BaseModel):
     password: str = Field(min_length=8)
 
 
+class ProfileUpdateInput(BaseModel):
+    name: str | None = Field(default=None, max_length=120)
+    email: str
+    phone: str | None = Field(default=None, max_length=40)
+    avatar: str | None = Field(default=None, max_length=1_000_000)
+
+
+class PasswordChangeInput(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8)
+    confirm_password: str = Field(min_length=8)
+
+
+class EmailVerificationConfirmInput(BaseModel):
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
 class FeedbackInput(BaseModel):
     message: str = Field(min_length=1, max_length=500)
 

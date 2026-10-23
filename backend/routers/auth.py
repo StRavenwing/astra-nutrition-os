@@ -4,14 +4,26 @@ from fastapi import APIRouter, Depends, Request, status
 
 from backend.dependencies import get_current_user, require_admin
 from backend.models import User
-from backend.schemas import AuthInput, PasswordResetConfirmInput, PasswordResetRequestInput, dump_model
+from backend.schemas import (
+    AuthInput,
+    EmailVerificationConfirmInput,
+    PasswordChangeInput,
+    PasswordResetConfirmInput,
+    PasswordResetRequestInput,
+    ProfileUpdateInput,
+    dump_model,
+)
 from backend.services.auth import (
     authenticate_user,
+    change_password,
+    confirm_email_verification,
     create_access_token,
     register_user,
     confirm_password_reset,
+    request_email_verification,
     request_password_reset,
     serialize_user,
+    update_profile,
 )
 
 
@@ -54,6 +66,31 @@ def logout(current_user: User = Depends(get_current_user)) -> dict:
 @router.get("/me")
 def me(current_user: User = Depends(get_current_user)) -> dict:
     return serialize_user(current_user)
+
+
+@router.put("/me/profile")
+def update_me(payload: ProfileUpdateInput, current_user: User = Depends(get_current_user)) -> dict:
+    return serialize_user(update_profile(dump_model(payload), current_user))
+
+
+@router.post("/me/password")
+def update_my_password(payload: PasswordChangeInput, current_user: User = Depends(get_current_user)) -> dict:
+    change_password(dump_model(payload), current_user)
+    return {"ok": True, "message": "Пароль изменён"}
+
+
+@router.post("/me/email-verification/request")
+def request_my_email_verification(request: Request, current_user: User = Depends(get_current_user)) -> dict:
+    return request_email_verification(current_user, request.app.state.settings)
+
+
+@router.post("/me/email-verification/confirm")
+def confirm_my_email_verification(
+    payload: EmailVerificationConfirmInput,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    return serialize_user(confirm_email_verification(payload.code, current_user, request.app.state.settings))
 
 
 @router.get("/users")

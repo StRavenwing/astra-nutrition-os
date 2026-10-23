@@ -1,9 +1,12 @@
-export type PageId = 'dashboard' | 'products' | 'recipes' | 'diary' | 'progress' | 'workouts' | 'clients' | 'theory';
+export type PageId = 'dashboard' | 'products' | 'recipes' | 'diary' | 'progress' | 'workouts' | 'clients' | 'theory' | 'account';
 
 export interface AuthUser {
   id: number;
   email: string;
   name: string;
+  phone: string | null;
+  avatar: string | null;
+  email_verified: boolean;
   is_admin: boolean;
   is_trainer: boolean;
 }

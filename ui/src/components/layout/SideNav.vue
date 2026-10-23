@@ -24,11 +24,12 @@ defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
         :key="item.id"
         type="button"
         :class="{ active: item.id === currentPage }"
-        :disabled="item.id === 'clients' && !(user.is_admin || user.is_trainer)"
-        :title="item.id === 'clients' && !(user.is_admin || user.is_trainer) ? 'Доступно только тренерам и администраторам' : undefined"
-        @click="item.id !== 'clients' || user.is_admin || user.is_trainer ? $emit('navigate', item.id) : undefined"
+        :disabled="(item.id === 'clients' && !(user.is_admin || user.is_trainer)) || (item.id === 'account' && user.id === 0)"
+        :title="item.id === 'clients' && !(user.is_admin || user.is_trainer) ? 'Доступно только тренерам и администраторам' : item.id === 'account' && user.id === 0 ? 'Войдите, чтобы открыть личный кабинет' : undefined"
+        @click="(item.id !== 'clients' || user.is_admin || user.is_trainer) && (item.id !== 'account' || user.id !== 0) ? $emit('navigate', item.id) : undefined"
       >
         <span v-if="item.id === 'clients'" class="nav-icon clients-nav-icon" aria-hidden="true">👥</span>
+        <span v-else-if="item.id === 'account'" class="nav-icon account-nav-icon" aria-hidden="true">◉</span>
         <svg v-else class="nav-icon" aria-hidden="true"><use :href="`/assets/astra-menu-icons.svg#${item.id}`" /></svg>
         {{ item.title }}
       </button>
@@ -46,7 +47,10 @@ defineEmits<{ navigate: [page: PageId]; feedback: [] }>();
     </div>
 
     <div class="aside-user">
-      <span class="avatar">{{ user.email.slice(0, 1).toUpperCase() }}</span>
+      <span class="avatar">
+        <img v-if="user.avatar" :src="user.avatar" alt="">
+        <template v-else>{{ user.email.slice(0, 1).toUpperCase() }}</template>
+      </span>
       <div>
         <b>{{ user.email }}</b>
         <small>{{ user.id === 0 ? 'Режим чтения' : 'Личная база питания · v7' }}</small>

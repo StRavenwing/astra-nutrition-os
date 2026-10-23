@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+from datetime import date
+
+from peewee import IntegrityError
+
 from backend.models import ProgressEntry, User, current_database
 from backend.services.calculations import int_number, number, progress_values
-from backend.services.errors import NotFoundError
+from backend.services.errors import ConflictError, NotFoundError
 from backend.services.serialization import serialize_progress
+
+
+PROGRESS_DATE_CONFLICT_MESSAGE = "На выбранную дату уже есть замер. Выберите другую дату или измените существующий замер."
 
 
 def list_progress(user: User | None) -> list[dict]:
@@ -49,17 +56,50 @@ def _assign_progress(entry: ProgressEntry, data: dict) -> ProgressEntry:
     return entry
 
 
+def _ensure_date_available(user: User, measured_at: str, entry_id: int | None = None) -> None:
+    query = ProgressEntry.select().where(
+        (ProgressEntry.user == user) & (ProgressEntry.measured_at == measured_at)
+    )
+    if entry_id is not None:
+        query = query.where(ProgressEntry.id != entry_id)
+    if query.exists():
+        raise ConflictError(PROGRESS_DATE_CONFLICT_MESSAGE)
+
+
+def _validate_measured_at(measured_at: str) -> None:
+    try:
+        measured_date = date.fromisoformat(measured_at)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Введите корректную дату замера.") from exc
+    if measured_date > date.today():
+        raise ValueError("Дата замера не может быть в будущем. Выберите сегодняшнюю или более раннюю дату.")
+
+
+def _save_progress(entry: ProgressEntry, *, force_insert: bool = False) -> None:
+    try:
+        entry.save(force_insert=force_insert)
+    except IntegrityError as exc:
+        if "progress_entries.user_id, progress_entries.measured_at" in str(exc):
+            raise ConflictError(PROGRESS_DATE_CONFLICT_MESSAGE) from exc
+        raise
+
+
 def create_progress(data: dict, user: User) -> dict:
     with current_database().atomic():
+        _validate_measured_at(data["measured_at"])
+        _ensure_date_available(user, data["measured_at"])
         entry = _assign_progress(ProgressEntry(user=user), data)
-        entry.save(force_insert=True)
+        _save_progress(entry, force_insert=True)
         return serialize_progress(entry)
 
 
 def update_progress(entry_id: int, data: dict, user: User) -> dict:
     with current_database().atomic():
-        entry = _assign_progress(get_progress(entry_id, user), data)
-        entry.save()
+        _validate_measured_at(data["measured_at"])
+        entry = get_progress(entry_id, user)
+        _ensure_date_available(user, data["measured_at"], entry.id)
+        entry = _assign_progress(entry, data)
+        _save_progress(entry)
         return serialize_progress(entry)
 
 

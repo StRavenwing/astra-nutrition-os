@@ -127,6 +127,13 @@ def main() -> None:
             assert admin_auth["user"]["is_admin"] is True
             assert admin_auth["user"]["is_trainer"] is True
 
+            response = client.post(
+                "/api/v1/auth/register",
+                json={"email": "not-an-email", "password": "user-password"},
+            )
+            assert response.status_code == 400
+            assert response.json()["error"] == "Введите корректный email"
+
             response = client.get("/api/v1/auth/me", headers=admin_headers)
             assert response.status_code == 200
             assert response.json()["email"] == "admin@example.com"
@@ -285,7 +292,7 @@ def main() -> None:
                 "/api/v1/progress",
                 headers=admin_headers,
                 json={
-                    "measured_at": "2099-01-01",
+                    "measured_at": "2000-01-01",
                     "weight_kg": 70,
                     "height_cm": 169,
                     "body_fat_pct": 25,
@@ -296,6 +303,26 @@ def main() -> None:
             progress = response.json()
             assert progress["bmi"] == 24.51
             assert progress["fat_mass_kg"] == 17.5
+
+            response = client.post(
+                "/api/v1/progress",
+                headers=admin_headers,
+                json={"measured_at": "2000-01-01", "weight_kg": 71},
+            )
+            assert response.status_code == 409
+            assert response.json()["error"] == (
+                "На выбранную дату уже есть замер. Выберите другую дату или измените существующий замер."
+            )
+
+            response = client.post(
+                "/api/v1/progress",
+                headers=admin_headers,
+                json={"measured_at": "2099-01-01", "weight_kg": 71},
+            )
+            assert response.status_code == 400
+            assert response.json()["error"] == (
+                "Дата замера не может быть в будущем. Выберите сегодняшнюю или более раннюю дату."
+            )
 
             response = client.post(
                 "/api/v1/exercises",
@@ -327,6 +354,35 @@ def main() -> None:
             user_auth = response.json()
             user_headers = {"Authorization": f"Bearer {user_auth['access_token']}"}
             assert user_auth["user"]["is_admin"] is False
+            assert user_auth["user"]["phone"] is None
+            assert user_auth["user"]["avatar"] is None
+            assert user_auth["user"]["email_verified"] is False
+
+            response = client.put(
+                "/api/v1/auth/me/profile",
+                headers=user_headers,
+                json={
+                    "name": "Smoke User",
+                    "email": "user@example.com",
+                    "phone": "+1234567890",
+                    "avatar": "data:image/png;base64,smoke",
+                },
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["name"] == "Smoke User"
+            assert response.json()["phone"] == "+1234567890"
+            assert response.json()["avatar"] == "data:image/png;base64,smoke"
+
+            response = client.post(
+                "/api/v1/auth/me/password",
+                headers=user_headers,
+                json={
+                    "current_password": "user-password",
+                    "new_password": "user-password-updated",
+                    "confirm_password": "user-password-updated",
+                },
+            )
+            assert response.status_code == 200, response.text
 
             response = client.get("/api/v1/dashboard", headers=user_headers)
             assert response.status_code == 200
@@ -366,7 +422,7 @@ def main() -> None:
             response = client.post(
                 "/api/v1/progress",
                 headers=user_headers,
-                json={"measured_at": "2099-01-01", "weight_kg": 65},
+                json={"measured_at": "2000-01-02", "weight_kg": 65},
             )
             assert response.status_code == 201, response.text
             response = client.post(

@@ -22,6 +22,7 @@ const emit = defineEmits<{
 }>();
 
 const dialog = ref<HTMLDialogElement | null>(null);
+const backdropPointerDown = ref(false);
 
 const popupVariant = computed(() => {
   const value = `${props.eyebrow} ${props.title}`.toLowerCase();
@@ -63,13 +64,23 @@ function onCancel(event: Event) {
   emit('close');
 }
 
+function rememberPointerDown(event: PointerEvent) {
+  backdropPointerDown.value = event.button === 0 && event.target === dialog.value;
+}
+
+function resetPointerDown() {
+  backdropPointerDown.value = false;
+}
+
 function closeOnBackdrop(event: MouseEvent) {
-  if (event.target === dialog.value) emit('close');
+  const clickedBackdrop = backdropPointerDown.value && event.target === dialog.value;
+  resetPointerDown();
+  if (clickedBackdrop) emit('close');
 }
 </script>
 
 <template>
-  <dialog ref="dialog" :class="[`popup-${popupVariant}`, `popup-${popupMode}`, { 'recipe-dialog': wide, 'popup-form': form }]" @cancel="onCancel" @click="closeOnBackdrop">
+  <dialog ref="dialog" :class="[`popup-${popupVariant}`, `popup-${popupMode}`, { 'recipe-dialog': wide, 'popup-form': form }]" @cancel="onCancel" @pointerdown="rememberPointerDown" @pointercancel="resetPointerDown" @click="closeOnBackdrop">
     <form v-if="form" method="dialog" @submit.prevent="$emit('submit')">
       <div class="modal-head">
         <div>

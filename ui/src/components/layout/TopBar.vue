@@ -18,6 +18,7 @@ defineEmits<{
   addCategory: [];
   logout: [];
   login: [];
+  profile: [];
 }>();
 </script>
 
@@ -38,6 +39,7 @@ defineEmits<{
       </template>
       <div v-if="!guest" class="user-chip">
         <span>{{ user.email }}</span>
+        <button type="button" class="profile-button" title="Личный кабинет" @click="$emit('profile')">Кабинет</button>
         <button type="button" title="Выйти" @click="$emit('logout')">Выйти</button>
       </div>
     </div>
@@ -71,6 +73,11 @@ defineEmits<{
     background: #f1f2f4;
     color: #44546f;
     cursor: pointer;
+  }
+
+  .profile-button {
+    background: #eef0ff;
+    color: #5f6fc2;
   }
 }
 

@@ -12,6 +12,7 @@ const resetSent = ref(false);
 const loading = ref(false);
 const error = ref('');
 const notice = ref('');
+const showPassword = ref(false);
 const form = reactive({
   email: '',
   password: ''
@@ -41,12 +42,18 @@ async function submit() {
 
 function openReset() {
   resetMode.value = true;
+  showPassword.value = false;
   resetSent.value = false;
   error.value = '';
   notice.value = '';
   resetForm.email = form.email;
   resetForm.code = '';
   resetForm.password = '';
+}
+
+function setMode(nextMode: 'login' | 'register') {
+  mode.value = nextMode;
+  showPassword.value = false;
 }
 
 function closeReset() {
@@ -101,24 +108,44 @@ async function confirmReset() {
       </div>
 
       <div class="auth-tabs" role="tablist" aria-label="Авторизация">
-        <button type="button" :class="{ active: mode === 'login' }" @click="mode = 'login'">Вход</button>
-        <button type="button" :class="{ active: mode === 'register' }" @click="mode = 'register'">Регистрация</button>
+        <button type="button" :class="{ active: mode === 'login' }" @click="setMode('login')">Вход</button>
+        <button type="button" :class="{ active: mode === 'register' }" @click="setMode('register')">Регистрация</button>
       </div>
 
       <form class="auth-form" @submit.prevent="submit">
         <div class="field">
           <label>Email</label>
-          <input v-model="form.email" type="email" autocomplete="email" required>
+          <input v-model="form.email" :type="mode === 'register' ? 'email' : 'text'" inputmode="email" autocomplete="email" required>
         </div>
         <div class="field">
           <label>Пароль</label>
-          <input
-            v-model="form.password"
-            type="password"
-            autocomplete="current-password"
-            minlength="8"
-            required
-          >
+          <div class="password-field">
+            <input
+              v-model="form.password"
+              :type="showPassword ? 'text' : 'password'"
+              :autocomplete="mode === 'login' ? 'current-password' : 'new-password'"
+              minlength="8"
+              required
+            >
+            <button
+              type="button"
+              class="password-toggle"
+              :aria-label="showPassword ? 'Скрыть пароль' : 'Показать пароль'"
+              :title="showPassword ? 'Скрыть пароль' : 'Показать пароль'"
+              :aria-pressed="showPassword"
+              @click="showPassword = !showPassword"
+            >
+              <svg v-if="showPassword" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+                <circle cx="12" cy="12" r="2.5" />
+              </svg>
+              <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+                <circle cx="12" cy="12" r="2.5" />
+                <path d="m3 3 18 18" />
+              </svg>
+            </button>
+          </div>
         </div>
         <p id="form-error">{{ error }}</p>
         <button type="submit" class="primary auth-submit" :disabled="loading">
@@ -133,7 +160,7 @@ async function confirmReset() {
         <form v-if="!resetSent" class="auth-form auth-reset-form" @submit.prevent="requestResetCode">
           <div class="field">
             <label>Email</label>
-            <input v-model="resetForm.email" type="email" autocomplete="email" required>
+            <input v-model="resetForm.email" type="text" inputmode="email" autocomplete="email" required>
           </div>
           <p id="form-error">{{ error }}</p>
           <button type="submit" class="primary auth-submit" :disabled="loading">
@@ -228,6 +255,49 @@ async function confirmReset() {
   display: grid;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.password-field {
+  position: relative;
+
+  input {
+    width: 100%;
+    padding-right: 44px;
+  }
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 5px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: #eef3ff;
+    color: var(--blue);
+    outline: none;
+  }
+
+  svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.8;
+  }
 }
 
 .auth-submit {

@@ -22,7 +22,7 @@ from backend.models import (
     WorkoutPlan,
     current_database,
 )
-from backend.services.auth import normalize_email, utc_now
+from backend.services.auth import normalize_existing_email, utc_now
 from backend.services.articles import serialize_article
 from backend.services.diary import create_diary_entries
 from backend.services.errors import ConflictError, ForbiddenError, NotFoundError
@@ -152,7 +152,7 @@ def list_clients(actor: User) -> list[dict]:
 
 def add_client(data: dict, actor: User) -> dict:
     _assert_trainer(actor)
-    email = normalize_email(data.get("email"))
+    email = normalize_existing_email(data.get("email"))
     client = User.get_or_none(User.email == email)
     if client is None:
         raise NotFoundError("Пользователь с таким email не зарегистрирован")

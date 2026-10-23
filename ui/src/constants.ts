@@ -8,7 +8,8 @@ export const pages: PageInfo[] = [
   { id: 'progress', icon: '↗', title: 'Прогресс' },
   { id: 'workouts', icon: '⚡', title: 'Тренировки' },
   { id: 'clients', icon: '👥', title: 'Клиенты' },
-  { id: 'theory', icon: '◈', title: 'Информация' }
+  { id: 'theory', icon: '◈', title: 'Информация' },
+  { id: 'account', icon: '◉', title: 'Личный кабинет' }
 ];
 
 export const productCategoryOptions = [

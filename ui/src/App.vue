@@ -14,6 +14,7 @@ import ProgressView from '@/views/ProgressView.vue';
 import WorkoutsView from '@/views/WorkoutsView.vue';
 import ClientsView from '@/views/ClientsView.vue';
 import TheoryView from '@/views/TheoryView.vue';
+import AccountView from '@/views/AccountView.vue';
 import ProductForm from '@/components/forms/ProductForm.vue';
 import RecipeForm from '@/components/forms/RecipeForm.vue';
 import DiaryEntryForm from '@/components/forms/DiaryEntryForm.vue';
@@ -77,9 +78,9 @@ const canManageTraining = computed(() => isAdmin.value || isTrainer.value);
 const canAccessClients = computed(() => canManageTraining.value);
 const isGuest = computed(() => guestMode.value && !currentUser.value);
 const hasTrainer = ref(false);
-const activeUser = computed<AuthUser>(() => currentUser.value || { id: 0, email: 'Гостевой режим', name: 'Гостевой режим', is_admin: false, is_trainer: false });
+const activeUser = computed<AuthUser>(() => currentUser.value || { id: 0, email: 'Гостевой режим', name: 'Гостевой режим', phone: null, avatar: null, email_verified: false, is_admin: false, is_trainer: false });
 const canAdd = computed(() => {
-  if (isGuest.value || currentPage.value === 'dashboard' || currentPage.value === 'theory' || currentPage.value === 'clients') return false;
+  if (isGuest.value || currentPage.value === 'dashboard' || currentPage.value === 'theory' || currentPage.value === 'clients' || currentPage.value === 'account') return false;
   if (currentPage.value === 'workouts') return false;
   if (currentPage.value === 'products') return isAdmin.value;
   return true;
@@ -103,6 +104,10 @@ const modalTitle = computed(() => {
 });
 
 function navigate(page: PageId) {
+  if (page === 'account' && isGuest.value) {
+    openLogin();
+    return;
+  }
   activeCatalogCategory.value = undefined;
   currentPage.value = page;
   if (window.location.hash !== `#${page}`) {
@@ -112,7 +117,12 @@ function navigate(page: PageId) {
 
 function onHashChange() {
   activeCatalogCategory.value = undefined;
-  currentPage.value = hashPage();
+  const page = hashPage();
+  if (page === 'account' && isGuest.value) {
+    openLogin();
+    return;
+  }
+  currentPage.value = page;
 }
 
 function setCatalogCategory(category?: string) {
@@ -154,6 +164,18 @@ function openFeedback() {
 function openLogin() {
   authOpen.value = true;
   guestMode.value = false;
+}
+
+function openAccount() {
+  if (isGuest.value) {
+    openLogin();
+    return;
+  }
+  navigate('account');
+}
+
+function updateCurrentUser(user: AuthUser) {
+  currentUser.value = user;
 }
 
 function continueAsGuest() {
@@ -326,6 +348,10 @@ function clearSession() {
   const hadSession = Boolean(currentUser.value || getAccessToken());
   clearAccessToken();
   currentUser.value = null;
+  if (currentPage.value === 'account') {
+    currentPage.value = 'dashboard';
+    history.replaceState(null, '', `${window.location.pathname}${window.location.search}#dashboard`);
+  }
   hasTrainer.value = false;
   if (hadSession) {
     guestMode.value = true;
@@ -376,6 +402,7 @@ onMounted(async () => {
   window.addEventListener('hashchange', onHashChange);
   if (!getAccessToken()) {
     guestMode.value = true;
+    if (currentPage.value === 'account') openLogin();
     authLoading.value = false;
     return;
   }
@@ -423,6 +450,7 @@ onBeforeUnmount(() => {
     @logout="logout"
     @feedback="openFeedback"
     @login="openLogin"
+    @profile="openAccount"
   >
     <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-use-trainer-chat="!isGuest" @navigate="navigate" @open-recipe="openRecipe" />
     <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :has-trainer="hasTrainer" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @category-change="setCatalogCategory" @add="openAdd" @add-category="openCategory('product')" />
@@ -453,6 +481,7 @@ onBeforeUnmount(() => {
     />
     <ClientsView v-else-if="currentPage === 'clients'" :refresh-key="reloadKey" :can-access="canAccessClients" :is-admin="isAdmin" @changed="refresh" @feedback="openFeedback" />
     <TheoryView v-else-if="currentPage === 'theory'" :is-admin="isAdmin" :can-manage="canManageTraining" :has-trainer="hasTrainer" :refresh-key="reloadKey" @add-article="openArticleEditor()" @edit-article="openArticleEditor" />
+    <AccountView v-else-if="currentPage === 'account' && currentUser" :user="currentUser" @updated="updateCurrentUser" />
   </AppShell>
 
   <RecipeDetailModal :recipe-id="recipeDetailId" :is-admin="isAdmin" :can-manage="canManageTraining" @close="recipeDetailId = null" @edit="editRecipe" @deleted="recipeDetailId = null; refresh()" @changed="refresh" />
@@ -2970,7 +2999,8 @@ nav button:hover, nav button.active { background: var(--nav-surface); color: #f9
 .feedback-link:hover { color: var(--mint); }
 .aside-note { display: none; }
 .aside-user { display: flex; align-items: center; gap: 10px; margin-top: auto; padding: 14px 10px; border-radius: 16px; background: #17243a; }
-.aside-user .avatar { display: grid; flex: 0 0 40px; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #f3c6a9; color: var(--ink); font-weight: 800; }
+.aside-user .avatar { display: grid; flex: 0 0 40px; place-items: center; width: 40px; height: 40px; overflow: hidden; border-radius: 50%; background: #f3c6a9; color: var(--ink); font-weight: 800; }
+.aside-user .avatar img { width: 100%; height: 100%; object-fit: cover; }
 .aside-user b, .aside-user small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .aside-user b { max-width: 140px; color: #f4f7fc; font-size: 12px; }
 .aside-user small { max-width: 140px; margin-top: 3px; color: #8190a6; font-size: 10px; }

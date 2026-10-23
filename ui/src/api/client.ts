@@ -85,6 +85,10 @@ function write<T>(method: 'POST' | 'PUT' | 'DELETE', path: string, body?: unknow
 
 export const api = {
   me: () => request<AuthUser>('auth/me'),
+  updateProfile: (body: { name: string; email: string; phone: string; avatar: string | null }) => write<AuthUser>('PUT', 'auth/me/profile', body),
+  changePassword: (body: { current_password: string; new_password: string; confirm_password: string }) => write<{ ok: boolean; message: string }>('POST', 'auth/me/password', body),
+  requestEmailVerification: () => write<{ ok: boolean; message: string }>('POST', 'auth/me/email-verification/request'),
+  confirmEmailVerification: (code: string) => write<AuthUser>('POST', 'auth/me/email-verification/confirm', { code }),
   users: () => request<RegisteredUser[]>('auth/users'),
   login: (email: string, password: string) => request<AuthResponse>('auth/login', {
     method: 'POST',

@@ -60,6 +60,13 @@ def _ensure_user_columns(connection: sqlite3.Connection) -> None:
         connection.execute("ALTER TABLE users ADD COLUMN display_name TEXT")
     if "is_trainer" not in columns:
         connection.execute("ALTER TABLE users ADD COLUMN is_trainer INTEGER NOT NULL DEFAULT 0")
+    for column, column_type in {
+        "phone": "TEXT",
+        "avatar": "TEXT",
+        "email_verified": "INTEGER NOT NULL DEFAULT 0",
+    }.items():
+        if column not in columns:
+            connection.execute(f"ALTER TABLE users ADD COLUMN {column} {column_type}")
 
 
 def _ensure_chat_columns(connection: sqlite3.Connection) -> None:
@@ -200,7 +207,7 @@ def _count(connection: sqlite3.Connection, table: str) -> int:
 
 
 def _admin_row(connection: sqlite3.Connection, settings: Settings) -> sqlite3.Row:
-    email = normalize_email(settings.admin_email)
+    email = normalize_email(settings.admin_email, allow_nonstandard=True)
     password_hash = hash_password(settings.admin_password)
     connection.execute("UPDATE users SET is_admin=0 WHERE email<>?", (email,))
     row = connection.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
@@ -373,7 +380,7 @@ def _migrate_legacy_rows(source: sqlite3.Connection, destination, settings: Sett
 
     with destination.atomic():
         admin = User.create(
-            email=normalize_email(settings.admin_email),
+            email=normalize_email(settings.admin_email, allow_nonstandard=True),
             password_hash=hash_password(settings.admin_password),
             is_admin=True,
             created_at=utc_now(),
@@ -608,6 +615,9 @@ def _create_users_table(connection: sqlite3.Connection) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             email VARCHAR(255) NOT NULL UNIQUE,
             display_name TEXT,
+            phone TEXT,
+            avatar TEXT,
+            email_verified INTEGER NOT NULL DEFAULT 0,
             password_hash VARCHAR(255) NOT NULL,
             is_admin INTEGER NOT NULL,
             is_trainer INTEGER NOT NULL DEFAULT 0,

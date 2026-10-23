@@ -91,6 +91,9 @@ class User(BaseModel):
     id = AutoField()
     email = CharField(unique=True, index=True)
     display_name = CharField(null=True)
+    phone = CharField(null=True)
+    avatar = TextField(null=True)
+    email_verified = BooleanField(default=False)
     password_hash = CharField()
     is_admin = BooleanField(default=False)
     is_trainer = BooleanField(default=False)
@@ -112,6 +115,20 @@ class PasswordResetCode(BaseModel):
     class Meta:
         table_name = "password_reset_codes"
         indexes = ((('email', 'used_at'), False),)
+
+
+class EmailVerificationCode(BaseModel):
+    id = AutoField()
+    user = ForeignKeyField(User, backref="email_verification_codes", on_delete="CASCADE")
+    email = CharField(index=True)
+    code_hash = CharField()
+    expires_at = IntegerField(index=True)
+    used_at = IntegerField(null=True)
+    created_at = IntegerField()
+
+    class Meta:
+        table_name = "email_verification_codes"
+        indexes = ((('user', 'used_at'), False),)
 
 
 class FeedbackMessage(BaseModel):
@@ -564,6 +581,7 @@ MODELS = [
     Changelog,
     User,
     PasswordResetCode,
+    EmailVerificationCode,
     FeedbackMessage,
     ContentCategory,
     ArticleSection,
