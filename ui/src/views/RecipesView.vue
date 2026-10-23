@@ -10,7 +10,7 @@ import SendToClientButton from '@/components/shared/SendToClientButton.vue';
 import SendToTrainerButton from '@/components/shared/SendToTrainerButton.vue';
 
 const props = defineProps<{ refreshKey: number; isAdmin: boolean; canManage: boolean; hasTrainer: boolean; readOnly?: boolean }>();
-const emit = defineEmits<{ openRecipe: [id: number]; edit: [id: number]; addCategory: []; add: [] }>();
+const emit = defineEmits<{ openRecipe: [id: number]; edit: [id: number]; categoryChange: [category?: string]; addCategory: []; add: [category?: string] }>();
 
 const data = ref<RecipeSummary[]>([]);
 const loading = ref(false);
@@ -25,6 +25,11 @@ const submitting = ref(false);
 const moderationRecipe = ref<RecipeSummary | null>(null);
 const moderationNote = ref('');
 const notices = ref<RecipeSummary[]>([]);
+
+function selectCategory(value: string) {
+  category.value = value;
+  emit('categoryChange', value === 'all' ? undefined : value);
+}
 
 async function load() {
   loading.value = true;
@@ -183,12 +188,12 @@ async function removeRecipe(item: RecipeSummary) {
     </section>
 
     <section v-if="!isAdmin" class="recipe-collections" aria-label="Коллекции рецептов">
-      <button type="button" :class="{ active: collection === 'common' }" @click="collection = 'common'; category = 'all'">
+      <button type="button" :class="{ active: collection === 'common' }" @click="collection = 'common'; selectCategory('all')">
         <span class="collection-icon">◉</span>
         <span><b>Общая коллекция</b><small>Рецепты, доступные всем пользователям</small></span>
         <strong>{{ commonCount }}</strong>
       </button>
-      <button type="button" :class="{ active: collection === 'local' }" @click="collection = 'local'; category = 'all'">
+      <button type="button" :class="{ active: collection === 'local' }" @click="collection = 'local'; selectCategory('all')">
         <span class="collection-icon">⌂</span>
         <span><b>Локальная коллекция</b><small>Ваши личные рецепты</small></span>
         <strong>{{ localCount }}</strong>
@@ -218,14 +223,14 @@ async function removeRecipe(item: RecipeSummary) {
         <option value="cost_per_serving_rsd:1">Цена: меньше</option>
         <option value="cost_per_serving_rsd:-1">Цена: больше</option>
       </select>
-      <select :value="collection" aria-label="Коллекция рецептов" @change="collection = ($event.target as HTMLSelectElement).value as 'common' | 'local'; category = 'all'">
+      <select :value="collection" aria-label="Коллекция рецептов" @change="collection = ($event.target as HTMLSelectElement).value as 'common' | 'local'; selectCategory('all')">
         <option value="common">Общая коллекция</option>
         <option value="local">Мои рецепты</option>
       </select>
     </Toolbar>
 
     <section class="recipe-categories visual" aria-label="Типы рецептов">
-      <button type="button" class="category-card all" :class="{ active: category === 'all' }" @click="category = 'all'">
+      <button type="button" class="category-card all" :class="{ active: category === 'all' }" @click="selectCategory('all')">
         <span class="category-photo all-photo"></span>
         <span class="category-copy"><b>Все рецепты</b><small>Полный каталог</small></span>
         <strong>{{ collectionItems.length }}</strong>
@@ -241,7 +246,7 @@ async function removeRecipe(item: RecipeSummary) {
         class="category-card"
         :class="[`category-${item.key.toLowerCase()}`, { active: category === item.key }]"
         :style="recipeSpriteStyle(item.key)"
-        @click="category = item.key"
+        @click="selectCategory(item.key)"
       >
         <span class="category-photo recipe-sprite"></span>
         <span class="category-copy"><b>{{ item.label }}</b><small>{{ counts[item.key] }} блюд</small></span>
@@ -288,11 +293,11 @@ async function removeRecipe(item: RecipeSummary) {
           <SendToTrainerButton :item-type="'recipe'" :item-id="item.id" :can-send="props.hasTrainer && !props.canManage && !props.readOnly" compact />
         </div>
       </article>
-      <article v-if="!props.readOnly" class="recipe-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">
+      <article v-if="!props.readOnly" class="recipe-add-card" tabindex="0" role="button" @click="emit('add', category === 'all' ? undefined : category)" @keydown.enter.prevent="emit('add', category === 'all' ? undefined : category)">
         <span class="recipe-add-icon">＋</span>
         <h3>Добавить рецепт</h3>
         <p>Создать новую карточку</p>
-        <button type="button" class="primary" @click.stop="emit('add')">＋ Добавить</button>
+        <button type="button" class="primary" @click.stop="emit('add', category === 'all' ? undefined : category)">＋ Добавить</button>
       </article>
       <div v-if="!shown.length" class="panel empty">Ничего не найдено</div>
     </div>

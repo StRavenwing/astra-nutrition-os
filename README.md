@@ -39,7 +39,7 @@
 1. Установите [Python 3](https://www.python.org/downloads/) и [Node.js LTS](https://nodejs.org/), если они ещё не установлены.
 2. Создайте `.env` по примеру `.env.example` и задайте `ASTRA_ADMIN_EMAIL`, `ASTRA_ADMIN_PASSWORD`, `ASTRA_AUTH_SECRET`.
 3. Дважды щёлкните `start.bat`.
-4. Откройте <http://127.0.0.1:8787/>. Обычно страница откроется автоматически.
+4. Откройте <http://204.168.255.69:8787/>. Для локального запуска используйте <http://127.0.0.1:8787/>.
 5. Чтобы остановить приложение, нажмите `Ctrl+C` в окне сервера.
 
 `start.bat` устанавливает Python-зависимости из `requirements.txt`, устанавливает зависимости UI через `npm --prefix ui ci`, собирает Vue-приложение в `ui/dist`, затем запускает FastAPI backend.
@@ -142,7 +142,7 @@ npm --prefix ui run build
 docker compose -f ci/docker-compose.yml up --build -d
 ```
 
-Перед запуском задайте `.env` по примеру `.env.example`. После запуска откройте <http://127.0.0.1:8787/>. Данные SQLite и резервные копии хранятся в локальной папке `.data/`.
+Перед запуском задайте `.env` по примеру `.env.example`. После запуска откройте <http://204.168.255.69:8787/>; для локального запуска — <http://127.0.0.1:8787/>. Данные SQLite и резервные копии хранятся в локальной папке `.data/`.
 
 Чтобы остановить контейнер без удаления данных:
 
@@ -286,26 +286,9 @@ docker run -d --name astra -p 8787:8787 -v astra-data:/app/.data ghcr.io/straven
 
 ## API
 
-| Метод | Адрес | Назначение |
-|---|---|---|
-| `GET` | `/api/health` | health check |
-| `POST` | `/api/v1/auth/register` | регистрация пользователя |
-| `POST` | `/api/v1/auth/login` | вход, возвращает Bearer JWT |
-| `POST` | `/api/v1/auth/logout` | stateless logout |
-| `GET` | `/api/v1/auth/me` | текущий пользователь |
-| `GET` | `/api/v1/dashboard` | KPI для главной страницы |
-| `GET/POST` | `/api/v1/products` | продукты с вложенными `measures` |
-| `POST` | `/api/v1/products/scan-nutrition-label` | распознавание КБЖУ с фото упаковки продукта |
-| `GET` | `/api/v1/product-measures` | плоский справочник мер продуктов |
-| `GET/POST` | `/api/v1/recipes` | рецепты |
-| `GET` | `/api/v1/recipes/{id}` | карточка рецепта и ингредиенты |
-| `GET/POST` | `/api/v1/diary` | дневник питания |
-| `GET/POST` | `/api/v1/progress` | замеры и прогресс |
-| `GET/POST` | `/api/v1/workouts` | журнал тренировок |
-| `GET/POST` | `/api/v1/exercises` | справочник упражнений |
-| `POST/GET` | `/mcp` | MCP Streamable HTTP endpoint для AI-клиентов |
+Полный справочник всех REST, OAuth и MCP методов: [docs/API.md](docs/API.md). Готовая коллекция Postman и окружение находятся в каталоге [postman](postman/).
 
-Все `/api/v1/*`, кроме `auth/register` и `auth/login`, требуют заголовок `Authorization: Bearer <token>`. Изменение продуктов, рецептов и упражнений доступно только admin.
+В документации описаны публичные GET-методы, JWT-аутентификация, роли user/trainer/admin, клиентские маршруты, OCR этикетки, OAuth 2.1 + PKCE и Streamable HTTP MCP. Готовые positive/negative/sequential runs для Postman находятся в `postman/Astra_Nutrition_OS_Run_*.postman_collection.json`.
 
 ## ID рецептов
 

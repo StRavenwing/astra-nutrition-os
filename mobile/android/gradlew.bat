@@ -1,0 +1,27 @@
+@echo off
+setlocal
+
+set DIRNAME=%~dp0
+if "%DIRNAME%"=="" set DIRNAME=.
+set APP_HOME=%DIRNAME%
+set APP_BASE_NAME=%~n0
+
+if defined JAVA_HOME goto findJavaFromJavaHome
+
+set JAVA_EXE=java.exe
+%JAVA_EXE% -version >NUL 2>&1
+if %ERRORLEVEL% EQU 0 goto execute
+goto fail
+
+:findJavaFromJavaHome
+set JAVA_EXE=%JAVA_HOME%\bin\java.exe
+if exist "%JAVA_EXE%" goto execute
+
+:fail
+echo ERROR: JAVA_HOME is not set and no usable java.exe was found. 1>&2
+exit /b 1
+
+:execute
+set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
+"%JAVA_EXE%" %JAVA_OPTS% %GRADLE_OPTS% "-Dorg.gradle.appname=%APP_BASE_NAME%" -classpath "%CLASSPATH%" org.gradle.wrapper.GradleWrapperMain %*
+exit /b %ERRORLEVEL%

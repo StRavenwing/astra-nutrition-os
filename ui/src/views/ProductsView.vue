@@ -15,7 +15,7 @@ const props = defineProps<{
   hasTrainer: boolean;
   readOnly?: boolean;
 }>();
-const emit = defineEmits<{ edit: [id: number]; addCategory: []; add: [] }>();
+const emit = defineEmits<{ edit: [id: number]; categoryChange: [category?: string]; addCategory: []; add: [category?: string] }>();
 
 const data = ref<Product[]>([]);
 const loading = ref(false);
@@ -24,6 +24,11 @@ const category = ref('all');
 const query = ref('');
 const sort = ref<SortState>({ key: null, dir: 0 });
 const orderValue = ref('');
+
+function selectCategory(value: string) {
+  category.value = value;
+  emit('categoryChange', value === 'all' ? undefined : value);
+}
 
 async function load() {
   loading.value = true;
@@ -137,7 +142,7 @@ function productCategoryTone(categoryName: string) {
     <p class="products-page-subtitle">База продуктов с быстрым добавлением в дневник</p>
     <div class="product-catalog-layout">
     <section class="product-categories" aria-label="Категории продуктов">
-      <button type="button" class="product-category-card all" :class="{ active: category === 'all' }" @click="category = 'all'">
+      <button type="button" class="product-category-card all" :class="{ active: category === 'all' }" @click="selectCategory('all')">
         <span class="product-category-photo all-products-photo"></span>
         <span class="product-category-copy"><b>Все продукты</b><small>Полный каталог</small></span>
         <strong>{{ data.length }}</strong>
@@ -153,7 +158,7 @@ function productCategoryTone(categoryName: string) {
         class="product-category-card"
         :class="[productCategoryTone(item), { active: category === item }]"
         :style="productSpriteStyle(item)"
-        @click="category = item"
+        @click="selectCategory(item)"
       >
         <span class="product-category-photo product-sprite"></span>
         <span class="product-category-copy"><b>{{ item }}</b><small>Продукты</small></span>
@@ -212,11 +217,11 @@ function productCategoryTone(categoryName: string) {
           <SendToTrainerButton :item-type="'product'" :item-id="item.id" :can-send="props.hasTrainer && !props.canManage && !props.readOnly" compact />
         </div>
       </article>
-      <article v-if="!props.readOnly" class="product-add-card recipe-add-card" tabindex="0" role="button" @click="emit('add')" @keydown.enter.prevent="emit('add')">
+      <article v-if="!props.readOnly" class="product-add-card recipe-add-card" tabindex="0" role="button" @click="emit('add', category === 'all' ? undefined : category)" @keydown.enter.prevent="emit('add', category === 'all' ? undefined : category)">
         <span class="recipe-add-icon">＋</span>
         <h3>Добавить продукт</h3>
         <p>Создайте продукт с КБЖУ и стоимостью упаковки</p>
-        <button type="button" class="primary" @click.stop="emit('add')">＋ Новый продукт</button>
+        <button type="button" class="primary" @click.stop="emit('add', category === 'all' ? undefined : category)">＋ Новый продукт</button>
       </article>
       <div v-if="!shown.length" class="panel empty">Ничего не найдено</div>
     </div>

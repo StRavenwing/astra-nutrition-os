@@ -25,10 +25,12 @@
 
 ## Android
 
+The Android project uses AGP `8.6.1`, Gradle `8.9`, and requires JDK 17+. Use the Gradle wrapper from `mobile/android`; setup and Buildship troubleshooting are documented in [`mobile/android/README.md`](android/README.md).
+
 Откройте папку `mobile/android` в Android Studio и запустите configuration `app`. Если Gradle установлен глобально, сборка выполняется так:
 
 ```bash
-gradle :app:assembleDebug
+./gradlew.bat :app:assembleDebug
 ```
 
 В приложении адрес API также меняется через `Ещё → Адрес API`.

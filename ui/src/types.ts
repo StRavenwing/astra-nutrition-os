@@ -413,4 +413,6 @@ export interface ModalState {
   kind: ModalKind;
   id?: number;
   mealType?: string;
+  entryDate?: string;
+  category?: string;
 }

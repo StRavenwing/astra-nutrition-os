@@ -46,6 +46,7 @@ const guestMode = ref(false);
 const authOpen = ref(false);
 const reloadKey = ref(0);
 const modal = ref<ModalState | null>(null);
+const activeCatalogCategory = ref<string | undefined>();
 const diaryMenuAction = ref<{ kind: 'day' | 'week'; token: number } | null>(null);
 const recipeDetailId = ref<number | null>(null);
 const exerciseManagerOpen = ref(false);
@@ -102,6 +103,7 @@ const modalTitle = computed(() => {
 });
 
 function navigate(page: PageId) {
+  activeCatalogCategory.value = undefined;
   currentPage.value = page;
   if (window.location.hash !== `#${page}`) {
     history.replaceState(null, '', `${window.location.pathname}${window.location.search}#${page}`);
@@ -109,10 +111,15 @@ function navigate(page: PageId) {
 }
 
 function onHashChange() {
+  activeCatalogCategory.value = undefined;
   currentPage.value = hashPage();
 }
 
-function openAdd(mealType?: string) {
+function setCatalogCategory(category?: string) {
+  activeCatalogCategory.value = category;
+}
+
+function openAdd(context?: string, entryDate?: string) {
   if (!canAdd.value || currentPage.value === 'dashboard') return;
   if (currentPage.value === 'workouts') {
     repeatPlan.value = null;
@@ -121,7 +128,15 @@ function openAdd(mealType?: string) {
     workoutBuilderOpen.value = true;
     return;
   }
-  modal.value = { kind: currentPage.value as ModalState['kind'], ...(mealType ? { mealType } : {}) };
+  const isDiary = currentPage.value === 'diary';
+  const isCategoryPage = currentPage.value === 'products' || currentPage.value === 'recipes';
+  const selectedCategory = context || activeCatalogCategory.value;
+  modal.value = {
+    kind: currentPage.value as ModalState['kind'],
+    ...(isDiary && context ? { mealType: context } : {}),
+    ...(isDiary && entryDate ? { entryDate } : {}),
+    ...(isCategoryPage && selectedCategory && selectedCategory !== 'all' ? { category: selectedCategory } : {})
+  };
 }
 
 function openDiaryMenu(kind: 'day' | 'week') {
@@ -410,8 +425,8 @@ onBeforeUnmount(() => {
     @login="openLogin"
   >
     <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-use-trainer-chat="!isGuest" @navigate="navigate" @open-recipe="openRecipe" />
-    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :has-trainer="hasTrainer" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @add="openAdd" @add-category="openCategory('product')" />
-    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :has-trainer="hasTrainer" :read-only="isGuest" @open-recipe="openRecipe" @edit="editRecipe" @add="openAdd" @add-category="openCategory('recipe')" />
+    <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :has-trainer="hasTrainer" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @category-change="setCatalogCategory" @add="openAdd" @add-category="openCategory('product')" />
+    <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :has-trainer="hasTrainer" :read-only="isGuest" @open-recipe="openRecipe" @edit="editRecipe" @category-change="setCatalogCategory" @add="openAdd" @add-category="openCategory('recipe')" />
     <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" :read-only="isGuest" :menu-action="diaryMenuAction" @edit="modal = { kind: 'diary', id: $event }" @add="openAdd" />
     <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" :can-manage="canManageTraining" :has-trainer="hasTrainer" :read-only="isGuest" @edit="modal = { kind: 'progress', id: $event }" @add="openAdd" />
     <WorkoutsView
@@ -457,9 +472,9 @@ onBeforeUnmount(() => {
   </ModalDialog>
 
   <ModalDialog :open="Boolean(modal)" :title="modalTitle" @close="closeModal">
-    <ProductForm v-if="modal?.kind === 'products'" :product-id="modal.id" @saved="saved" @deleted="saved" @cancel="closeModal" />
-    <RecipeForm v-else-if="modal?.kind === 'recipes'" :recipe-id="modal.id" @saved="saved" @cancel="closeModal" />
-    <DiaryEntryForm v-else-if="modal?.kind === 'diary'" :diary-id="modal.id as number | undefined" :initial-meal-type="modal.mealType" @saved="saved" @deleted="saved" @cancel="closeModal" />
+    <ProductForm v-if="modal?.kind === 'products'" :product-id="modal.id" :initial-category="modal.category" @saved="saved" @deleted="saved" @cancel="closeModal" />
+    <RecipeForm v-else-if="modal?.kind === 'recipes'" :recipe-id="modal.id" :initial-category="modal.category" @saved="saved" @cancel="closeModal" />
+    <DiaryEntryForm v-else-if="modal?.kind === 'diary'" :diary-id="modal.id as number | undefined" :initial-meal-type="modal.mealType" :initial-date="modal.entryDate" @saved="saved" @deleted="saved" @cancel="closeModal" />
     <ProgressForm v-else-if="modal?.kind === 'progress'" :progress-id="modal.id as number | undefined" @saved="saved" @cancel="closeModal" />
     <WorkoutForm v-else-if="modal?.kind === 'workouts'" :workout-log-id="modal.id as number | undefined" @saved="saved" @deleted="saved" @cancel="closeModal" />
     <ExerciseForm v-else-if="modal?.kind === 'exercises'" :exercise-id="modal.id" @saved="saved" @cancel="closeModal" />

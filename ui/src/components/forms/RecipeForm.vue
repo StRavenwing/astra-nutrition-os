@@ -4,7 +4,7 @@ import { recipeCategories, recipeCategoryLabels, recipeCategoryMap } from '@/con
 import { api } from '@/api/client';
 import type { Product, ProductMeasure, RecipeIngredient, RecipeSummary } from '@/types';
 
-const props = defineProps<{ recipeId?: number }>();
+const props = defineProps<{ recipeId?: number; initialCategory?: string }>();
 const emit = defineEmits<{ saved: [recipeId?: number]; cancel: [] }>();
 
 type IngredientRow = {
@@ -26,7 +26,7 @@ const ingredients = ref<IngredientRow[]>([]);
 
 const form = reactive<Record<string, string>>({
   code: 'Автоматически: M-…',
-  category: 'Main',
+  category: props.initialCategory || '',
   name: '',
   subcategory: '',
   version: '1.0',
@@ -42,7 +42,13 @@ const form = reactive<Record<string, string>>({
 
 const isReady = ref(false);
 const needsGarnish = ref(false);
-const categoryOptions = computed(() => [...recipeCategories, ...extraCategories.value]);
+const categoryOptions = computed(() => {
+  const options = [...recipeCategories, ...extraCategories.value];
+  if (props.initialCategory && !options.some((item) => item.key === props.initialCategory)) {
+    options.push({ key: props.initialCategory, label: recipeCategoryLabels[props.initialCategory] || props.initialCategory, prefix: 'M', x: 50, y: 50 });
+  }
+  return options;
+});
 const modalTitle = computed(() => (props.recipeId ? 'Редактировать рецепт' : 'Добавить рецепт'));
 
 function productById(productId: number | null) {
@@ -192,7 +198,7 @@ async function save() {
     <div v-if="loading" class="panel">Загрузка…</div>
     <template v-else>
       <div class="grid">
-        <div class="field"><label>Категория</label><select v-model="form.category"><option v-for="item in categoryOptions" :key="item.key" :value="item.key">{{ item.label }}</option></select></div>
+        <div class="field"><label>Категория</label><select v-model="form.category" required><option value="" disabled>Выберите категорию</option><option v-for="item in categoryOptions" :key="item.key" :value="item.key">{{ item.label }}</option></select></div>
         <div class="field"><label>ID рецепта</label><input v-model="form.code" readonly tabindex="-1"></div>
         <div class="field"><label>Название</label><input v-model="form.name" required></div>
         <div class="field"><label>Подкатегория</label><input v-model="form.subcategory"></div>

@@ -6,7 +6,7 @@ import type { DiaryEntry, Product, ProductMeasure, RecipeSummary } from '@/types
 import { localToday } from '@/utils/format';
 import ModalDialog from '@/components/shared/ModalDialog.vue';
 
-const props = defineProps<{ diaryId?: number; initialMealType?: string; targetUserId?: number }>();
+const props = defineProps<{ diaryId?: number; initialMealType?: string; initialDate?: string; targetUserId?: number }>();
 const emit = defineEmits<{ saved: []; deleted: []; cancel: [] }>();
 
 type RowKind = 'recipe' | 'product' | 'custom';
@@ -28,7 +28,7 @@ type DiaryRow = {
 
 const loading = ref(false);
 const error = ref('');
-const entryDate = ref(localToday());
+const entryDate = ref(props.initialDate || localToday());
 const recipes = ref<RecipeSummary[]>([]);
 const products = ref<Product[]>([]);
 const measures = ref<ProductMeasure[]>([]);

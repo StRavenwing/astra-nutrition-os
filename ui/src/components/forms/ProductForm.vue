@@ -4,7 +4,7 @@ import { productCategoryOptions, productUnitOptions } from '@/constants';
 import { api } from '@/api/client';
 import type { ProductMeasure } from '@/types';
 
-const props = defineProps<{ productId?: number }>();
+const props = defineProps<{ productId?: number; initialCategory?: string }>();
 const emit = defineEmits<{ saved: []; deleted: []; cancel: [] }>();
 
 const loading = ref(false);
@@ -18,7 +18,7 @@ const categories = ref<string[]>([]);
 const form = reactive<Record<string, string>>({
   code: 'Автоматически: P-…',
   name: '',
-  category: productCategoryOptions[0],
+  category: props.initialCategory || '',
   unit: 'г',
   package_price_rsd: '',
   package_size: '',
@@ -34,7 +34,7 @@ const form = reactive<Record<string, string>>({
 });
 
 const measureSupported = computed(() => form.unit === 'г' || form.unit === 'мл');
-const categoryOptions = computed(() => [...new Set([...productCategoryOptions, ...categories.value])]);
+const categoryOptions = computed(() => [...new Set([...productCategoryOptions, ...categories.value, ...(props.initialCategory ? [props.initialCategory] : [])])]);
 const cupName = computed(() => `стакан (200 ${form.unit})`);
 const title = computed(() => (props.productId ? 'Редактировать продукт' : 'Добавить продукт'));
 
@@ -214,7 +214,7 @@ async function remove() {
       <div class="grid">
         <div class="field"><label>ID продукта</label><input v-model="form.code" readonly tabindex="-1"></div>
         <div class="field"><label>Название</label><input v-model="form.name" required></div>
-        <div class="field"><label>Категория</label><select v-model="form.category"><option v-for="item in categoryOptions" :key="item">{{ item }}</option></select></div>
+        <div class="field"><label>Категория</label><select v-model="form.category" required><option value="" disabled>Выберите категорию</option><option v-for="item in categoryOptions" :key="item">{{ item }}</option></select></div>
         <div class="field"><label>Единица</label><select v-model="form.unit"><option v-for="item in productUnitOptions" :key="item">{{ item }}</option></select></div>
         <div class="field"><label>Цена упаковки</label><input v-model="form.package_price_rsd" type="number" min="0" step="0.01"></div>
         <div class="field"><label>Размер упаковки</label><input v-model="form.package_size" type="number" min="0.01" step="0.01"></div>

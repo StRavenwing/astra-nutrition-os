@@ -17,6 +17,9 @@ data-backups/
 Thumbs.db
 .idea/
 .vscode/
+.project
+.classpath
+.settings/
 .env
 mobile/android/.gradle/
 mobile/android/.kotlin/

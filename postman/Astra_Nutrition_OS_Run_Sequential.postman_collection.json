@@ -1,0 +1,1160 @@
+﻿{
+    "info":  {
+                 "_postman_id":  "a6a545fc-de83-49f1-95bb-845627ef0c0d",
+                 "name":  "Astra Nutrition OS — Sequential flows",
+                 "description":  "Сквозные сценарии с передачей токенов и ID между запросами.",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+             },
+    "item":  [
+                 {
+                     "name":  "Flow 1 — Client",
+                     "item":  [
+                                  {
+                                      "name":  "01 Register disposable client",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/register",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "register"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"password\":  \"{{run_client_password}}\",\r\n    \"email\":  \"{{run_client_email}}\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 201\", function () {",
+                                                                                    "  pm.response.to.have.status(201);",
+                                                                                    "});",
+                                                                                    "try {",
+                                                                                    "  const payload = pm.response.json();",
+                                                                                    "  if (payload.access_token) pm.collectionVariables.set(\"run_client_token\", payload.access_token);",
+                                                                                    "} catch (error) {}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    },
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "const suffix = Date.now().toString();",
+                                                                                    "pm.collectionVariables.set(\u0027run_suffix\u0027, suffix);",
+                                                                                    "pm.collectionVariables.set(\u0027run_client_email\u0027, \u0027postman-run-client-\u0027 + suffix + \u0027@example.com\u0027);",
+                                                                                    "pm.collectionVariables.set(\u0027run_product_name\u0027, \u0027Postman run product \u0027 + suffix);",
+                                                                                    "pm.collectionVariables.set(\u0027run_recipe_name\u0027, \u0027Postman run recipe \u0027 + suffix);"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "prerequest"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "02 Login configured trainer",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/login",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "login"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"password\":  \"{{trainer_password}}\",\r\n    \"email\":  \"{{trainer_email}}\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "try {",
+                                                                                    "  const payload = pm.response.json();",
+                                                                                    "  if (payload.access_token) pm.collectionVariables.set(\"trainer_token\", payload.access_token);",
+                                                                                    "} catch (error) {}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "03 Add client to trainer",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/clients",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "clients"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"email\":  \"{{run_client_email}}\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{trainer_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 201\", function () {",
+                                                                                    "  pm.response.to.have.status(201);",
+                                                                                    "});",
+                                                                                    "try {",
+                                                                                    "  const payload = pm.response.json();",
+                                                                                    "  const item = Array.isArray(payload) ? payload[0] : payload;",
+                                                                                    "  if (item \u0026\u0026 item.id !== undefined) pm.collectionVariables.set(\"flow_client_id\", String(item.id));",
+                                                                                    "} catch (error) {}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "04 Open client",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/clients/{{flow_client_id}}",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "clients",
+                                                                               "{{flow_client_id}}"
+                                                                           ]
+                                                              },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{trainer_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Flow 2 — Recipe CRUD",
+                     "item":  [
+                                  {
+                                      "name":  "01 Login admin",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/login",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "login"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"password\":  \"{{admin_password}}\",\r\n    \"email\":  \"{{admin_email}}\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "try {",
+                                                                                    "  const payload = pm.response.json();",
+                                                                                    "  if (payload.access_token) pm.collectionVariables.set(\"admin_token\", payload.access_token);",
+                                                                                    "} catch (error) {}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "02 Create product",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/products",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "products"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"data_status\":  \"Confirmed\",\r\n    \"kcal\":  370,\r\n    \"fat_g\":  7,\r\n    \"category\":  \"Postman run\",\r\n    \"measures\":  [\r\n\r\n                 ],\r\n    \"name\":  \"{{run_product_name}}\",\r\n    \"carbs_g\":  62,\r\n    \"protein_g\":  13,\r\n    \"unit\":  \"g\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{admin_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 201\", function () {",
+                                                                                    "  pm.response.to.have.status(201);",
+                                                                                    "});",
+                                                                                    "try {",
+                                                                                    "  const payload = pm.response.json();",
+                                                                                    "  const item = Array.isArray(payload) ? payload[0] : payload;",
+                                                                                    "  if (item \u0026\u0026 item.id !== undefined) pm.collectionVariables.set(\"flow_product_id\", String(item.id));",
+                                                                                    "} catch (error) {}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "03 Create recipe",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/recipes",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "recipes"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"ingredients\":  [\r\n                        {\r\n                            \"quantity\":  80,\r\n                            \"product_id\":  \"{{flow_product_id}}\",\r\n                            \"unit\":  \"g\"\r\n                        }\r\n                    ],\r\n    \"servings\":  1,\r\n    \"category\":  \"Breakfast\",\r\n    \"name\":  \"{{run_recipe_name}}\",\r\n    \"yield_g\":  300\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{admin_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 201\", function () {",
+                                                                                    "  pm.response.to.have.status(201);",
+                                                                                    "});",
+                                                                                    "try {",
+                                                                                    "  const payload = pm.response.json();",
+                                                                                    "  const item = Array.isArray(payload) ? payload[0] : payload;",
+                                                                                    "  if (item \u0026\u0026 item.id !== undefined) pm.collectionVariables.set(\"flow_recipe_id\", String(item.id));",
+                                                                                    "} catch (error) {}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "04 Open recipe",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/recipes/{{flow_recipe_id}}",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "recipes",
+                                                                               "{{flow_recipe_id}}"
+                                                                           ]
+                                                              },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{admin_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "05 Edit recipe",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/recipes/{{flow_recipe_id}}",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "recipes",
+                                                                               "{{flow_recipe_id}}"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"ingredients\":  [\r\n                        {\r\n                            \"quantity\":  80,\r\n                            \"product_id\":  \"{{flow_product_id}}\",\r\n                            \"unit\":  \"g\"\r\n                        }\r\n                    ],\r\n    \"servings\":  1,\r\n    \"category\":  \"Breakfast\",\r\n    \"name\":  \"{{run_recipe_name}} edited\",\r\n    \"yield_g\":  300\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{admin_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "06 Delete recipe",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/recipes/{{flow_recipe_id}}",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "recipes",
+                                                                               "{{flow_recipe_id}}"
+                                                                           ]
+                                                              },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{admin_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "07 Delete product",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/products/{{flow_product_id}}",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "products",
+                                                                               "{{flow_product_id}}"
+                                                                           ]
+                                                              },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{admin_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Flow 3 — Diary CRUD",
+                     "item":  [
+                                  {
+                                      "name":  "01 Create diary entry",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/diary",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "diary"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"entry_date\":  \"2026-10-13\",\r\n    \"servings\":  1,\r\n    \"comment\":  \"Sequential run\",\r\n    \"custom_dish\":  {\r\n                        \"carbs_g\":  55,\r\n                        \"fat_g\":  15,\r\n                        \"name\":  \"Postman run dish\",\r\n                        \"protein_g\":  30,\r\n                        \"kcal\":  500\r\n                    },\r\n    \"meal_type\":  \"lunch\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{run_client_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 201\", function () {",
+                                                                                    "  pm.response.to.have.status(201);",
+                                                                                    "});",
+                                                                                    "try {",
+                                                                                    "  const payload = pm.response.json();",
+                                                                                    "  const item = Array.isArray(payload) ? payload[0] : payload;",
+                                                                                    "  if (item \u0026\u0026 item.id !== undefined) pm.collectionVariables.set(\"flow_entry_id\", String(item.id));",
+                                                                                    "} catch (error) {}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "02 Open diary",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/diary",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "diary"
+                                                                           ]
+                                                              },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{run_client_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "03 Edit diary entry",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/diary/{{flow_entry_id}}",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "diary",
+                                                                               "{{flow_entry_id}}"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"entry_date\":  \"2026-10-13\",\r\n    \"servings\":  1,\r\n    \"comment\":  \"Edited by sequential run\",\r\n    \"custom_dish\":  {\r\n                        \"carbs_g\":  55,\r\n                        \"fat_g\":  15,\r\n                        \"name\":  \"Postman run dish\",\r\n                        \"protein_g\":  30,\r\n                        \"kcal\":  500\r\n                    },\r\n    \"meal_type\":  \"lunch\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{run_client_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "04 Delete diary entry",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/diary/{{flow_entry_id}}",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "diary",
+                                                                               "{{flow_entry_id}}"
+                                                                           ]
+                                                              },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{run_client_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Flow 4 — Progress CRUD",
+                     "item":  [
+                                  {
+                                      "name":  "01 Create progress",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/progress",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "progress"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"protein_target_g\":  140,\r\n    \"fat_target_g\":  70,\r\n    \"kcal_target\":  2200,\r\n    \"carbs_target_g\":  240,\r\n    \"weight_kg\":  72,\r\n    \"height_cm\":  175,\r\n    \"measured_at\":  \"2026-10-13\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{run_client_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 201\", function () {",
+                                                                                    "  pm.response.to.have.status(201);",
+                                                                                    "});",
+                                                                                    "try {",
+                                                                                    "  const payload = pm.response.json();",
+                                                                                    "  const item = Array.isArray(payload) ? payload[0] : payload;",
+                                                                                    "  if (item \u0026\u0026 item.id !== undefined) pm.collectionVariables.set(\"flow_progress_id\", String(item.id));",
+                                                                                    "} catch (error) {}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "02 Open progress list",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/progress",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "progress"
+                                                                           ]
+                                                              },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{run_client_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "03 Edit progress",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/progress/{{flow_progress_id}}",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "progress",
+                                                                               "{{flow_progress_id}}"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"protein_target_g\":  140,\r\n    \"fat_target_g\":  70,\r\n    \"kcal_target\":  2200,\r\n    \"carbs_target_g\":  240,\r\n    \"weight_kg\":  71.5,\r\n    \"height_cm\":  175,\r\n    \"measured_at\":  \"2026-10-13\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{run_client_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "04 Delete progress",
+                                      "request":  {
+                                                      "method":  "DELETE",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/progress/{{flow_progress_id}}",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "progress",
+                                                                               "{{flow_progress_id}}"
+                                                                           ]
+                                                              },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{run_client_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 }
+             ],
+    "variable":  [
+                     {
+                         "key":  "base_url",
+                         "value":  "http://204.168.255.69:8787",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "admin_email",
+                         "value":  "admin@example.com",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "admin_password",
+                         "value":  "Password123!",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "trainer_email",
+                         "value":  "trainer@example.com",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "trainer_password",
+                         "value":  "TrainerPassword123!",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "run_client_email",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "run_client_password",
+                         "value":  "Password123!",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "run_client_token",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "admin_token",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "trainer_token",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "run_suffix",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "run_product_name",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "run_recipe_name",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "flow_client_id",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "flow_product_id",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "flow_recipe_id",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "flow_entry_id",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "flow_progress_id",
+                         "value":  "",
+                         "type":  "string"
+                     }
+                 ]
+}

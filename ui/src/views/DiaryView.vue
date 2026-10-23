@@ -11,7 +11,7 @@ const props = defineProps<{
   readOnly?: boolean;
   menuAction?: { kind: 'day' | 'week'; token: number } | null;
 }>();
-const emit = defineEmits<{ edit: [id: number]; add: [mealType?: string] }>();
+const emit = defineEmits<{ edit: [id: number]; add: [mealType?: string, entryDate?: string] }>();
 
 const data = ref<DiaryEntry[]>([]);
 const progress = ref<ProgressEntry[]>([]);
@@ -985,7 +985,7 @@ function editEntry(id: number) {
   <CalendarModal :open="calendarMode === 'day'" :title="selectedDayLabel" @close="calendarMode = null">
     <div class="diary-day-summary">
       <div><span>ИТОГ ЗА ДЕНЬ</span><b>{{ selectedDayItems.length }} приёма · {{ fmt(selectedDayTotals.kcal) }} ккал · стоимость {{ fmt(selectedDayTotals.cost) }} RSD · белок {{ fmt(selectedDayTotals.protein) }} г · жиры {{ fmt(selectedDayTotals.fat) }} г</b></div>
-      <button v-if="!props.readOnly" type="button" class="diary-day-edit" @click="emit('add'); calendarMode = null">Изменить день</button>
+      <button v-if="!props.readOnly" type="button" class="diary-day-edit" @click="emit('add', undefined, selectedDate); calendarMode = null">Изменить день</button>
     </div>
     <template v-for="meal in mealOrder" :key="meal">
       <section class="meal-group diary-popup-meal-group">
@@ -1000,7 +1000,7 @@ function editEntry(id: number) {
             <button type="button" class="delete-diary-entry" @click="removeEntry(item.id)">Удалить</button>
           </div>
         </template>
-        <button v-if="!props.readOnly" type="button" class="diary-calendar-add" @click="emit('add', meal); calendarMode = null">＋ Добавить блюдо в {{ meal.toLowerCase() }}</button>
+        <button v-if="!props.readOnly" type="button" class="diary-calendar-add" @click="emit('add', meal, selectedDate); calendarMode = null">＋ Добавить блюдо в {{ meal.toLowerCase() }}</button>
       </section>
     </template>
     <div v-if="!selectedDayItems.length" class="empty day-empty">В этот день записей пока нет</div>
@@ -1016,7 +1016,7 @@ function editEntry(id: number) {
     </div>
     <div class="diary-popup-footer">
       <button type="button" class="secondary-button" @click="calendarMode = null">Отмена</button>
-      <button v-if="!props.readOnly" type="button" class="primary" @click="emit('add'); calendarMode = null">＋ Добавить запись</button>
+      <button v-if="!props.readOnly" type="button" class="primary" @click="emit('add', undefined, selectedDate); calendarMode = null">＋ Добавить запись</button>
     </div>
   </CalendarModal>
 </template>
