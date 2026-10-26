@@ -16,6 +16,12 @@ $variables = @(
     @{ key = "user_password"; value = "Password123!" },
     @{ key = "reset_email"; value = "user@example.com" },
     @{ key = "reset_code"; value = "000000" },
+    @{ key = "account_name"; value = "Postman Account User" },
+    @{ key = "account_email"; value = "user@example.com" },
+    @{ key = "account_phone"; value = "+1234567890" },
+    @{ key = "account_current_password"; value = "Password123!" },
+    @{ key = "account_new_password"; value = "NewPassword123!" },
+    @{ key = "email_verification_code"; value = "000000" },
     @{ key = "client_id"; value = "1" },
     @{ key = "product_id"; value = "1" },
     @{ key = "recipe_id"; value = "1" },
@@ -43,6 +49,7 @@ $variables = @(
 $folderDescriptions = [ordered]@{
     "Health" = "Проверка доступности API."
     "Authentication" = "Регистрация, JWT-сессия и восстановление пароля."
+    "Personal Account" = "Профиль пользователя, пароль, аватар и подтверждение email."
     "Dashboard" = "Сводные показатели главного экрана."
     "Content" = "Категории, разделы статей и статьи."
     "Products" = "Продукты, меры и распознавание этикетки."
@@ -209,6 +216,15 @@ Add-Request "Authentication" "POST /api/v1/auth/logout" "POST" "/api/v1/auth/log
 Add-Request "Authentication" "GET /api/v1/auth/me" "GET" "/api/v1/auth/me" -Token "access_token" -Description "Возвращает текущего пользователя."
 Add-Request "Authentication" "GET /api/v1/auth/users (admin)" "GET" "/api/v1/auth/users" -Token "access_token" -Description "Список пользователей; требуется admin."
 
+# Personal Account
+$accountProfileBody = @{ name = "{{account_name}}"; email = "{{account_email}}"; phone = "{{account_phone}}"; avatar = $null }
+$accountPasswordBody = @{ current_password = "{{account_current_password}}"; new_password = "{{account_new_password}}"; confirm_password = "{{account_new_password}}" }
+Add-Request "Personal Account" "GET /api/v1/auth/me" "GET" "/api/v1/auth/me" -Token "access_token" -Description "Возвращает профиль текущего пользователя с phone, avatar и email_verified."
+Add-Request "Personal Account" "PUT /api/v1/auth/me/profile" "PUT" "/api/v1/auth/me/profile" -Token "access_token" -Body $accountProfileBody -Description "Обновляет имя, email, телефон и аватар текущего пользователя. Для аватара передавайте data URL изображения."
+Add-Request "Personal Account" "POST /api/v1/auth/me/password" "POST" "/api/v1/auth/me/password" -Token "access_token" -Body $accountPasswordBody -Description "Меняет пароль после проверки старого пароля."
+Add-Request "Personal Account" "POST /api/v1/auth/me/email-verification/request" "POST" "/api/v1/auth/me/email-verification/request" -Token "access_token" -Description "Отправляет код подтверждения на email. Требует настроенный SMTP; для admin возвращает, что email уже подтверждён."
+Add-Request "Personal Account" "POST /api/v1/auth/me/email-verification/confirm" "POST" "/api/v1/auth/me/email-verification/confirm" -Token "access_token" -Body @{ code = "{{email_verification_code}}" } -Description "Подтверждает email шестизначным кодом из письма."
+
 # Dashboard
 Add-Request "Dashboard" "GET /api/v1/dashboard" "GET" "/api/v1/dashboard" -Description "KPI dashboard; с JWT latest относится к текущему пользователю."
 
@@ -366,3 +382,17 @@ $collection = [ordered]@{
 $collection | ConvertTo-Json -Depth 30 | Set-Content -Path $collectionPath -Encoding UTF8
 $requestCount = ($folders.Values | ForEach-Object { $_.item.Count } | Measure-Object -Sum).Sum
 Write-Output "Generated $requestCount requests in $collectionPath"
+
+$personalAccountCollectionPath = Join-Path (Get-Location) "postman\Astra_Nutrition_OS_Personal_Account.postman_collection.json"
+$personalAccountCollection = [ordered]@{
+    info = [ordered]@{
+        _postman_id = "b73b6821-714d-4da3-8cdd-cab120261023"
+        name = "Astra Nutrition OS — Personal Account API"
+        description = "REST-запросы личного кабинета: профиль, аватар, пароль и подтверждение email."
+        schema = "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    }
+    item = @($folders["Authentication"], $folders["Personal Account"])
+    variable = @($variables | ForEach-Object { [ordered]@{ key = $_.key; value = $_.value; type = "string" } })
+}
+$personalAccountCollection | ConvertTo-Json -Depth 30 | Set-Content -Path $personalAccountCollectionPath -Encoding UTF8
+Write-Output "Generated personal account collection in $personalAccountCollectionPath"

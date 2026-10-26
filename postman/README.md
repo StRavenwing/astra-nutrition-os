@@ -1,6 +1,6 @@
 # Postman для Astra Nutrition OS
 
-В каталоге лежит коллекция со всеми текущими REST-маршрутами FastAPI, OAuth 2.1 + PKCE и MCP endpoint.
+В каталоге лежит коллекция со всеми текущими REST-маршрутами FastAPI, включая личный кабинет, OAuth 2.1 + PKCE и MCP endpoint.
 
 ## Импорт
 
@@ -9,6 +9,8 @@
 3. Создайте/выберите окружение `Astra Nutrition OS Public` и задайте `base_url` при необходимости.
 4. Выполните `POST /api/v1/auth/login`. Тест запроса сохранит `access_token` в окружение.
 5. Для клиентских и тренерских методов сначала выполните login тренера и вручную сохраните полученный JWT в `trainer_access_token`.
+
+Для отдельной проверки кабинета импортируйте `Astra_Nutrition_OS_Personal_Account.postman_collection.json`. Она содержит папки `Authentication` и `Personal Account` и использует то же окружение.
 
 ## Переменные окружения
 
@@ -20,6 +22,8 @@
 | `mcp_access_token` | OAuth access token для `/mcp` |
 | `admin_email`, `admin_password` | Учетные данные из `.env` backend |
 | `trainer_email`, `trainer_password` | Учетные данные тренера |
+| `account_name`, `account_email`, `account_phone` | Данные для проверки профиля в личном кабинете |
+| `account_current_password`, `account_new_password`, `email_verification_code` | Пароли и код подтверждения для запросов кабинета |
 | `product_id`, `recipe_id`, `client_id` и другие `*_id` | ID объектов для path/body примеров; после create часть ID сохраняется автоматически |
 | `oauth_client_id`, `redirect_uri`, `code_challenge`, `code_verifier` | Параметры OAuth PKCE; `oauth_client_id` не смешивается с ID клиента Astra |
 | `oauth_request_id`, `oauth_code`, `refresh_token` | Промежуточные значения OAuth flow |
@@ -54,6 +58,7 @@
 | Positive | `Astra_Nutrition_OS_Run_Positive.postman_collection.json` | Health, admin/trainer login, dashboard и позитивные GET |
 | Negative | `Astra_Nutrition_OS_Run_Negative.postman_collection.json` | `401`, `403`, `404`, `400`, `422`, невалидные данные и проверка ролей |
 | Sequential | `Astra_Nutrition_OS_Run_Sequential.postman_collection.json` | Сквозные цепочки с передачей токенов и ID между запросами |
+| Personal account | `Astra_Nutrition_OS_Run_Personal_Account.postman_collection.json` | Профиль, аватар, смена пароля, email-методы, `400` и `401` |
 
 Для запуска выберите коллекцию, окружение `Astra Nutrition OS Public` и нажмите **Run**. Внутри Sequential порядок запросов менять нельзя.
 
@@ -65,6 +70,16 @@ Sequential включает:
 4. `create progress → open list → edit → delete`.
 
 Первый flow создаёт отдельного тестового пользователя и связь тренер-клиент; endpoint удаления пользователя в API отсутствует, поэтому этот тестовый пользователь останется в базе.
+
+Personal account run включает:
+
+1. регистрацию временного пользователя и получение JWT;
+2. чтение и обновление профиля с именем, телефоном и data URL аватара;
+3. смену пароля и повторное чтение профиля;
+4. вызов методов подтверждения email для admin и безопасный запрос сброса для неизвестного email;
+5. проверки `401`, невалидного email, неверного старого пароля и несовпадения новых паролей.
+
+Запросы отправки кода реальному пользователю зависят от SMTP. В основной коллекции они помечены описанием; для полноценной проверки задайте SMTP в backend и используйте email пользователя.
 
 ### OCR этикетки
 

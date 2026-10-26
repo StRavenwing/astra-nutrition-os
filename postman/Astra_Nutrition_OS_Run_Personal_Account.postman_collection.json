@@ -1,0 +1,896 @@
+﻿{
+    "info":  {
+                 "_postman_id":  "74415e70-e60a-449b-bb1b-3abc6b3269a4",
+                 "name":  "Astra Nutrition OS — Personal account run",
+                 "description":  "Позитивные и негативные проверки API личного кабинета: профиль, аватар, пароль, email и авторизация.",
+                 "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+             },
+    "item":  [
+                 {
+                     "name":  "Positive profile flow",
+                     "item":  [
+                                  {
+                                      "name":  "01 Register disposable account",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/register",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "register"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"password\":  \"{{account_current_password}}\",\r\n    \"email\":  \"{{account_email}}\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 201\", function () {",
+                                                                                    "  pm.response.to.have.status(201);",
+                                                                                    "});",
+                                                                                    "try {",
+                                                                                    "  const payload = pm.response.json();",
+                                                                                    "  if (payload.access_token) pm.collectionVariables.set(\"account_token\", payload.access_token);",
+                                                                                    "} catch (error) {}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    },
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "const suffix = Date.now().toString();",
+                                                                                    "pm.collectionVariables.set(\u0027run_suffix\u0027, suffix);",
+                                                                                    "pm.collectionVariables.set(\u0027run_client_email\u0027, \u0027postman-run-client-\u0027 + suffix + \u0027@example.com\u0027);",
+                                                                                    "pm.collectionVariables.set(\u0027run_product_name\u0027, \u0027Postman run product \u0027 + suffix);",
+                                                                                    "pm.collectionVariables.set(\u0027run_recipe_name\u0027, \u0027Postman run recipe \u0027 + suffix);",
+                                                                                    "pm.collectionVariables.set(\u0027account_email\u0027, \u0027postman-account-\u0027 + suffix + \u0027@example.com\u0027);",
+                                                                                    "pm.collectionVariables.set(\u0027account_name\u0027, \u0027Postman Account \u0027 + suffix);",
+                                                                                    "pm.collectionVariables.set(\u0027account_phone\u0027, \u0027+1234567890\u0027);",
+                                                                                    "pm.collectionVariables.set(\u0027reset_probe_email\u0027, \u0027postman-reset-probe-\u0027 + suffix + \u0027@example.com\u0027);"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "prerequest"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "02 GET /api/v1/auth/me",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/me",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "me"
+                                                                           ]
+                                                              },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{account_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "const payload = pm.response.json();",
+                                                                                    "pm.test(\u0027Personal account fields are present\u0027, function () {",
+                                                                                    "  pm.expect(payload).to.have.property(\u0027name\u0027);",
+                                                                                    "  pm.expect(payload).to.have.property(\u0027email\u0027);",
+                                                                                    "  pm.expect(payload).to.have.property(\u0027phone\u0027);",
+                                                                                    "  pm.expect(payload).to.have.property(\u0027avatar\u0027);",
+                                                                                    "  pm.expect(payload.email_verified).to.be.a(\u0027boolean\u0027);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "03 PUT /api/v1/auth/me/profile",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/me/profile",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "me",
+                                                                               "profile"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"email\":  \"{{account_email}}\",\r\n    \"name\":  \"{{account_name}}\",\r\n    \"phone\":  \"{{account_phone}}\",\r\n    \"avatar\":  \"data:image/png;base64,cG9zdG1hbg==\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{account_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "const payload = pm.response.json();",
+                                                                                    "pm.test(\u0027Profile data was saved\u0027, function () {",
+                                                                                    "  pm.expect(payload.name).to.eql(pm.collectionVariables.get(\u0027account_name\u0027));",
+                                                                                    "  pm.expect(payload.email).to.eql(pm.collectionVariables.get(\u0027account_email\u0027));",
+                                                                                    "  pm.expect(payload.phone).to.eql(pm.collectionVariables.get(\u0027account_phone\u0027));",
+                                                                                    "  pm.expect(payload.avatar).to.be.a(\u0027string\u0027);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "04 POST /api/v1/auth/me/password",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/me/password",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "me",
+                                                                               "password"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"current_password\":  \"{{account_current_password}}\",\r\n    \"new_password\":  \"{{account_new_password}}\",\r\n    \"confirm_password\":  \"{{account_new_password}}\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{account_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "05 GET /api/v1/auth/me after update",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/me",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "me"
+                                                                           ]
+                                                              },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{account_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "const payload = pm.response.json();",
+                                                                                    "pm.test(\u0027Profile data was saved\u0027, function () {",
+                                                                                    "  pm.expect(payload.name).to.eql(pm.collectionVariables.get(\u0027account_name\u0027));",
+                                                                                    "  pm.expect(payload.email).to.eql(pm.collectionVariables.get(\u0027account_email\u0027));",
+                                                                                    "  pm.expect(payload.phone).to.eql(pm.collectionVariables.get(\u0027account_phone\u0027));",
+                                                                                    "  pm.expect(payload.avatar).to.be.a(\u0027string\u0027);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Email endpoints",
+                     "item":  [
+                                  {
+                                      "name":  "01 Login admin",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/login",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "login"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"password\":  \"{{admin_password}}\",\r\n    \"email\":  \"{{admin_email}}\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "try {",
+                                                                                    "  const payload = pm.response.json();",
+                                                                                    "  if (payload.access_token) pm.collectionVariables.set(\"admin_token\", payload.access_token);",
+                                                                                    "} catch (error) {}"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "02 Request email verification for admin",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/me/email-verification/request",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "me",
+                                                                               "email-verification",
+                                                                               "request"
+                                                                           ]
+                                                              },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{admin_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "03 Confirm email verification for admin",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/me/email-verification/confirm",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "me",
+                                                                               "email-verification",
+                                                                               "confirm"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"code\":  \"000000\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{admin_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});",
+                                                                                    "const payload = pm.response.json();",
+                                                                                    "pm.test(\u0027Personal account fields are present\u0027, function () {",
+                                                                                    "  pm.expect(payload).to.have.property(\u0027name\u0027);",
+                                                                                    "  pm.expect(payload).to.have.property(\u0027email\u0027);",
+                                                                                    "  pm.expect(payload).to.have.property(\u0027phone\u0027);",
+                                                                                    "  pm.expect(payload).to.have.property(\u0027avatar\u0027);",
+                                                                                    "  pm.expect(payload.email_verified).to.be.a(\u0027boolean\u0027);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "04 Request reset for unknown email",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/password-reset/request",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "password-reset",
+                                                                               "request"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"email\":  \"{{reset_probe_email}}\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 200\", function () {",
+                                                                                    "  pm.response.to.have.status(200);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 },
+                 {
+                     "name":  "Validation",
+                     "item":  [
+                                  {
+                                      "name":  "01 GET /api/v1/auth/me without token",
+                                      "request":  {
+                                                      "method":  "GET",
+                                                      "header":  [
+
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/me",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "me"
+                                                                           ]
+                                                              }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 401\", function () {",
+                                                                                    "  pm.response.to.have.status(401);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "02 PUT profile with invalid email",
+                                      "request":  {
+                                                      "method":  "PUT",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/me/profile",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "me",
+                                                                               "profile"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"email\":  \"not-an-email\",\r\n    \"name\":  \"{{account_name}}\",\r\n    \"phone\":  \"{{account_phone}}\",\r\n    \"avatar\":  \"data:image/png;base64,cG9zdG1hbg==\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{account_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 400\", function () {",
+                                                                                    "  pm.response.to.have.status(400);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "03 Change password with wrong old password",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/me/password",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "me",
+                                                                               "password"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"current_password\":  \"wrong-password\",\r\n    \"new_password\":  \"{{account_new_password}}\",\r\n    \"confirm_password\":  \"{{account_new_password}}\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{account_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 400\", function () {",
+                                                                                    "  pm.response.to.have.status(400);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  },
+                                  {
+                                      "name":  "04 Change password with mismatched confirmation",
+                                      "request":  {
+                                                      "method":  "POST",
+                                                      "header":  [
+                                                                     {
+                                                                         "key":  "Content-Type",
+                                                                         "value":  "application/json"
+                                                                     }
+                                                                 ],
+                                                      "url":  {
+                                                                  "raw":  "{{base_url}}/api/v1/auth/me/password",
+                                                                  "host":  [
+                                                                               "{{base_url}}"
+                                                                           ],
+                                                                  "path":  [
+                                                                               "api",
+                                                                               "v1",
+                                                                               "auth",
+                                                                               "me",
+                                                                               "password"
+                                                                           ]
+                                                              },
+                                                      "body":  {
+                                                                   "mode":  "raw",
+                                                                   "raw":  "{\r\n    \"current_password\":  \"{{account_new_password}}\",\r\n    \"new_password\":  \"{{account_new_password}}\",\r\n    \"confirm_password\":  \"different-password\"\r\n}",
+                                                                   "options":  {
+                                                                                   "raw":  {
+                                                                                               "language":  "json"
+                                                                                           }
+                                                                               }
+                                                               },
+                                                      "auth":  {
+                                                                   "type":  "bearer",
+                                                                   "bearer":  [
+                                                                                  {
+                                                                                      "key":  "token",
+                                                                                      "type":  "string",
+                                                                                      "value":  "{{account_token}}"
+                                                                                  }
+                                                                              ]
+                                                               }
+                                                  },
+                                      "response":  [
+
+                                                   ],
+                                      "event":  [
+                                                    {
+                                                        "script":  {
+                                                                       "exec":  [
+                                                                                    "pm.test(\"HTTP status is 400\", function () {",
+                                                                                    "  pm.response.to.have.status(400);",
+                                                                                    "});"
+                                                                                ],
+                                                                       "type":  "text/javascript"
+                                                                   },
+                                                        "listen":  "test"
+                                                    }
+                                                ]
+                                  }
+                              ]
+                 }
+             ],
+    "variable":  [
+                     {
+                         "key":  "base_url",
+                         "value":  "http://204.168.255.69:8787",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "admin_email",
+                         "value":  "admin@example.com",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "admin_password",
+                         "value":  "Password123!",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "trainer_email",
+                         "value":  "trainer@example.com",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "trainer_password",
+                         "value":  "TrainerPassword123!",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "run_client_email",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "run_client_password",
+                         "value":  "Password123!",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "run_client_token",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_token",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_email",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_name",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_phone",
+                         "value":  "+1234567890",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_current_password",
+                         "value":  "Password123!",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_new_password",
+                         "value":  "UpdatedPassword123!",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "reset_probe_email",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "admin_token",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "trainer_token",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "run_suffix",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "run_product_name",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "run_recipe_name",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "flow_client_id",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "flow_product_id",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "flow_recipe_id",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "flow_entry_id",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "flow_progress_id",
+                         "value":  "",
+                         "type":  "string"
+                     }
+                 ]
+}

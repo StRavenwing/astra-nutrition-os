@@ -1,6 +1,6 @@
 ﻿{
     "info":  {
-                 "_postman_id":  "99868e1f-b1e7-46b2-afbd-67e2ab04778d",
+                 "_postman_id":  "075da36b-f15f-41e5-a76e-7c0508d08bb0",
                  "name":  "Astra Nutrition OS — Negative run",
                  "description":  "Негативные сценарии: 401/403/404/400/422 и проверка ролей.",
                  "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -256,7 +256,11 @@
                                                                                     "pm.collectionVariables.set(\u0027run_suffix\u0027, suffix);",
                                                                                     "pm.collectionVariables.set(\u0027run_client_email\u0027, \u0027postman-run-client-\u0027 + suffix + \u0027@example.com\u0027);",
                                                                                     "pm.collectionVariables.set(\u0027run_product_name\u0027, \u0027Postman run product \u0027 + suffix);",
-                                                                                    "pm.collectionVariables.set(\u0027run_recipe_name\u0027, \u0027Postman run recipe \u0027 + suffix);"
+                                                                                    "pm.collectionVariables.set(\u0027run_recipe_name\u0027, \u0027Postman run recipe \u0027 + suffix);",
+                                                                                    "pm.collectionVariables.set(\u0027account_email\u0027, \u0027postman-account-\u0027 + suffix + \u0027@example.com\u0027);",
+                                                                                    "pm.collectionVariables.set(\u0027account_name\u0027, \u0027Postman Account \u0027 + suffix);",
+                                                                                    "pm.collectionVariables.set(\u0027account_phone\u0027, \u0027+1234567890\u0027);",
+                                                                                    "pm.collectionVariables.set(\u0027reset_probe_email\u0027, \u0027postman-reset-probe-\u0027 + suffix + \u0027@example.com\u0027);"
                                                                                 ],
                                                                        "type":  "text/javascript"
                                                                    },
@@ -784,6 +788,41 @@
                      },
                      {
                          "key":  "run_client_token",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_token",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_email",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_name",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_phone",
+                         "value":  "+1234567890",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_current_password",
+                         "value":  "Password123!",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_new_password",
+                         "value":  "UpdatedPassword123!",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "reset_probe_email",
                          "value":  "",
                          "type":  "string"
                      },

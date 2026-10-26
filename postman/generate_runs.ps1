@@ -41,13 +41,42 @@ function New-CaptureIdTest([string]$variable) {
     )
 }
 
+function New-AccountShapeTest {
+    return @(
+        "const payload = pm.response.json();",
+        "pm.test('Personal account fields are present', function () {",
+        "  pm.expect(payload).to.have.property('name');",
+        "  pm.expect(payload).to.have.property('email');",
+        "  pm.expect(payload).to.have.property('phone');",
+        "  pm.expect(payload).to.have.property('avatar');",
+        "  pm.expect(payload.email_verified).to.be.a('boolean');",
+        "});"
+    )
+}
+
+function New-AccountProfileTest {
+    return @(
+        "const payload = pm.response.json();",
+        "pm.test('Profile data was saved', function () {",
+        "  pm.expect(payload.name).to.eql(pm.collectionVariables.get('account_name'));",
+        "  pm.expect(payload.email).to.eql(pm.collectionVariables.get('account_email'));",
+        "  pm.expect(payload.phone).to.eql(pm.collectionVariables.get('account_phone'));",
+        "  pm.expect(payload.avatar).to.be.a('string');",
+        "});"
+    )
+}
+
 function New-SeedScript {
     return @(
         "const suffix = Date.now().toString();",
         "pm.collectionVariables.set('run_suffix', suffix);",
         "pm.collectionVariables.set('run_client_email', 'postman-run-client-' + suffix + '@example.com');",
         "pm.collectionVariables.set('run_product_name', 'Postman run product ' + suffix);",
-        "pm.collectionVariables.set('run_recipe_name', 'Postman run recipe ' + suffix);"
+        "pm.collectionVariables.set('run_recipe_name', 'Postman run recipe ' + suffix);",
+        "pm.collectionVariables.set('account_email', 'postman-account-' + suffix + '@example.com');",
+        "pm.collectionVariables.set('account_name', 'Postman Account ' + suffix);",
+        "pm.collectionVariables.set('account_phone', '+1234567890');",
+        "pm.collectionVariables.set('reset_probe_email', 'postman-reset-probe-' + suffix + '@example.com');"
     )
 }
 
@@ -140,6 +169,13 @@ $commonVariables = @(
     @{ key = "run_client_email"; value = "" },
     @{ key = "run_client_password"; value = "Password123!" },
     @{ key = "run_client_token"; value = "" },
+    @{ key = "account_token"; value = "" },
+    @{ key = "account_email"; value = "" },
+    @{ key = "account_name"; value = "" },
+    @{ key = "account_phone"; value = "+1234567890" },
+    @{ key = "account_current_password"; value = "Password123!" },
+    @{ key = "account_new_password"; value = "UpdatedPassword123!" },
+    @{ key = "reset_probe_email"; value = "" },
     @{ key = "admin_token"; value = "" },
     @{ key = "trainer_token"; value = "" },
     @{ key = "run_suffix"; value = "" },
@@ -216,7 +252,30 @@ Add-Request $sequential "Flow 4 — Progress CRUD" "02 Open progress list" "GET"
 Add-Request $sequential "Flow 4 — Progress CRUD" "03 Edit progress" "PUT" "/api/v1/progress/{{flow_progress_id}}" -Token "run_client_token" -Body (Set-BodyField $progressBody "weight_kg" 71.5) -Expected 200
 Add-Request $sequential "Flow 4 — Progress CRUD" "04 Delete progress" "DELETE" "/api/v1/progress/{{flow_progress_id}}" -Token "run_client_token" -Expected 200
 
+# Personal account run. The profile/password flow is fully automated; email delivery
+# is represented by admin's already-confirmed account and a reset request for an
+# unknown address, so the run does not depend on SMTP configuration.
+$account = New-RunCollection "Astra Nutrition OS — Personal account run" "Позитивные и негативные проверки API личного кабинета: профиль, аватар, пароль, email и авторизация." "Astra_Nutrition_OS_Run_Personal_Account.postman_collection.json" @("Positive profile flow", "Email endpoints", "Validation") $commonVariables
+$accountProfileBody = @{ name = "{{account_name}}"; email = "{{account_email}}"; phone = "{{account_phone}}"; avatar = "data:image/png;base64,cG9zdG1hbg==" }
+$accountPasswordBody = @{ current_password = "{{account_current_password}}"; new_password = "{{account_new_password}}"; confirm_password = "{{account_new_password}}" }
+Add-Request $account "Positive profile flow" "01 Register disposable account" "POST" "/api/v1/auth/register" -Body @{ email = "{{account_email}}"; password = "{{account_current_password}}" } -Expected 201 -PreRequest (New-SeedScript) -Test (New-CaptureTokenTest "account_token")
+Add-Request $account "Positive profile flow" "02 GET /api/v1/auth/me" "GET" "/api/v1/auth/me" -Token "account_token" -Expected 200 -Test (New-AccountShapeTest)
+Add-Request $account "Positive profile flow" "03 PUT /api/v1/auth/me/profile" "PUT" "/api/v1/auth/me/profile" -Token "account_token" -Body $accountProfileBody -Expected 200 -Test (New-AccountProfileTest)
+Add-Request $account "Positive profile flow" "04 POST /api/v1/auth/me/password" "POST" "/api/v1/auth/me/password" -Token "account_token" -Body $accountPasswordBody -Expected 200
+Add-Request $account "Positive profile flow" "05 GET /api/v1/auth/me after update" "GET" "/api/v1/auth/me" -Token "account_token" -Expected 200 -Test (New-AccountProfileTest)
+Add-Request $account "Email endpoints" "01 Login admin" "POST" "/api/v1/auth/login" -Body @{ email = "{{admin_email}}"; password = "{{admin_password}}" } -Expected 200 -Test (New-CaptureTokenTest "admin_token")
+Add-Request $account "Email endpoints" "02 Request email verification for admin" "POST" "/api/v1/auth/me/email-verification/request" -Token "admin_token" -Expected 200
+Add-Request $account "Email endpoints" "03 Confirm email verification for admin" "POST" "/api/v1/auth/me/email-verification/confirm" -Token "admin_token" -Body @{ code = "000000" } -Expected 200 -Test (New-AccountShapeTest)
+Add-Request $account "Email endpoints" "04 Request reset for unknown email" "POST" "/api/v1/auth/password-reset/request" -Body @{ email = "{{reset_probe_email}}" } -Expected 200
+Add-Request $account "Validation" "01 GET /api/v1/auth/me without token" "GET" "/api/v1/auth/me" -Expected 401
+Add-Request $account "Validation" "02 PUT profile with invalid email" "PUT" "/api/v1/auth/me/profile" -Token "account_token" -Body (Set-BodyField $accountProfileBody "email" "not-an-email") -Expected 400
+Add-Request $account "Validation" "03 Change password with wrong old password" "POST" "/api/v1/auth/me/password" -Token "account_token" -Body (Set-BodyField $accountPasswordBody "current_password" "wrong-password") -Expected 400
+$mismatchPasswordBody = Set-BodyField $accountPasswordBody "current_password" "{{account_new_password}}"
+$mismatchPasswordBody = Set-BodyField $mismatchPasswordBody "confirm_password" "different-password"
+Add-Request $account "Validation" "04 Change password with mismatched confirmation" "POST" "/api/v1/auth/me/password" -Token "account_token" -Body $mismatchPasswordBody -Expected 400
+
 Save-RunCollection $positive "Astra_Nutrition_OS_Run_Positive.postman_collection.json"
 Save-RunCollection $negative "Astra_Nutrition_OS_Run_Negative.postman_collection.json"
 Save-RunCollection $sequential "Astra_Nutrition_OS_Run_Sequential.postman_collection.json"
+Save-RunCollection $account "Astra_Nutrition_OS_Run_Personal_Account.postman_collection.json"
 Write-Output "Generated Postman run collections in $postmanRoot"

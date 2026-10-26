@@ -1,6 +1,6 @@
 ﻿{
     "info":  {
-                 "_postman_id":  "a6a545fc-de83-49f1-95bb-845627ef0c0d",
+                 "_postman_id":  "2f05db38-0ddd-4df3-a9ea-829811d95059",
                  "name":  "Astra Nutrition OS — Sequential flows",
                  "description":  "Сквозные сценарии с передачей токенов и ID между запросами.",
                  "schema":  "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -67,7 +67,11 @@
                                                                                     "pm.collectionVariables.set(\u0027run_suffix\u0027, suffix);",
                                                                                     "pm.collectionVariables.set(\u0027run_client_email\u0027, \u0027postman-run-client-\u0027 + suffix + \u0027@example.com\u0027);",
                                                                                     "pm.collectionVariables.set(\u0027run_product_name\u0027, \u0027Postman run product \u0027 + suffix);",
-                                                                                    "pm.collectionVariables.set(\u0027run_recipe_name\u0027, \u0027Postman run recipe \u0027 + suffix);"
+                                                                                    "pm.collectionVariables.set(\u0027run_recipe_name\u0027, \u0027Postman run recipe \u0027 + suffix);",
+                                                                                    "pm.collectionVariables.set(\u0027account_email\u0027, \u0027postman-account-\u0027 + suffix + \u0027@example.com\u0027);",
+                                                                                    "pm.collectionVariables.set(\u0027account_name\u0027, \u0027Postman Account \u0027 + suffix);",
+                                                                                    "pm.collectionVariables.set(\u0027account_phone\u0027, \u0027+1234567890\u0027);",
+                                                                                    "pm.collectionVariables.set(\u0027reset_probe_email\u0027, \u0027postman-reset-probe-\u0027 + suffix + \u0027@example.com\u0027);"
                                                                                 ],
                                                                        "type":  "text/javascript"
                                                                    },
@@ -1103,6 +1107,41 @@
                      },
                      {
                          "key":  "run_client_token",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_token",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_email",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_name",
+                         "value":  "",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_phone",
+                         "value":  "+1234567890",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_current_password",
+                         "value":  "Password123!",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "account_new_password",
+                         "value":  "UpdatedPassword123!",
+                         "type":  "string"
+                     },
+                     {
+                         "key":  "reset_probe_email",
                          "value":  "",
                          "type":  "string"
                      },
