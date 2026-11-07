@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
 import { mealOrder } from '@/constants';
-import type { DiaryEntry, Product, ProgressEntry, RecipeSummary } from '@/types';
+import type { DiaryEntry, Product, ProgressEntry, RecipeDetail, RecipeSummary } from '@/types';
 import { dayIso, diaryTotals, fmt, localToday } from '@/utils/format';
 import CalendarModal from '@/components/modals/CalendarModal.vue';
 
@@ -25,10 +25,47 @@ const selectedDate = ref(localToday());
 const monthInput = ref(currentMonthKey);
 const recipes = ref<RecipeSummary[]>([]);
 const products = ref<Product[]>([]);
+const recipeDetails = ref(new Map<number, RecipeDetail>());
 const menuStartDate = ref(localToday());
 const menuOptions = ref({ drink: false, snack: false, dessert: false, useReady: false });
 const menuSaving = ref(false);
 const menuProgress = ref('');
+
+async function loadRecipeDetails(entries: DiaryEntry[]) {
+  if (props.readOnly) return;
+
+  const requested = new Set(recipeDetails.value.keys());
+  let pending = [...new Set(entries
+    .filter((item) => item.item_type === 'recipe' && item.recipe_id != null)
+    .map((item) => item.recipe_id as number))]
+    .filter((id) => !requested.has(id));
+
+  while (pending.length) {
+    pending.forEach((id) => requested.add(id));
+    const results = await Promise.all(pending.map(async (id) => {
+      try {
+        return await api.recipe(id);
+      } catch {
+        return null;
+      }
+    }));
+    const nextDetails = new Map(recipeDetails.value);
+    const childIds = new Set<number>();
+
+    results.forEach((detail) => {
+      if (!detail) return;
+      nextDetails.set(detail.recipe.id, detail);
+      detail.ingredients.forEach((ingredient) => {
+        if (ingredient.component_type === 'recipe' && ingredient.recipe_id != null && !requested.has(ingredient.recipe_id)) {
+          childIds.add(ingredient.recipe_id);
+        }
+      });
+    });
+
+    recipeDetails.value = nextDetails;
+    pending = [...childIds];
+  }
+}
 
 async function load() {
   loading.value = true;
@@ -41,6 +78,8 @@ async function load() {
     progress.value = progressData;
     recipes.value = recipeData;
     products.value = productData;
+    recipeDetails.value = new Map();
+    await loadRecipeDetails(diaryData);
   } catch (err) {
     error.value = err instanceof Error ? err.message : String(err);
   } finally {
@@ -133,28 +172,64 @@ const productsById = computed(() => new Map(products.value.map((product) => [pro
 const monthProductUsage = computed<ProductUsage[]>(() => {
   const usage = new Map<number, Omit<ProductUsage, 'percentage'>>();
 
-  monthItems.value.forEach((item) => {
-    if (item.item_type !== 'product' || item.product_id == null) return;
+  function addProductUsage(productId: number, amount: number, fallbackName?: string | null, fallbackUnit?: string | null) {
+    if (!Number.isFinite(amount) || amount <= 0) return;
 
-    const product = productsById.value.get(item.product_id);
-    const amount = diaryProductAmount(item);
-    if (!amount) return;
-
-    const current = usage.get(item.product_id);
+    const product = productsById.value.get(productId);
+    const current = usage.get(productId);
     if (current) {
       current.amount += amount;
       current.entries += 1;
       return;
     }
 
-    usage.set(item.product_id, {
-      id: item.product_id,
-      name: product?.name || item.name || `Продукт №${item.product_id}`,
+    usage.set(productId, {
+      id: productId,
+      name: product?.name || fallbackName || `Продукт №${productId}`,
       category: product?.category || 'Без категории',
       amount,
-      unit: item.unit || product?.unit || 'ед.',
+      unit: product?.unit || fallbackUnit || 'ед.',
       entries: 1,
     });
+  }
+
+  function collectRecipeProducts(recipeId: number, scale: number, visited = new Set<number>()) {
+    if (!Number.isFinite(scale) || scale <= 0 || visited.has(recipeId)) return;
+    const detail = recipeDetails.value.get(recipeId);
+    if (!detail) return;
+
+    const nextVisited = new Set(visited);
+    nextVisited.add(recipeId);
+    detail.ingredients.forEach((ingredient) => {
+      const quantity = Number(ingredient.quantity);
+      if (!Number.isFinite(quantity) || quantity <= 0) return;
+
+      if (ingredient.component_type === 'product' && ingredient.product_id != null) {
+        addProductUsage(ingredient.product_id, quantity * scale, ingredient.name, ingredient.unit);
+        return;
+      }
+
+      if (ingredient.component_type === 'recipe' && ingredient.recipe_id != null) {
+        const childYield = Number(ingredient.recipe_yield_g);
+        if (Number.isFinite(childYield) && childYield > 0) {
+          collectRecipeProducts(ingredient.recipe_id, scale * quantity / childYield, nextVisited);
+        }
+      }
+    });
+  }
+
+  monthItems.value.forEach((item) => {
+    if (item.item_type === 'product' && item.product_id != null) {
+      addProductUsage(item.product_id, diaryProductAmount(item), item.name, item.unit);
+      return;
+    }
+
+    if (item.item_type === 'recipe' && item.recipe_id != null) {
+      const detail = recipeDetails.value.get(item.recipe_id);
+      const recipeServings = Number(detail?.recipe.servings) || 1;
+      const consumedServings = Number(item.servings) || 1;
+      collectRecipeProducts(item.recipe_id, consumedServings / recipeServings);
+    }
   });
 
   const totalAmount = [...usage.values()].reduce((sum, item) => sum + item.amount, 0);
@@ -163,7 +238,7 @@ const monthProductUsage = computed<ProductUsage[]>(() => {
     .sort((left, right) => right.amount - left.amount || right.entries - left.entries);
 });
 
-const topProductUsage = computed(() => monthProductUsage.value[0] || null);
+const topProductUsages = computed(() => monthProductUsage.value.slice(0, 5));
 const monthCategoryUsage = computed(() => {
   const usage = new Map<string, { category: string; amount: number; entries: number }>();
   monthProductUsage.value.forEach((item) => {
@@ -178,7 +253,7 @@ const monthCategoryUsage = computed(() => {
     .map((item) => ({ ...item, percentage: totalAmount ? item.amount / totalAmount * 100 : 0 }))
     .sort((left, right) => right.amount - left.amount || right.entries - left.entries);
 });
-const topCategoryUsage = computed(() => monthCategoryUsage.value[0] || null);
+const topCategoryUsages = computed(() => monthCategoryUsage.value.slice(0, 5));
 
 function usageAmountLabel(amount: number, unit: string) {
   return `${fmt(amount)} ${unit}`;
@@ -961,35 +1036,35 @@ function editEntry(id: number) {
     </div>
 
     <div class="diary-usage-heading">
-      <div><h2>Самые используемые продукты</h2><p>Доля от общего объёма продуктовых записей за {{ monthLabel }}</p></div>
-      <span>С учётом порций</span>
+      <div><h2>Самые используемые продукты</h2><p>Топ‑5 по доле общего объёма за {{ monthLabel }}</p></div>
+      <span>С учётом продуктов из рецептов</span>
     </div>
     <div class="diary-usage-grid">
       <section class="diary-usage-card">
-        <div class="diary-usage-card-head"><div><p class="eyebrow">ПРОДУКТ</p><h3>Лидер месяца</h3></div><span class="diary-usage-mark">↗</span></div>
-        <table class="diary-usage-table" aria-label="Самый используемый продукт за выбранный месяц">
+        <div class="diary-usage-card-head"><div><p class="eyebrow">ПРОДУКТЫ</p><h3>Топ‑5 за месяц</h3></div><span class="diary-usage-mark">↗</span></div>
+        <table class="diary-usage-table" aria-label="Топ-5 самых используемых продуктов за выбранный месяц">
           <thead><tr><th>Продукт</th><th>Доля</th><th>Вес / объём</th></tr></thead>
           <tbody>
-            <tr v-if="topProductUsage">
-              <td><b>{{ topProductUsage.name }}</b><small>{{ topProductUsage.category }}</small></td>
-              <td><strong>{{ usagePercentageLabel(topProductUsage.percentage) }}</strong></td>
-              <td><strong>{{ usageAmountLabel(topProductUsage.amount, topProductUsage.unit) }}</strong><small>{{ topProductUsage.entries }} {{ topProductUsage.entries === 1 ? 'запись' : 'записей' }}</small></td>
+            <tr v-for="usage in topProductUsages" :key="`product-usage-${usage.id}`">
+              <td><b>{{ usage.name }}</b><small>{{ usage.category }}</small></td>
+              <td><strong>{{ usagePercentageLabel(usage.percentage) }}</strong></td>
+              <td><strong>{{ usageAmountLabel(usage.amount, usage.unit) }}</strong><small>{{ usage.entries }} {{ usage.entries === 1 ? 'запись' : 'записей' }}</small></td>
             </tr>
-            <tr v-else><td colspan="3" class="diary-usage-empty">Добавьте продукты в дневник за выбранный месяц</td></tr>
+            <tr v-if="!topProductUsages.length"><td colspan="3" class="diary-usage-empty">Добавьте продукты в дневник за выбранный месяц</td></tr>
           </tbody>
         </table>
       </section>
 
       <section class="diary-usage-card">
-        <div class="diary-usage-card-head"><div><p class="eyebrow">КАТЕГОРИЯ</p><h3>Лидер месяца</h3></div><span class="diary-usage-mark category">◎</span></div>
-        <table class="diary-usage-table" aria-label="Самая используемая категория продуктов за выбранный месяц">
+        <div class="diary-usage-card-head"><div><p class="eyebrow">КАТЕГОРИИ</p><h3>Топ‑5 за месяц</h3></div><span class="diary-usage-mark category">◎</span></div>
+        <table class="diary-usage-table" aria-label="Топ-5 самых используемых категорий продуктов за выбранный месяц">
           <thead><tr><th>Категория товаров</th><th>Доля</th></tr></thead>
           <tbody>
-            <tr v-if="topCategoryUsage">
-              <td><b>{{ topCategoryUsage.category }}</b><small>{{ topCategoryUsage.entries }} {{ topCategoryUsage.entries === 1 ? 'запись' : 'записей' }}</small></td>
-              <td><strong>{{ usagePercentageLabel(topCategoryUsage.percentage) }}</strong></td>
+            <tr v-for="usage in topCategoryUsages" :key="`category-usage-${usage.category}`">
+              <td><b>{{ usage.category }}</b><small>{{ usage.entries }} {{ usage.entries === 1 ? 'запись' : 'записей' }}</small></td>
+              <td><strong>{{ usagePercentageLabel(usage.percentage) }}</strong></td>
             </tr>
-            <tr v-else><td colspan="2" class="diary-usage-empty">Добавьте продукты в дневник за выбранный месяц</td></tr>
+            <tr v-if="!topCategoryUsages.length"><td colspan="2" class="diary-usage-empty">Добавьте продукты в дневник за выбранный месяц</td></tr>
           </tbody>
         </table>
       </section>
@@ -1312,6 +1387,10 @@ function editEntry(id: number) {
 .diary-usage-table td {
   padding: 16px 10px 2px 0;
   vertical-align: top;
+}
+
+.diary-usage-table tbody tr + tr td {
+  border-top: 1px solid #eef1f6;
 }
 
 .diary-usage-table td:last-child,
