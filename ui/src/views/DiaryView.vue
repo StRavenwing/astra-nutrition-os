@@ -113,6 +113,81 @@ const filledDays = computed(() => new Set(monthItems.value.map((item) => item.en
 const monthDays = computed(() => new Date(monthDate.value.year, monthDate.value.monthIndex + 1, 0).getDate());
 const monthOffset = computed(() => (new Date(monthDate.value.year, monthDate.value.monthIndex, 1).getDay() + 6) % 7);
 
+type ProductUsage = {
+  id: number;
+  name: string;
+  category: string;
+  amount: number;
+  unit: string;
+  entries: number;
+  percentage: number;
+};
+
+function diaryProductAmount(item: DiaryEntry) {
+  const quantity = Number(item.quantity ?? item.measurement_quantity);
+  const servings = Number(item.servings) || 1;
+  return Number.isFinite(quantity) && quantity > 0 ? quantity * servings : 0;
+}
+
+const productsById = computed(() => new Map(products.value.map((product) => [product.id, product])));
+const monthProductUsage = computed<ProductUsage[]>(() => {
+  const usage = new Map<number, Omit<ProductUsage, 'percentage'>>();
+
+  monthItems.value.forEach((item) => {
+    if (item.item_type !== 'product' || item.product_id == null) return;
+
+    const product = productsById.value.get(item.product_id);
+    const amount = diaryProductAmount(item);
+    if (!amount) return;
+
+    const current = usage.get(item.product_id);
+    if (current) {
+      current.amount += amount;
+      current.entries += 1;
+      return;
+    }
+
+    usage.set(item.product_id, {
+      id: item.product_id,
+      name: product?.name || item.name || `Продукт №${item.product_id}`,
+      category: product?.category || 'Без категории',
+      amount,
+      unit: item.unit || product?.unit || 'ед.',
+      entries: 1,
+    });
+  });
+
+  const totalAmount = [...usage.values()].reduce((sum, item) => sum + item.amount, 0);
+  return [...usage.values()]
+    .map((item) => ({ ...item, percentage: totalAmount ? item.amount / totalAmount * 100 : 0 }))
+    .sort((left, right) => right.amount - left.amount || right.entries - left.entries);
+});
+
+const topProductUsage = computed(() => monthProductUsage.value[0] || null);
+const monthCategoryUsage = computed(() => {
+  const usage = new Map<string, { category: string; amount: number; entries: number }>();
+  monthProductUsage.value.forEach((item) => {
+    usage.set(item.category, {
+      category: item.category,
+      amount: (usage.get(item.category)?.amount || 0) + item.amount,
+      entries: (usage.get(item.category)?.entries || 0) + item.entries,
+    });
+  });
+  const totalAmount = [...usage.values()].reduce((sum, item) => sum + item.amount, 0);
+  return [...usage.values()]
+    .map((item) => ({ ...item, percentage: totalAmount ? item.amount / totalAmount * 100 : 0 }))
+    .sort((left, right) => right.amount - left.amount || right.entries - left.entries);
+});
+const topCategoryUsage = computed(() => monthCategoryUsage.value[0] || null);
+
+function usageAmountLabel(amount: number, unit: string) {
+  return `${fmt(amount)} ${unit}`;
+}
+
+function usagePercentageLabel(value: number) {
+  return `${fmt(value)}%`;
+}
+
 const selectedDayItems = computed(() => data.value.filter((item) => item.entry_date === selectedDate.value));
 const selectedDayTotals = computed(() => diaryTotals(selectedDayItems.value));
 const selectedDayLabel = computed(() => new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${selectedDate.value}T12:00:00`)));
@@ -885,6 +960,41 @@ function editEntry(id: number) {
       </article>
     </div>
 
+    <div class="diary-usage-heading">
+      <div><h2>Самые используемые продукты</h2><p>Доля от общего объёма продуктовых записей за {{ monthLabel }}</p></div>
+      <span>С учётом порций</span>
+    </div>
+    <div class="diary-usage-grid">
+      <section class="diary-usage-card">
+        <div class="diary-usage-card-head"><div><p class="eyebrow">ПРОДУКТ</p><h3>Лидер месяца</h3></div><span class="diary-usage-mark">↗</span></div>
+        <table class="diary-usage-table" aria-label="Самый используемый продукт за выбранный месяц">
+          <thead><tr><th>Продукт</th><th>Доля</th><th>Вес / объём</th></tr></thead>
+          <tbody>
+            <tr v-if="topProductUsage">
+              <td><b>{{ topProductUsage.name }}</b><small>{{ topProductUsage.category }}</small></td>
+              <td><strong>{{ usagePercentageLabel(topProductUsage.percentage) }}</strong></td>
+              <td><strong>{{ usageAmountLabel(topProductUsage.amount, topProductUsage.unit) }}</strong><small>{{ topProductUsage.entries }} {{ topProductUsage.entries === 1 ? 'запись' : 'записей' }}</small></td>
+            </tr>
+            <tr v-else><td colspan="3" class="diary-usage-empty">Добавьте продукты в дневник за выбранный месяц</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="diary-usage-card">
+        <div class="diary-usage-card-head"><div><p class="eyebrow">КАТЕГОРИЯ</p><h3>Лидер месяца</h3></div><span class="diary-usage-mark category">◎</span></div>
+        <table class="diary-usage-table" aria-label="Самая используемая категория продуктов за выбранный месяц">
+          <thead><tr><th>Категория товаров</th><th>Доля</th></tr></thead>
+          <tbody>
+            <tr v-if="topCategoryUsage">
+              <td><b>{{ topCategoryUsage.category }}</b><small>{{ topCategoryUsage.entries }} {{ topCategoryUsage.entries === 1 ? 'запись' : 'записей' }}</small></td>
+              <td><strong>{{ usagePercentageLabel(topCategoryUsage.percentage) }}</strong></td>
+            </tr>
+            <tr v-else><td colspan="2" class="diary-usage-empty">Добавьте продукты в дневник за выбранный месяц</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
     <div class="diary-month-head diary-calendar-heading">
       <div>
         <h2>Календарь питания</h2>
@@ -1098,5 +1208,169 @@ function editEntry(id: number) {
   font-size: 10px;
   font-weight: 550;
   text-transform: none;
+}
+
+.diary-usage-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 30px 0 20px;
+}
+
+.diary-usage-heading h2 {
+  margin: 0 0 5px;
+  font-size: 19px;
+}
+
+.diary-usage-heading p,
+.diary-usage-heading > span {
+  margin: 0;
+  color: #7d879b;
+  font-size: 12px;
+}
+
+.diary-usage-heading > span {
+  font-size: 11px;
+}
+
+.diary-usage-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.diary-usage-card {
+  min-width: 0;
+  padding: 24px;
+  border: 1px solid #e5eaf2;
+  border-radius: 20px;
+  background: #fff;
+}
+
+.diary-usage-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.diary-usage-card-head .eyebrow {
+  margin: 0 0 6px;
+  color: #6f82ff;
+  font-size: 10px;
+}
+
+.diary-usage-card-head h3 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.diary-usage-mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #e2f7eb;
+  color: #329a63;
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.diary-usage-mark.category {
+  background: #f0f1ff;
+  color: #6f82ff;
+}
+
+.diary-usage-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.diary-usage-table th {
+  padding: 0 10px 10px 0;
+  border-bottom: 1px solid #e5eaf2;
+  color: #7d879b;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.diary-usage-table th:nth-child(2),
+.diary-usage-table th:nth-child(3),
+.diary-usage-table td:nth-child(2),
+.diary-usage-table td:nth-child(3) {
+  width: 27%;
+  text-align: right;
+}
+
+.diary-usage-table td {
+  padding: 16px 10px 2px 0;
+  vertical-align: top;
+}
+
+.diary-usage-table td:last-child,
+.diary-usage-table th:last-child {
+  padding-right: 0;
+}
+
+.diary-usage-table td b,
+.diary-usage-table td strong,
+.diary-usage-table td small {
+  display: block;
+}
+
+.diary-usage-table td b {
+  overflow: hidden;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diary-usage-table td strong {
+  color: #172033;
+  font-size: 16px;
+}
+
+.diary-usage-table td small {
+  margin-top: 5px;
+  color: #7d879b;
+  font-size: 10px;
+}
+
+.diary-usage-empty {
+  color: #7d879b;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left !important;
+}
+
+@media (max-width: 1000px) {
+  .diary-usage-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .diary-usage-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .diary-usage-card {
+    padding: 20px;
+  }
+
+  .diary-usage-table th:nth-child(2),
+  .diary-usage-table th:nth-child(3),
+  .diary-usage-table td:nth-child(2),
+  .diary-usage-table td:nth-child(3) {
+    width: 25%;
+  }
 }
 </style>
