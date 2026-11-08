@@ -284,6 +284,8 @@ CREATE TABLE progress (
   waist_cm REAL,
   chest_cm REAL,
   hips_cm REAL,
+  biceps_cm REAL,
+  thigh_cm REAL,
   sleep_score INTEGER CHECK(sleep_score BETWEEN 1 AND 5 OR sleep_score IS NULL),
   wellbeing_score INTEGER CHECK(wellbeing_score BETWEEN 1 AND 5 OR wellbeing_score IS NULL),
   comment TEXT

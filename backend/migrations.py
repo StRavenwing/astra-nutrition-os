@@ -151,7 +151,7 @@ def _ensure_workout_equipment_table(connection: sqlite3.Connection) -> None:
 
 def _ensure_progress_target_columns(connection: sqlite3.Connection) -> None:
     columns = _columns(connection, "progress_entries")
-    for column in ("desired_weight_kg", "kcal_target", "carbs_target_g"):
+    for column in ("desired_weight_kg", "kcal_target", "carbs_target_g", "biceps_cm", "thigh_cm"):
         if column not in columns:
             connection.execute(f"ALTER TABLE progress_entries ADD COLUMN {column} REAL")
 
@@ -324,6 +324,8 @@ def _upgrade_legacy_schema(connection: sqlite3.Connection) -> None:
         "protein_target_g": "REAL",
         "fat_target_g": "REAL",
         "carbs_target_g": "REAL",
+        "biceps_cm": "REAL",
+        "thigh_cm": "REAL",
     }
     for column, column_type in progress_additions.items():
         if column not in progress_columns:
@@ -503,6 +505,8 @@ def _migrate_legacy_rows(source: sqlite3.Connection, destination, settings: Sett
                 waist_cm=_row_value(row, "waist_cm"),
                 chest_cm=_row_value(row, "chest_cm"),
                 hips_cm=_row_value(row, "hips_cm"),
+                biceps_cm=_row_value(row, "biceps_cm"),
+                thigh_cm=_row_value(row, "thigh_cm"),
                 sleep_score=int_number(_row_value(row, "sleep_score")),
                 wellbeing_score=int_number(_row_value(row, "wellbeing_score")),
                 comment=_row_value(row, "comment"),

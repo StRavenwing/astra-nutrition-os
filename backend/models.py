@@ -394,6 +394,8 @@ class ProgressEntry(BaseModel):
     waist_cm = FloatField(null=True)
     chest_cm = FloatField(null=True)
     hips_cm = FloatField(null=True)
+    biceps_cm = FloatField(null=True)
+    thigh_cm = FloatField(null=True)
     sleep_score = IntegerField(null=True)
     wellbeing_score = IntegerField(null=True)
     comment = TextField(null=True)

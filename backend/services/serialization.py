@@ -338,6 +338,8 @@ def serialize_progress(entry: ProgressEntry) -> dict:
         "waist_cm": entry.waist_cm,
         "chest_cm": entry.chest_cm,
         "hips_cm": entry.hips_cm,
+        "biceps_cm": entry.biceps_cm,
+        "thigh_cm": entry.thigh_cm,
         "sleep_score": entry.sleep_score,
         "wellbeing_score": entry.wellbeing_score,
         "comment": entry.comment,

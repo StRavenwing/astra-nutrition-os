@@ -238,6 +238,8 @@ class ProgressInput(BaseModel):
     waist_cm: Any = None
     chest_cm: Any = None
     hips_cm: Any = None
+    biceps_cm: Any = None
+    thigh_cm: Any = None
     sleep_score: Any = None
     wellbeing_score: Any = None
     comment: str | None = None

@@ -195,6 +195,8 @@ export interface ProgressEntry {
   waist_cm: number | null;
   chest_cm: number | null;
   hips_cm: number | null;
+  biceps_cm: number | null;
+  thigh_cm: number | null;
   sleep_score: number | null;
   wellbeing_score: number | null;
   comment: string | null;

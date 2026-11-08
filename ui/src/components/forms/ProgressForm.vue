@@ -24,6 +24,8 @@ const form = reactive<Record<string, string>>({
   waist_cm: '',
   chest_cm: '',
   hips_cm: '',
+  biceps_cm: '',
+  thigh_cm: '',
   sleep_score: '',
   wellbeing_score: '',
   comment: ''
@@ -97,6 +99,8 @@ async function save() {
         <div class="field"><label>Талия, см</label><input v-model="form.waist_cm" type="number" step="0.1"></div>
         <div class="field"><label>Грудь, см</label><input v-model="form.chest_cm" type="number" step="0.1"></div>
         <div class="field"><label>Бёдра, см</label><input v-model="form.hips_cm" type="number" step="0.1"></div>
+        <div class="field"><label>Обхват бицепса, см</label><input v-model="form.biceps_cm" type="number" step="0.1"></div>
+        <div class="field"><label>Обхват бедра, см</label><input v-model="form.thigh_cm" type="number" step="0.1"></div>
         <div class="field"><label>Сон (1–5)</label><input v-model="form.sleep_score" type="number" min="1" max="5"></div>
         <div class="field"><label>Самочувствие (1–5)</label><input v-model="form.wellbeing_score" type="number" min="1" max="5"></div>
         <div class="field full"><label>Комментарий</label><input v-model="form.comment"></div>

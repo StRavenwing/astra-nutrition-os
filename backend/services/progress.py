@@ -50,6 +50,8 @@ def _assign_progress(entry: ProgressEntry, data: dict) -> ProgressEntry:
     entry.waist_cm = number(data.get("waist_cm"))
     entry.chest_cm = number(data.get("chest_cm"))
     entry.hips_cm = number(data.get("hips_cm"))
+    entry.biceps_cm = number(data.get("biceps_cm"))
+    entry.thigh_cm = number(data.get("thigh_cm"))
     entry.sleep_score = int_number(data.get("sleep_score"))
     entry.wellbeing_score = int_number(data.get("wellbeing_score"))
     entry.comment = data.get("comment")
