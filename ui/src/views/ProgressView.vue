@@ -71,6 +71,46 @@ const activeMeasurementRows = computed(() => data.value.filter((item) => {
   const value = item[activeMeasurementDefinition.value.key];
   return value != null && Number.isFinite(Number(value));
 }));
+const measurementChart = computed(() => {
+  const metric = activeMeasurementDefinition.value;
+  const rows = [...activeMeasurementRows.value].reverse();
+  if (!rows.length) return null;
+
+  const values = rows.map((item) => Number(item[metric.key]));
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  const padding = maximum === minimum ? Math.max(Math.abs(maximum) * 0.05, 1) : (maximum - minimum) * 0.12;
+  const chartMin = minimum - padding;
+  const chartMax = maximum + padding;
+  const chartSpan = Math.max(chartMax - chartMin, 1);
+  const points = rows.map((item, index) => {
+    const value = values[index];
+    const x = 32 + (index / Math.max(rows.length - 1, 1)) * 556;
+    const y = 184 - ((value - chartMin) / chartSpan) * 144;
+    return {
+      x,
+      y,
+      date: formatDate(item.measured_at),
+      value: measurementValue(item, metric),
+    };
+  });
+  const pointString = points.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(' ');
+  const delta = values.length > 1 ? values[values.length - 1] - values[0] : null;
+
+  return {
+    points,
+    pointString,
+    areaString: `32,184 ${pointString} 588,184`,
+    maxValue: formatMeasurementNumber(maximum, metric),
+    minValue: formatMeasurementNumber(minimum, metric),
+    firstDate: formatDate(rows[0].measured_at),
+    lastDate: formatDate(rows[rows.length - 1].measured_at),
+    firstValue: measurementValue(rows[0], metric),
+    lastValue: measurementValue(rows[rows.length - 1], metric),
+    delta,
+    deltaLabel: delta == null ? '—' : `${delta > 0 ? '+' : ''}${fmt(delta)}${metric.unit ? ` ${metric.unit}` : ''}`,
+  };
+});
 
 watch(availableMeasurements, (measurements) => {
   if (!measurements.some((metric) => metric.key === activeMeasurement.value)) {
@@ -81,6 +121,10 @@ watch(availableMeasurements, (measurements) => {
 function measurementValue(item: ProgressEntry, metric: ProgressMetric) {
   const value = item[metric.key];
   return `${fmtValue(value)}${metric.unit ? ` ${metric.unit}` : ''}`;
+}
+
+function formatMeasurementNumber(value: number, metric: ProgressMetric) {
+  return `${fmt(value)}${metric.unit ? ` ${metric.unit}` : ''}`;
 }
 
 function setOrder(value: string) {
@@ -150,16 +194,24 @@ async function remove(id: number) {
             @click="activeMeasurement = measurement.key"
           >{{ measurement.label }}</button>
         </div>
-        <div v-if="activeMeasurementRows.length" class="progress-measurement-table-wrap">
-          <table class="progress-measurement-table">
-            <thead><tr><th>Дата</th><th>{{ activeMeasurementDefinition.label }}</th></tr></thead>
-            <tbody>
-              <tr v-for="item in activeMeasurementRows" :key="`${activeMeasurement}-${item.id}`">
-                <td>{{ formatDate(item.measured_at) }}</td>
-                <td><strong>{{ measurementValue(item, activeMeasurementDefinition) }}</strong></td>
-              </tr>
-            </tbody>
-          </table>
+        <div v-if="measurementChart" class="progress-measurement-chart">
+          <div class="progress-measurement-summary">
+            <div><span>Первый замер</span><strong>{{ measurementChart.firstValue }}</strong><small>{{ measurementChart.firstDate }}</small></div>
+            <div><span>Последний замер</span><strong>{{ measurementChart.lastValue }}</strong><small>{{ measurementChart.lastDate }}</small></div>
+            <div><span>Изменение</span><strong :class="{ positive: measurementChart.delta != null && measurementChart.delta <= 0, negative: measurementChart.delta != null && measurementChart.delta > 0 }">{{ measurementChart.deltaLabel }}</strong><small>за период</small></div>
+          </div>
+          <div class="progress-measurement-chart-wrap">
+            <div class="progress-measurement-chart-y"><span>{{ measurementChart.maxValue }}</span><span>{{ measurementChart.minValue }}</span></div>
+            <svg class="progress-measurement-svg" viewBox="0 0 620 220" role="img" :aria-label="`График: ${activeMeasurementDefinition.label}`">
+              <path d="M32 40H588M32 112H588M32 184H588" class="chart-grid-line" />
+              <polygon :points="measurementChart.areaString" class="chart-area" />
+              <polyline :points="measurementChart.pointString" class="chart-line" />
+              <g v-for="point in measurementChart.points" :key="`${point.date}-${point.x}`">
+                <circle :cx="point.x" :cy="point.y" r="5" class="chart-dot"><title>{{ point.date }} · {{ point.value }}</title></circle>
+              </g>
+            </svg>
+            <div class="progress-measurement-chart-x"><span>{{ measurementChart.firstDate }}</span><span>{{ measurementChart.lastDate }}</span></div>
+          </div>
         </div>
         <div v-else class="progress-chart-empty">Добавьте замеры, чтобы увидеть показатели прогресса.</div>
       </section>
@@ -303,45 +355,75 @@ async function remove(id: number) {
   color: #6f82ff;
 }
 
-.progress-measurement-table-wrap {
-  margin-top: 14px;
-  overflow-x: auto;
+.progress-measurement-chart {
+  margin-top: 20px;
 }
 
-.progress-measurement-table {
-  width: 100%;
-  min-width: 320px;
-  border-collapse: collapse;
+.progress-measurement-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.progress-measurement-table th,
-.progress-measurement-table td {
-  padding: 13px 12px;
-  border-bottom: 1px solid #eef1f6;
-  text-align: left;
+.progress-measurement-summary > div {
+  display: grid;
+  gap: 4px;
+  min-height: 68px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f6f8fc;
 }
 
-.progress-measurement-table th {
+.progress-measurement-summary span,
+.progress-measurement-summary small {
   color: #7d879b;
   font-size: 10px;
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
 }
 
-.progress-measurement-table td {
+.progress-measurement-summary strong {
   color: #172033;
-  font-size: 12px;
+  font-size: 17px;
 }
 
-.progress-measurement-table td:last-child,
-.progress-measurement-table th:last-child {
-  width: 42%;
+.progress-measurement-summary strong.positive {
+  color: #329a63;
+}
+
+.progress-measurement-summary strong.negative {
+  color: #d55555;
+}
+
+.progress-measurement-chart-wrap {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  grid-template-rows: 210px 20px;
+  gap: 5px 12px;
+  margin-top: 20px;
+}
+
+.progress-measurement-chart-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 7px 0 20px;
+  color: #7d879b;
+  font-size: 10px;
   text-align: right;
+  white-space: nowrap;
 }
 
-.progress-measurement-table td strong {
-  font-size: 14px;
+.progress-measurement-svg {
+  width: 100%;
+  height: 210px;
+  overflow: visible;
+}
+
+.progress-measurement-chart-x {
+  grid-column: 2;
+  display: flex;
+  justify-content: space-between;
+  color: #7d879b;
+  font-size: 10px;
 }
 
 @media (max-width: 650px) {
@@ -358,6 +440,14 @@ async function remove(id: number) {
 
   .progress-measurement-tab {
     flex: 0 0 auto;
+  }
+
+  .progress-measurement-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .progress-measurement-chart-wrap {
+    grid-template-columns: max-content minmax(0, 1fr);
   }
 }
 </style>
