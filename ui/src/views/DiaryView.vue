@@ -5,6 +5,7 @@ import { mealOrder } from '@/constants';
 import type { DiaryEntry, Product, ProgressEntry, RecipeDetail, RecipeSummary } from '@/types';
 import { dayIso, diaryTotals, fmt, localToday } from '@/utils/format';
 import CalendarModal from '@/components/modals/CalendarModal.vue';
+import DiaryNutritionSummary from '@/components/shared/DiaryNutritionSummary.vue';
 
 const props = defineProps<{
   refreshKey: number;
@@ -140,6 +141,39 @@ const monthKeys = computed(() => {
   return [...keys].sort().reverse();
 });
 
+function nutritionSummary(entries: DiaryEntry[]) {
+  const totals = diaryTotals(entries);
+  const days = new Set(entries.map((item) => item.entry_date)).size;
+  const divisor = days || 1;
+  return {
+    days,
+    totals,
+    averages: {
+      kcal: totals.kcal / divisor,
+      protein: totals.protein / divisor,
+      fat: totals.fat / divisor,
+      carbs: totals.carbs / divisor,
+    },
+  };
+}
+
+const allTimeNutrition = computed(() => nutritionSummary(data.value));
+const monthChoices = computed(() => {
+  const entriesByMonth = new Map<string, DiaryEntry[]>();
+  data.value.forEach((item) => {
+    const key = item.entry_date.slice(0, 7);
+    const entries = entriesByMonth.get(key) || [];
+    entries.push(item);
+    entriesByMonth.set(key, entries);
+  });
+  const formatter = new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' });
+  return monthKeys.value.map((key) => ({
+    key,
+    label: formatter.format(new Date(`${key}-01T12:00:00`)),
+    ...nutritionSummary(entriesByMonth.get(key) || []),
+  }));
+});
+
 const monthDate = computed(() => {
   const [year, monthNumber] = month.value.split('-').map(Number);
   return { year, monthIndex: monthNumber - 1 };
@@ -162,6 +196,15 @@ type ProductUsage = {
   percentage: number;
 };
 
+type RecipeUsage = {
+  id: number;
+  name: string;
+  category: string;
+  servings: number;
+  entries: number;
+  percentage: number;
+};
+
 function diaryProductAmount(item: DiaryEntry) {
   const quantity = Number(item.quantity ?? item.measurement_quantity);
   const servings = Number(item.servings) || 1;
@@ -169,6 +212,7 @@ function diaryProductAmount(item: DiaryEntry) {
 }
 
 const productsById = computed(() => new Map(products.value.map((product) => [product.id, product])));
+const recipesById = computed(() => new Map(recipes.value.map((recipe) => [recipe.id, recipe])));
 const monthProductUsage = computed<ProductUsage[]>(() => {
   const usage = new Map<number, Omit<ProductUsage, 'percentage'>>();
 
@@ -238,7 +282,36 @@ const monthProductUsage = computed<ProductUsage[]>(() => {
     .sort((left, right) => right.amount - left.amount || right.entries - left.entries);
 });
 
-const topProductUsages = computed(() => monthProductUsage.value.slice(0, 5));
+const monthRecipeUsage = computed<RecipeUsage[]>(() => {
+  const usage = new Map<number, Omit<RecipeUsage, 'percentage'>>();
+
+  monthItems.value.forEach((item) => {
+    if (item.item_type !== 'recipe' || item.recipe_id == null) return;
+
+    const recipe = recipesById.value.get(item.recipe_id) || recipeDetails.value.get(item.recipe_id)?.recipe;
+    const servings = Number(item.servings) || 1;
+    const current = usage.get(item.recipe_id);
+    if (current) {
+      current.servings += servings;
+      current.entries += 1;
+      return;
+    }
+
+    usage.set(item.recipe_id, {
+      id: item.recipe_id,
+      name: recipe?.name || item.name || `Блюдо №${item.recipe_id}`,
+      category: recipe?.category || 'Без категории',
+      servings,
+      entries: 1,
+    });
+  });
+
+  const totalServings = [...usage.values()].reduce((sum, item) => sum + item.servings, 0);
+  return [...usage.values()]
+    .map((item) => ({ ...item, percentage: totalServings ? item.servings / totalServings * 100 : 0 }))
+    .sort((left, right) => right.servings - left.servings || right.entries - left.entries);
+});
+const topRecipeUsages = computed(() => monthRecipeUsage.value.slice(0, 10));
 const monthCategoryUsage = computed(() => {
   const usage = new Map<string, { category: string; amount: number; entries: number }>();
   monthProductUsage.value.forEach((item) => {
@@ -253,10 +326,19 @@ const monthCategoryUsage = computed(() => {
     .map((item) => ({ ...item, percentage: totalAmount ? item.amount / totalAmount * 100 : 0 }))
     .sort((left, right) => right.amount - left.amount || right.entries - left.entries);
 });
-const topCategoryUsages = computed(() => monthCategoryUsage.value.slice(0, 5));
+const topProductUsages = computed(() => monthProductUsage.value.slice(0, 10));
+const topCategoryUsages = computed(() => monthCategoryUsage.value.slice(0, 10));
 
 function usageAmountLabel(amount: number, unit: string) {
   return `${fmt(amount)} ${unit}`;
+}
+
+function usageServingsLabel(value: number) {
+  const rounded = Math.round(value * 10) / 10;
+  const integer = Math.abs(rounded) % 10;
+  const teens = Math.abs(rounded) % 100;
+  const suffix = teens >= 11 && teens <= 14 ? 'порций' : integer === 1 ? 'порция' : integer >= 2 && integer <= 4 ? 'порции' : 'порций';
+  return `${fmt(rounded)} ${suffix}`;
 }
 
 function usagePercentageLabel(value: number) {
@@ -1036,13 +1118,13 @@ function editEntry(id: number) {
     </div>
 
     <div class="diary-usage-heading">
-      <div><h2>Самые используемые продукты</h2><p>Топ‑5 по доле общего объёма за {{ monthLabel }}</p></div>
+      <div><h2>Самые используемые продукты и блюда</h2><p>Топ‑10 по доле общего объёма за {{ monthLabel }}</p></div>
       <span>С учётом продуктов из рецептов</span>
     </div>
     <div class="diary-usage-grid">
       <section class="diary-usage-card">
-        <div class="diary-usage-card-head"><div><p class="eyebrow">ПРОДУКТЫ</p><h3>Топ‑5 за месяц</h3></div><span class="diary-usage-mark">↗</span></div>
-        <table class="diary-usage-table" aria-label="Топ-5 самых используемых продуктов за выбранный месяц">
+        <div class="diary-usage-card-head"><div><p class="eyebrow">ПРОДУКТЫ</p><h3>Топ‑10 за месяц</h3></div><span class="diary-usage-mark">↗</span></div>
+        <table class="diary-usage-table" aria-label="Топ-10 самых используемых продуктов за выбранный месяц">
           <thead><tr><th>Продукт</th><th>Доля</th><th>Вес / объём</th></tr></thead>
           <tbody>
             <tr v-for="usage in topProductUsages" :key="`product-usage-${usage.id}`">
@@ -1056,8 +1138,23 @@ function editEntry(id: number) {
       </section>
 
       <section class="diary-usage-card">
-        <div class="diary-usage-card-head"><div><p class="eyebrow">КАТЕГОРИИ</p><h3>Топ‑5 за месяц</h3></div><span class="diary-usage-mark category">◎</span></div>
-        <table class="diary-usage-table" aria-label="Топ-5 самых используемых категорий продуктов за выбранный месяц">
+        <div class="diary-usage-card-head"><div><p class="eyebrow">БЛЮДА</p><h3>Топ‑10 за месяц</h3></div><span class="diary-usage-mark dish">◒</span></div>
+        <table class="diary-usage-table" aria-label="Топ-10 самых используемых блюд за выбранный месяц">
+          <thead><tr><th>Блюдо</th><th>Доля</th><th>Порции</th></tr></thead>
+          <tbody>
+            <tr v-for="usage in topRecipeUsages" :key="`recipe-usage-${usage.id}`">
+              <td><b>{{ usage.name }}</b><small>{{ usage.category }}</small></td>
+              <td><strong>{{ usagePercentageLabel(usage.percentage) }}</strong></td>
+              <td><strong>{{ usageServingsLabel(usage.servings) }}</strong><small>{{ usage.entries }} {{ usage.entries === 1 ? 'запись' : 'записей' }}</small></td>
+            </tr>
+            <tr v-if="!topRecipeUsages.length"><td colspan="3" class="diary-usage-empty">Добавьте блюда в дневник за выбранный месяц</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="diary-usage-card">
+        <div class="diary-usage-card-head"><div><p class="eyebrow">КАТЕГОРИИ</p><h3>Топ‑10 за месяц</h3></div><span class="diary-usage-mark category">◎</span></div>
+        <table class="diary-usage-table" aria-label="Топ-10 самых используемых категорий продуктов за выбранный месяц">
           <thead><tr><th>Категория товаров</th><th>Доля</th></tr></thead>
           <tbody>
             <tr v-for="usage in topCategoryUsages" :key="`category-usage-${usage.category}`">
@@ -1152,17 +1249,24 @@ function editEntry(id: number) {
     </div>
   </CalendarModal>
 
-  <CalendarModal :open="calendarMode === 'month'" title="Выберите месяц" @close="calendarMode = null">
-    <div class="month-picker-row">
-      <input v-model="monthInput" type="month" aria-label="Месяц">
-      <button type="button" class="primary" @click="selectMonth(monthInput)">Показать</button>
+  <CalendarModal class="diary-month-dialog" :open="calendarMode === 'month'" title="Выберите месяц" @close="calendarMode = null">
+    <div class="diary-month-overview">
+      <div class="diary-month-controls">
+        <label for="diary-month-input">Месяц и год</label>
+        <input id="diary-month-input" v-model="monthInput" type="month" @keydown.enter.prevent="selectMonth(monthInput)">
+        <button type="button" class="primary" :disabled="!monthInput" @click="selectMonth(monthInput)">Показать</button>
+      </div>
+      <section class="diary-month-all-time" aria-label="КБЖУ за всё время">
+        <div class="diary-month-section-head"><h3>За всё время</h3><span>Дней с записями: {{ allTimeNutrition.days }}</span></div>
+        <DiaryNutritionSummary :totals="allTimeNutrition.totals" :averages="allTimeNutrition.averages" />
+      </section>
     </div>
-    <p class="subtle month-choice-label">Месяцы с сохранёнными записями</p>
-    <div class="month-choice-grid">
-      <button v-for="key in monthKeys" :key="key" type="button" class="month-choice" :class="{ active: key === month }" @click="selectMonth(key)">
-        <span>{{ new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(new Date(`${key}-01T12:00:00`)) }}</span>
-        <b>{{ new Set(data.filter((item) => item.entry_date.startsWith(key)).map((item) => item.entry_date)).size }}</b>
-        <small>{{ fmt(diaryTotals(data.filter((item) => item.entry_date.startsWith(key))).kcal) }} ккал</small>
+    <p class="diary-month-average-note">Средние КБЖУ — на день с записями. Пустые дни не учитываются.</p>
+    <h3 class="diary-month-list-title">Месяцы дневника</h3>
+    <div class="diary-month-list">
+      <button v-for="choice in monthChoices" :key="choice.key" type="button" class="diary-month-choice" :class="{ active: choice.key === month }" :aria-pressed="choice.key === month" @click="selectMonth(choice.key)">
+        <span class="diary-month-choice-head"><strong>{{ choice.label }}</strong><span>{{ choice.days ? `Дней с записями: ${choice.days}` : 'Нет записей' }}</span></span>
+        <DiaryNutritionSummary :totals="choice.totals" :averages="choice.averages" />
       </button>
     </div>
   </CalendarModal>
@@ -1207,6 +1311,178 @@ function editEntry(id: number) {
 </template>
 
 <style lang="scss">
+body dialog.popup-food-day.recipe-dialog.diary-month-dialog {
+  width: min(720px, calc(100vw - 24px));
+  height: min(820px, calc(100dvh - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+body dialog.popup-food-day.recipe-dialog.diary-month-dialog > .dialog-panel {
+  padding: 0 24px 24px;
+  min-width: 0;
+}
+
+body dialog.popup-food-day.recipe-dialog.diary-month-dialog .modal-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 24px 0 18px;
+  background: #fff;
+}
+
+body dialog.popup-food-day.recipe-dialog.diary-month-dialog .modal-head h2 {
+  font-size: 24px;
+}
+
+.diary-month-overview {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: start;
+  gap: 18px;
+}
+
+.diary-month-controls {
+  display: grid;
+  gap: 8px;
+  width: 172px;
+  max-width: 100%;
+}
+
+.diary-month-controls label {
+  color: #7d879b;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+body dialog.diary-month-dialog .diary-month-controls input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 13px;
+}
+
+body dialog.diary-month-dialog .diary-month-controls .primary {
+  width: 100%;
+  min-height: 36px;
+  height: 36px;
+  padding: 0 12px;
+}
+
+.diary-month-all-time {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #e5eaf2;
+  border-radius: 12px;
+  background: #f6f8fc;
+}
+
+.diary-month-section-head,
+.diary-month-choice-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  margin-bottom: 12px;
+}
+
+.diary-month-section-head h3,
+.diary-month-list-title {
+  margin: 0;
+  font-size: 13px;
+  color: #172033;
+}
+
+.diary-month-section-head > span,
+.diary-month-choice-head > span {
+  font-size: 11px;
+  font-weight: 500;
+  color: #7d879b;
+}
+
+.diary-month-average-note {
+  margin: 12px 0 22px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #7d879b;
+}
+
+.diary-month-list {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+body dialog.diary-month-dialog .diary-month-choice {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: auto;
+  padding: 16px;
+  border: 1px solid #e5eaf2;
+  border-radius: 14px;
+  background: #fff;
+  color: #172033;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+
+body dialog.diary-month-dialog .diary-month-choice:hover,
+body dialog.diary-month-dialog .diary-month-choice.active {
+  border-color: #9f8fef;
+  background: #f5f2ff;
+}
+
+body dialog.diary-month-dialog .diary-month-choice:focus-visible {
+  outline: 2px solid #6f82ff;
+  outline-offset: 2px;
+}
+
+.diary-month-choice-head > strong {
+  font-size: 15px;
+  font-weight: 750;
+  text-transform: capitalize;
+}
+
+@media (max-width: 600px) {
+  body dialog.popup-food-day.recipe-dialog.diary-month-dialog > .dialog-panel {
+    padding: 0 16px 20px;
+  }
+
+  .diary-month-overview {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .diary-month-controls {
+    width: auto;
+    grid-template-columns: minmax(0, 172px) auto;
+    justify-content: start;
+  }
+
+  .diary-month-controls label {
+    grid-column: 1 / -1;
+  }
+
+  body dialog.diary-month-dialog .diary-month-controls .primary {
+    height: 40px;
+  }
+
+  body dialog.diary-month-dialog .diary-month-choice {
+    padding: 12px;
+  }
+}
+
 .diary-menu-picker {
   padding: 20px;
 }
@@ -1311,7 +1587,7 @@ function editEntry(id: number) {
 
 .diary-usage-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 20px;
 }
 
@@ -1357,6 +1633,11 @@ function editEntry(id: number) {
 .diary-usage-mark.category {
   background: #f0f1ff;
   color: #6f82ff;
+}
+
+.diary-usage-mark.dish {
+  background: #fff2df;
+  color: #d88a31;
 }
 
 .diary-usage-table {
@@ -1430,6 +1711,12 @@ function editEntry(id: number) {
 }
 
 @media (max-width: 1000px) {
+  .diary-usage-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
   .diary-usage-grid {
     grid-template-columns: 1fr;
   }
