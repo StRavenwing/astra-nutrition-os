@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from backend.models import (
+    DiaryDayNutrition,
     DiaryEntry,
     Exercise,
     ExerciseVariant,
@@ -316,6 +317,17 @@ def serialize_diary_entry(entry: DiaryEntry) -> dict:
         "fat_per_serving_g": summary.get("fat_per_serving_g"),
         "carbs_per_serving_g": summary.get("carbs_per_serving_g"),
         "cost_per_serving_rsd": summary.get("cost_per_serving_rsd"),
+    }
+
+
+def serialize_diary_day_nutrition(entry: DiaryDayNutrition) -> dict:
+    return {
+        "id": entry.id,
+        "entry_date": entry.entry_date,
+        "kcal": entry.kcal,
+        "protein_g": entry.protein_g,
+        "fat_g": entry.fat_g,
+        "carbs_g": entry.carbs_g,
     }
 
 

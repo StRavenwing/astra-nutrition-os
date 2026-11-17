@@ -184,6 +184,14 @@ class DiaryUpdateInput(DiaryItemInput):
     entry_date: str
 
 
+class DiaryDayNutritionInput(BaseModel):
+    entry_date: str
+    kcal: Any
+    protein_g: Any
+    fat_g: Any
+    carbs_g: Any
+
+
 class ClientCreateInput(BaseModel):
     email: str
 

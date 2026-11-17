@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import math
 
-from backend.models import DiaryEntry, Recipe, User, current_database
+from backend.models import DiaryDayNutrition, DiaryEntry, Recipe, User, current_database
 from backend.services.calculations import normalise_measure, number
 from backend.services.codes import next_code
 from backend.services.errors import NotFoundError
-from backend.services.serialization import serialize_diary_entry
+from backend.services.serialization import serialize_diary_day_nutrition, serialize_diary_entry
 
 DIARY_RECIPE_CATEGORY = "Diary"
 
@@ -21,6 +21,45 @@ def list_diary(user: User | None) -> list[dict]:
         .order_by(DiaryEntry.entry_date.desc(), DiaryEntry.id.desc())
     )
     return [serialize_diary_entry(entry) for entry in query]
+
+
+def list_day_nutrition(user: User | None) -> list[dict]:
+    if user is None:
+        return []
+    query = (
+        DiaryDayNutrition
+        .select()
+        .where(DiaryDayNutrition.user == user)
+        .order_by(DiaryDayNutrition.entry_date.desc(), DiaryDayNutrition.id.desc())
+    )
+    return [serialize_diary_day_nutrition(entry) for entry in query]
+
+
+def save_day_nutrition(data: dict, user: User) -> dict:
+    entry_date = str(data.get("entry_date") or "").strip()
+    if not entry_date:
+        raise ValueError("Дата обязательна")
+
+    values = {
+        "kcal": number(data.get("kcal")),
+        "protein_g": number(data.get("protein_g")),
+        "fat_g": number(data.get("fat_g")),
+        "carbs_g": number(data.get("carbs_g")),
+    }
+    if any(value is None or not math.isfinite(value) or value < 0 for value in values.values()):
+        raise ValueError("Калории и КБЖУ должны быть неотрицательными числами")
+
+    with current_database().atomic():
+        entry = DiaryDayNutrition.get_or_none(
+            (DiaryDayNutrition.user == user) & (DiaryDayNutrition.entry_date == entry_date)
+        )
+        if entry is None:
+            entry = DiaryDayNutrition.create(user=user, entry_date=entry_date, **values)
+        else:
+            for field, value in values.items():
+                setattr(entry, field, value)
+            entry.save()
+        return serialize_diary_day_nutrition(entry)
 
 
 def get_diary_entry(entry_id: int, user: User) -> DiaryEntry:

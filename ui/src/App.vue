@@ -18,6 +18,7 @@ import AccountView from '@/views/AccountView.vue';
 import ProductForm from '@/components/forms/ProductForm.vue';
 import RecipeForm from '@/components/forms/RecipeForm.vue';
 import DiaryEntryForm from '@/components/forms/DiaryEntryForm.vue';
+import DiaryDayNutritionForm from '@/components/forms/DiaryDayNutritionForm.vue';
 import ProgressForm from '@/components/forms/ProgressForm.vue';
 import WorkoutForm from '@/components/forms/WorkoutForm.vue';
 import ExerciseForm from '@/components/forms/ExerciseForm.vue';
@@ -90,6 +91,7 @@ const addLabel = computed(() => currentPage.value === 'workouts' ? 'Собрат
 const canAddCategory = computed(() => ['recipes', 'products'].includes(currentPage.value) && !isGuest.value);
 const modalTitle = computed(() => {
   if (!modal.value) return '';
+  if (modal.value.kind === 'diary-nutrition') return 'Добавить КБЖУ за день';
   const editing = modal.value.id != null;
   const labels: Record<string, string> = {
     products: editing ? 'Редактировать продукт' : 'Добавить продукт',
@@ -147,6 +149,11 @@ function openAdd(context?: string, entryDate?: string) {
     ...(isDiary && entryDate ? { entryDate } : {}),
     ...(isCategoryPage && selectedCategory && selectedCategory !== 'all' ? { category: selectedCategory } : {})
   };
+}
+
+function openDayNutrition(entryDate: string) {
+  if (isGuest.value) return;
+  modal.value = { kind: 'diary-nutrition', entryDate };
 }
 
 function openDiaryMenu(kind: 'day' | 'week') {
@@ -455,7 +462,7 @@ onBeforeUnmount(() => {
     <DashboardView v-if="currentPage === 'dashboard'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-use-trainer-chat="!isGuest" @navigate="navigate" @open-recipe="openRecipe" />
     <ProductsView v-else-if="currentPage === 'products'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :has-trainer="hasTrainer" :read-only="isGuest" @edit="modal = { kind: 'products', id: $event }" @category-change="setCatalogCategory" @add="openAdd" @add-category="openCategory('product')" />
     <RecipesView v-else-if="currentPage === 'recipes'" :refresh-key="reloadKey" :is-admin="isAdmin" :can-manage="canManageTraining" :has-trainer="hasTrainer" :read-only="isGuest" @open-recipe="openRecipe" @edit="editRecipe" @category-change="setCatalogCategory" @add="openAdd" @add-category="openCategory('recipe')" />
-    <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" :read-only="isGuest" :menu-action="diaryMenuAction" @edit="modal = { kind: 'diary', id: $event }" @add="openAdd" />
+    <DiaryView v-else-if="currentPage === 'diary'" :refresh-key="reloadKey" :read-only="isGuest" :menu-action="diaryMenuAction" @edit="modal = { kind: 'diary', id: $event }" @add="openAdd" @add-day-nutrition="openDayNutrition" />
     <ProgressView v-else-if="currentPage === 'progress'" :refresh-key="reloadKey" :can-manage="canManageTraining" :has-trainer="hasTrainer" :read-only="isGuest" @edit="modal = { kind: 'progress', id: $event }" @add="openAdd" />
     <WorkoutsView
       v-else-if="currentPage === 'workouts'"
@@ -504,6 +511,7 @@ onBeforeUnmount(() => {
     <ProductForm v-if="modal?.kind === 'products'" :product-id="modal.id" :initial-category="modal.category" @saved="saved" @deleted="saved" @cancel="closeModal" />
     <RecipeForm v-else-if="modal?.kind === 'recipes'" :recipe-id="modal.id" :initial-category="modal.category" @saved="saved" @cancel="closeModal" />
     <DiaryEntryForm v-else-if="modal?.kind === 'diary'" :diary-id="modal.id as number | undefined" :initial-meal-type="modal.mealType" :initial-date="modal.entryDate" @saved="saved" @deleted="saved" @cancel="closeModal" />
+    <DiaryDayNutritionForm v-else-if="modal?.kind === 'diary-nutrition'" :initial-date="modal.entryDate" @saved="saved" @cancel="closeModal" />
     <ProgressForm v-else-if="modal?.kind === 'progress'" :progress-id="modal.id as number | undefined" @saved="saved" @cancel="closeModal" />
     <WorkoutForm v-else-if="modal?.kind === 'workouts'" :workout-log-id="modal.id as number | undefined" @saved="saved" @deleted="saved" @cancel="closeModal" />
     <ExerciseForm v-else-if="modal?.kind === 'exercises'" :exercise-id="modal.id" @saved="saved" @cancel="closeModal" />
@@ -3988,7 +3996,7 @@ body .diary-meals-card, body .diary-norm-card { min-height: 506px; padding: 32px
 body .diary-meals-card > .eyebrow { margin: 0 0 7px; }
 body .diary-meals-card > h2, body .diary-norm-card h2 { margin: 0 0 18px; font-size: 19px; }
 body .diary-meal-list { display: grid; gap: 14px; }
-body .diary-meal-card { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 16px; min-height: 76px; padding: 15px 16px; border: 1px solid #dde3ec; border-radius: 14px; background: #fff; }
+body .diary-meal-card { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto auto; align-items: center; gap: 16px; min-height: 76px; padding: 15px 16px; border: 1px solid #dde3ec; border-radius: 14px; background: #fff; }
 body .diary-meal-card:nth-child(even) { background: #f6f8fc; }
 body .diary-meal-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: #e2f7eb; color: #329a63; font-size: 13px; font-weight: 800; }
 body .diary-meal-card:nth-child(2) .diary-meal-icon { background: #f0f1ff; color: #6f82ff; }
@@ -4002,6 +4010,11 @@ body .diary-meal-card > strong { display: grid; gap: 4px; min-width: 92px; color
 body .diary-meal-card > strong small { font-weight: 500; }
 body .diary-meal-empty { background: #f6f8fc !important; }
 body .diary-add-meal { min-height: 36px; padding: 0 13px; border: 0; border-radius: 10px; background: #e2f7eb; color: #329a63; font-size: 11px; font-weight: 800; cursor: pointer; }
+body .diary-day-nutrition-summary { display: grid; gap: 5px; padding: 14px 16px; border-radius: 12px; background: #f0f1ff; color: #172033; }
+body .diary-day-nutrition-summary span { color: #6f82ff; font-size: 10px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; }
+body .diary-day-nutrition-summary b { font-size: 12px; }
+body .diary-day-nutrition-button { min-height: 42px; border: 1px dashed #6f82ff; border-radius: 11px; background: #fff; color: #5e70dc; font-size: 12px; font-weight: 800; cursor: pointer; }
+body .diary-day-nutrition-button:hover { background: #f0f1ff; }
 body .diary-norm-card > p { margin: -10px 0 20px; color: #7d879b; font-size: 11px; }
 body .diary-norm-item { display: grid; gap: 8px; margin-top: 14px; padding: 24px; border-radius: 14px; }
 body .diary-norm-item span { font-size: 10px; font-weight: 800; letter-spacing: 1px; }

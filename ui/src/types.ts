@@ -169,6 +169,15 @@ export interface DiaryEntry {
   [key: string]: unknown;
 }
 
+export interface DiaryDayNutrition {
+  id: number;
+  entry_date: string;
+  kcal: number;
+  protein_g: number;
+  fat_g: number;
+  carbs_g: number;
+}
+
 export interface DiaryTotals {
   kcal: number;
   protein: number;
@@ -412,7 +421,7 @@ export interface Article {
   updated_at: string | null;
 }
 
-export type ModalKind = 'products' | 'recipes' | 'diary' | 'progress' | 'workouts' | 'exercises' | 'equipment';
+export type ModalKind = 'products' | 'recipes' | 'diary' | 'diary-nutrition' | 'progress' | 'workouts' | 'exercises' | 'equipment';
 
 export interface ModalState {
   kind: ModalKind;

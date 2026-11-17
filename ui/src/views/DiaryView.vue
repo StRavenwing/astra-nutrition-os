@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { api } from '@/api/client';
 import { mealOrder } from '@/constants';
-import type { DiaryEntry, Product, ProgressEntry, RecipeDetail, RecipeSummary } from '@/types';
+import type { DiaryDayNutrition, DiaryEntry, DiaryTotals, Product, ProgressEntry, RecipeDetail, RecipeSummary } from '@/types';
 import { dayIso, diaryTotals, fmt, localToday } from '@/utils/format';
 import CalendarModal from '@/components/modals/CalendarModal.vue';
 import DiaryNutritionSummary from '@/components/shared/DiaryNutritionSummary.vue';
@@ -12,9 +12,14 @@ const props = defineProps<{
   readOnly?: boolean;
   menuAction?: { kind: 'day' | 'week'; token: number } | null;
 }>();
-const emit = defineEmits<{ edit: [id: number]; add: [mealType?: string, entryDate?: string] }>();
+const emit = defineEmits<{
+  edit: [id: number];
+  add: [mealType?: string, entryDate?: string];
+  'add-day-nutrition': [entryDate: string];
+}>();
 
 const data = ref<DiaryEntry[]>([]);
+const dayNutrition = ref<DiaryDayNutrition[]>([]);
 const progress = ref<ProgressEntry[]>([]);
 const loading = ref(false);
 const error = ref('');
@@ -74,8 +79,15 @@ async function load() {
   try {
     const recipeRequest = props.readOnly ? Promise.resolve([] as RecipeSummary[]) : api.recipes();
     const productRequest = props.readOnly ? Promise.resolve([] as Product[]) : api.products();
-    const [diaryData, progressData, recipeData, productData] = await Promise.all([api.diary(), api.progress(), recipeRequest, productRequest]);
+    const [diaryData, dayNutritionData, progressData, recipeData, productData] = await Promise.all([
+      api.diary(),
+      api.diaryDayNutrition(),
+      api.progress(),
+      recipeRequest,
+      productRequest,
+    ]);
     data.value = diaryData;
+    dayNutrition.value = dayNutritionData;
     progress.value = progressData;
     recipes.value = recipeData;
     products.value = productData;
@@ -96,7 +108,42 @@ watch(() => props.menuAction?.token, () => {
 
 const todayIso = computed(() => localToday());
 const todayItems = computed(() => data.value.filter((item) => item.entry_date === todayIso.value));
-const todayTotals = computed(() => diaryTotals(todayItems.value));
+const dayNutritionByDate = computed(() => new Map(dayNutrition.value.map((item) => [item.entry_date, item])));
+
+function emptyTotals(): DiaryTotals {
+  return { kcal: 0, protein: 0, fat: 0, carbs: 0, cost: 0 };
+}
+
+function addTotals(left: DiaryTotals, right: DiaryTotals): DiaryTotals {
+  return {
+    kcal: left.kcal + right.kcal,
+    protein: left.protein + right.protein,
+    fat: left.fat + right.fat,
+    carbs: left.carbs + right.carbs,
+    cost: left.cost + right.cost,
+  };
+}
+
+function totalsForDate(entryDate: string): DiaryTotals {
+  const items = data.value.filter((item) => item.entry_date === entryDate);
+  const itemTotals = diaryTotals(items);
+  const manual = dayNutritionByDate.value.get(entryDate);
+  if (!manual) return itemTotals;
+  return {
+    kcal: Number(manual.kcal) || 0,
+    protein: Number(manual.protein_g) || 0,
+    fat: Number(manual.fat_g) || 0,
+    carbs: Number(manual.carbs_g) || 0,
+    cost: itemTotals.cost,
+  };
+}
+
+function totalsForDates(dates: Set<string>): DiaryTotals {
+  return [...dates].reduce((totals, entryDate) => addTotals(totals, totalsForDate(entryDate)), emptyTotals());
+}
+
+const todayDayNutrition = computed(() => dayNutritionByDate.value.get(todayIso.value));
+const todayTotals = computed(() => totalsForDate(todayIso.value));
 const latestProgress = computed(() => progress.value[0]);
 function targetValue(value: number | null | undefined) {
   return value != null && Number.isFinite(Number(value)) ? Number(value) : null;
@@ -137,13 +184,22 @@ const targetSourceNote = computed(() => {
 const todayLabel = computed(() => new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date()));
 
 const monthKeys = computed(() => {
-  const keys = new Set([currentMonthKey, ...data.value.map((item) => item.entry_date.slice(0, 7)), month.value]);
+  const keys = new Set([
+    currentMonthKey,
+    ...data.value.map((item) => item.entry_date.slice(0, 7)),
+    ...dayNutrition.value.map((item) => item.entry_date.slice(0, 7)),
+    month.value,
+  ]);
   return [...keys].sort().reverse();
 });
 
-function nutritionSummary(entries: DiaryEntry[]) {
-  const totals = diaryTotals(entries);
-  const days = new Set(entries.map((item) => item.entry_date)).size;
+function nutritionSummary(entries: DiaryEntry[], monthKey?: string) {
+  const dates = new Set(entries.map((item) => item.entry_date));
+  dayNutrition.value
+    .filter((item) => !monthKey || item.entry_date.startsWith(monthKey))
+    .forEach((item) => dates.add(item.entry_date));
+  const totals = totalsForDates(dates);
+  const days = dates.size;
   const divisor = days || 1;
   return {
     days,
@@ -170,7 +226,7 @@ const monthChoices = computed(() => {
   return monthKeys.value.map((key) => ({
     key,
     label: formatter.format(new Date(`${key}-01T12:00:00`)),
-    ...nutritionSummary(entriesByMonth.get(key) || []),
+    ...nutritionSummary(entriesByMonth.get(key) || [], key),
   }));
 });
 
@@ -181,8 +237,12 @@ const monthDate = computed(() => {
 
 const monthLabel = computed(() => new Intl.DateTimeFormat('ru-RU', { month: 'long', year: 'numeric' }).format(new Date(monthDate.value.year, monthDate.value.monthIndex, 1)));
 const monthItems = computed(() => data.value.filter((item) => item.entry_date.startsWith(month.value)));
-const monthTotals = computed(() => diaryTotals(monthItems.value));
-const filledDays = computed(() => new Set(monthItems.value.map((item) => item.entry_date)).size);
+const monthDates = computed(() => new Set([
+  ...monthItems.value.map((item) => item.entry_date),
+  ...dayNutrition.value.filter((item) => item.entry_date.startsWith(month.value)).map((item) => item.entry_date),
+]));
+const monthTotals = computed(() => totalsForDates(monthDates.value));
+const filledDays = computed(() => monthDates.value.size);
 const monthDays = computed(() => new Date(monthDate.value.year, monthDate.value.monthIndex + 1, 0).getDate());
 const monthOffset = computed(() => (new Date(monthDate.value.year, monthDate.value.monthIndex, 1).getDay() + 6) % 7);
 
@@ -346,7 +406,7 @@ function usagePercentageLabel(value: number) {
 }
 
 const selectedDayItems = computed(() => data.value.filter((item) => item.entry_date === selectedDate.value));
-const selectedDayTotals = computed(() => diaryTotals(selectedDayItems.value));
+const selectedDayTotals = computed(() => totalsForDate(selectedDate.value));
 const selectedDayLabel = computed(() => new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${selectedDate.value}T12:00:00`)));
 const averageKcal = computed(() => filledDays.value ? monthTotals.value.kcal / filledDays.value : 0);
 const averageProtein = computed(() => filledDays.value ? monthTotals.value.protein / filledDays.value : 0);
@@ -374,9 +434,10 @@ function targetStatus(current: number, target: number | null, doneLabel: string)
 }
 
 function dayProgress(day: number) {
-  const items = itemsForDay(day);
-  if (!items.length) return 'empty';
-  const kcal = diaryTotals(items).kcal;
+  const iso = dayIso(monthDate.value.year, monthDate.value.monthIndex, day);
+  const hasEntries = itemsForDay(day).length || dayNutritionByDate.value.has(iso);
+  if (!hasEntries) return 'empty';
+  const kcal = totalsForDate(iso).kcal;
   return kcalTarget.value != null && kcal >= kcalTarget.value * 0.8 ? 'complete' : 'partial';
 }
 
@@ -1061,25 +1122,23 @@ function editEntry(id: number) {
         <p class="eyebrow">{{ todayLabel }}</p>
         <div class="diary-day-heading"><h2>Сегодня</h2><span>Стоимость дня: <b>{{ fmt(todayTotals.cost) }} RSD</b></span></div>
         <div class="diary-meal-list">
-          <template v-for="meal in mealOrder" :key="meal">
-            <article v-if="todayItems.filter((item) => item.meal_type === meal).length" class="diary-meal-card">
-              <span class="diary-meal-icon">{{ meal.slice(0, 1) }}</span>
-              <div>
-                <b>{{ meal }}</b>
-                <small>{{ todayItems.filter((item) => item.meal_type === meal).length }} блюда · {{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).kcal) }} ккал · {{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).cost) }} RSD</small>
-                <p>{{ todayItems.filter((item) => item.meal_type === meal).map((item) => item.name).join(' · ') }}</p>
-              </div>
-              <strong>{{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).kcal) }} ккал<small>белок {{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).protein) }} г</small></strong>
-            </article>
-          </template>
-          <template v-for="meal in mealOrder" :key="`empty-${meal}`">
-            <article v-if="!todayItems.filter((item) => item.meal_type === meal).length && (meal === 'Ужин' || meal === 'Перекус')" class="diary-meal-card diary-meal-empty">
-              <span class="diary-meal-icon">{{ meal.slice(0, 1) }}</span>
-              <div><b>{{ meal }}</b><small>Ещё не добавлен</small></div>
-              <button v-if="!props.readOnly" type="button" class="diary-add-meal" @click="emit('add', meal)">＋ Добавить</button>
-            </article>
-          </template>
-          <div v-if="!todayItems.length" class="today-empty"><b>Записей пока нет</b><small>Добавьте блюдо через кнопку «Запись»</small></div>
+          <article v-for="meal in mealOrder" :key="meal" class="diary-meal-card" :class="{ 'diary-meal-empty': !todayItems.filter((item) => item.meal_type === meal).length }">
+            <span class="diary-meal-icon">{{ meal.slice(0, 1) }}</span>
+            <div>
+              <b>{{ meal }}</b>
+              <small v-if="todayItems.filter((item) => item.meal_type === meal).length">{{ todayItems.filter((item) => item.meal_type === meal).length }} блюда · {{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).kcal) }} ккал · {{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).cost) }} RSD</small>
+              <small v-else>Ещё не добавлен</small>
+              <p v-if="todayItems.filter((item) => item.meal_type === meal).length">{{ todayItems.filter((item) => item.meal_type === meal).map((item) => item.name).join(' · ') }}</p>
+            </div>
+            <strong v-if="todayItems.filter((item) => item.meal_type === meal).length">{{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).kcal) }} ккал<small>белок {{ fmt(diaryTotals(todayItems.filter((item) => item.meal_type === meal)).protein) }} г</small></strong>
+            <button v-if="!props.readOnly" type="button" class="diary-add-meal" @click="emit('add', meal)">{{ todayItems.filter((item) => item.meal_type === meal).length ? '＋ Добавить еще' : '＋ Добавить' }}</button>
+          </article>
+          <div v-if="!todayItems.length && !todayDayNutrition" class="today-empty"><b>Записей пока нет</b><small>Добавьте блюдо или внесите КБЖУ за день</small></div>
+          <div v-if="todayDayNutrition" class="diary-day-nutrition-summary">
+            <span>КБЖУ за день</span>
+            <b>{{ fmt(todayDayNutrition.kcal) }} ккал · Б {{ fmt(todayDayNutrition.protein_g) }} г · Ж {{ fmt(todayDayNutrition.fat_g) }} г · У {{ fmt(todayDayNutrition.carbs_g) }} г</b>
+          </div>
+          <button v-if="!props.readOnly" type="button" class="diary-day-nutrition-button" @click="emit('add-day-nutrition', todayIso)">{{ todayDayNutrition ? 'Изменить КБЖУ за день' : '＋ Добавить КБЖУ за день' }}</button>
         </div>
       </section>
 
@@ -1190,13 +1249,13 @@ function editEntry(id: number) {
           :key="day"
           type="button"
           class="diary-day-card"
-          :class="[dayProgress(day), { filled: itemsForDay(day).length, today: dayIso(monthDate.year, monthDate.monthIndex, day) === todayIso }]"
+          :class="[dayProgress(day), { filled: itemsForDay(day).length || dayNutritionByDate.has(dayIso(monthDate.year, monthDate.monthIndex, day)), today: dayIso(monthDate.year, monthDate.monthIndex, day) === todayIso }]"
           @click="openDay(dayIso(monthDate.year, monthDate.monthIndex, day))"
         >
           <span class="diary-day-number">{{ day }}</span>
           <span class="diary-day-copy">
-            <b>{{ itemsForDay(day).length ? `${itemsForDay(day).length} ${itemsForDay(day).length === 1 ? 'запись' : 'записи'}` : 'Нет записей' }}</b>
-            <small>{{ itemsForDay(day).length ? `${new Set(itemsForDay(day).map((item) => item.meal_type)).size} приём. · ${fmt(diaryTotals(itemsForDay(day)).kcal)} ккал · ${fmt(diaryTotals(itemsForDay(day)).cost)} RSD` : 'Открыть день' }}</small>
+            <b>{{ itemsForDay(day).length ? `${itemsForDay(day).length} ${itemsForDay(day).length === 1 ? 'запись' : 'записи'}` : dayNutritionByDate.has(dayIso(monthDate.year, monthDate.monthIndex, day)) ? 'КБЖУ за день' : 'Нет записей' }}</b>
+            <small>{{ itemsForDay(day).length ? `${new Set(itemsForDay(day).map((item) => item.meal_type)).size} приём. · ${fmt(totalsForDate(dayIso(monthDate.year, monthDate.monthIndex, day)).kcal)} ккал · ${fmt(totalsForDate(dayIso(monthDate.year, monthDate.monthIndex, day)).cost)} RSD` : dayNutritionByDate.has(dayIso(monthDate.year, monthDate.monthIndex, day)) ? `КБЖУ · ${fmt(totalsForDate(dayIso(monthDate.year, monthDate.monthIndex, day)).kcal)} ккал` : 'Открыть день' }}</small>
           </span>
           <span class="diary-day-arrow">→</span>
         </button>
@@ -1305,6 +1364,7 @@ function editEntry(id: number) {
     </div>
     <div class="diary-popup-footer">
       <button type="button" class="secondary-button" @click="calendarMode = null">Отмена</button>
+      <button v-if="!props.readOnly" type="button" class="secondary-button" @click="emit('add-day-nutrition', selectedDate); calendarMode = null">{{ dayNutritionByDate.has(selectedDate) ? 'Изменить КБЖУ за день' : '＋ Добавить КБЖУ за день' }}</button>
       <button v-if="!props.readOnly" type="button" class="primary" @click="emit('add', undefined, selectedDate); calendarMode = null">＋ Добавить запись</button>
     </div>
   </CalendarModal>

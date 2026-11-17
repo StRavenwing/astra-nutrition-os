@@ -375,6 +375,20 @@ class DiaryEntry(BaseModel):
         table_name = "diary_entries"
 
 
+class DiaryDayNutrition(BaseModel):
+    id = AutoField()
+    user = ForeignKeyField(User, backref="diary_day_nutrition", on_delete="CASCADE")
+    entry_date = CharField(index=True)
+    kcal = FloatField(default=0)
+    protein_g = FloatField(default=0)
+    fat_g = FloatField(default=0)
+    carbs_g = FloatField(default=0)
+
+    class Meta:
+        table_name = "diary_day_nutrition"
+        indexes = ((('user', 'entry_date'), True),)
+
+
 class ProgressEntry(BaseModel):
     id = AutoField()
     user = ForeignKeyField(User, backref="progress_entries", on_delete="CASCADE")
@@ -601,6 +615,7 @@ MODELS = [
     RecipeIngredient,
     RecipeComponent,
     DiaryEntry,
+    DiaryDayNutrition,
     ProgressEntry,
     WorkoutLog,
     WorkoutPlan,
